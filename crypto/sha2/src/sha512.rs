@@ -1,4 +1,4 @@
-use crate::{SHA2Params};
+use crate::SHA2Params;
 use bouncycastle_core::errors::{CoreError, HashError};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Hash, SecurityStrength, SerializableState};
