@@ -85,13 +85,13 @@ pub trait KeyMaterialTrait: KeyMaterialInternalTrait {
     ///
     /// let key_bytes = [0u8; 16];
     /// let mut key = KeyMaterial256::new();
-    /// let res = key.set_bytes_as_type(&key_bytes, KeyType::BytesLowEntropy);
+    /// let res = key.set_bytes_as_type(&key_bytes, KeyType::Unknown);
     /// match res {
     ///   Err(KeyMaterialError::ActingOnZeroizedKey) => {
     ///     // Either figure out why your passed an all-zero key,
     ///     // or set the key type manually, if that's what you intended.
     ///     do_hazardous_operations(&mut key, |key| {
-    ///         key.set_key_type(KeyType::BytesLowEntropy)
+    ///         key.set_key_type(KeyType::Unknown)
     ///     }).unwrap(); // probably you should do something more elegant than .unwrap in your code ;)
     ///   },
     ///   Err(_) => { /* figure out what else went wrong */ },
@@ -103,7 +103,7 @@ pub trait KeyMaterialTrait: KeyMaterialInternalTrait {
     /// Since this zeroizes and resets the key material, this is considered a dangerous conversion.
     ///
     /// Will set the [SecurityStrength] automatically according to the following rules:
-    /// * If [KeyType] is [KeyType::Zeroized] or [KeyType::BytesLowEntropy] then it will be [SecurityStrength::None].
+    /// * If [KeyType] is [KeyType::Zeroized] or [KeyType::Unknown] then it will be [SecurityStrength::None].
     /// * Otherwise it will set it based on the length of the provided source bytes.
     fn set_bytes_as_type(
         &mut self,
@@ -160,7 +160,7 @@ pub trait KeyMaterialTrait: KeyMaterialInternalTrait {
     ///
     /// # 🚨 Hazardous Operation🚨
     /// Inside a [do_hazardous_operations] closure this will set the key to any [KeyType].
-    /// Outside such a closure, only "safe" conversions are permitted: a [KeyType::BytesFullEntropy]
+    /// Outside such a closure, only "safe" conversions are permitted: a [KeyType::CryptographicRandom]
     /// key may be converted to any type, and any type may be converted to itself (a no-op).
     /// A hazardous conversion attempted outside a [do_hazardous_operations] closure returns
     /// [KeyMaterialError::HazardousOperationNotPermitted], and converting a [KeyType::Zeroized] key
@@ -202,18 +202,6 @@ pub trait KeyMaterialTrait: KeyMaterialInternalTrait {
     /// hold a different key, potentially of a different length.
     fn zeroize(&mut self);
 
-    /// Adds the other KeyMaterial into this one, assuming there is space.
-    ///
-    /// Throws [KeyMaterialError::InvalidLength] if this object does not have enough space to add the other one.
-    ///
-    /// The resulting [KeyType] and security strength will be the lesser of the two keys.
-    /// In other words, concatenating two 128-bit full entropy keys generated at a 128-bit DRBG security level
-    /// will result in a 256-bit full entropy key still at the 128-bit DRBG security level.
-    /// Concatenating a full entropy key with a low entropy key will result in a low entropy key.
-    ///
-    /// Returns the new key_len.
-    fn concatenate(&mut self, other: &dyn KeyMaterialTrait) -> Result<usize, KeyMaterialError>;
-
     /// Perform a constant-time comparison between the two key material buffers,
     /// ignoring differences in capacity, [KeyType], [SecurityStrength], etc.
     fn equals(&self, other: &dyn KeyMaterialTrait) -> bool;
@@ -238,11 +226,18 @@ pub enum KeyType {
     /// The KeyMaterial is zeroized and MUST NOT be used for any cryptographic operation in this state.
     Zeroized,
 
-    /// The KeyMaterial contains data of low or unknown entropy.
-    BytesLowEntropy,
+    /// The KeyMaterial contains non-zero data of unknown key type.
+    /// A KeyMaterial of key type Unknown will always have a [SecurityStrength] of [SecurityStrength::None].
+    ///
+    /// This is the default KeyType for data loaded via [KeyMaterial::from_bytes].
+    /// Promotion from Unknown to any other key type is considered to be a hazardous operation
+    /// and must be done within a [do_hazardous_operations] closure.
+    /// If you want to import key material directly into a known key type, use [KeyMaterial::from_bytes_as_type],
+    /// which does not require a hazardous operations closure.
+    Unknown,
 
-    /// The KeyMaterial contains data of full entropy and can be safely converted to any other full-entropy key type.
-    BytesFullEntropy,
+    /// The KeyMaterial contains data of full entropy and can be safely converted to any other key type.
+    CryptographicRandom,
 
     /// A seed for asymmetric private keys, RNGs, and other seed-based cryptographic objects.
     Seed,
@@ -283,16 +278,16 @@ impl<const KEY_LEN: usize> KeyMaterial<KEY_LEN> {
         })?;
 
         key.key_len = KEY_LEN;
-        key.key_type = KeyType::BytesFullEntropy;
+        key.key_type = KeyType::CryptographicRandom;
         key.security_strength = rng.security_strength();
         Ok(key)
     }
 
     /// Constructor.
-    /// Loads the provided data into a new KeyMaterial of type [KeyType::BytesLowEntropy].
+    /// Loads the provided data into a new KeyMaterial of type [KeyType::Unknown].
     /// It will detect if you give it all-zero source data and set the key type to [KeyType::Zeroized] instead.
     pub fn from_bytes(source: &[u8]) -> Result<Self, KeyMaterialError> {
-        Self::from_bytes_as_type(source, KeyType::BytesLowEntropy)
+        Self::from_bytes_as_type(source, KeyType::Unknown)
     }
 
     /// Constructor.
@@ -302,7 +297,7 @@ impl<const KEY_LEN: usize> KeyMaterial<KEY_LEN> {
     /// It will detect if you give it all-zero source data and set the key type to [KeyType::Zeroized] instead.
     ///
     /// Will set the [SecurityStrength] automatically according to the following rules:
-    /// * If [KeyType] is [KeyType::Zeroized] or [KeyType::BytesLowEntropy] then it will be [SecurityStrength::None].
+    /// * If [KeyType] is [KeyType::Zeroized] or [KeyType::Unknown] then it will be [SecurityStrength::None].
     /// * Otherwise it will set it based on the length of the provided source bytes.
     pub fn from_bytes_as_type(source: &[u8], key_type: KeyType) -> Result<Self, KeyMaterialError> {
         let mut key_material = Self::default();
@@ -359,7 +354,7 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
         self.key_type = new_key_type;
 
         do_hazardous_operations(self, |s| {
-            if new_key_type <= KeyType::BytesLowEntropy {
+            if new_key_type <= KeyType::Unknown {
                 s.set_security_strength(SecurityStrength::None)?;
             } else {
                 s.set_security_strength(SecurityStrength::from_bits(source.len() * 8))?;
@@ -435,12 +430,12 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
             KeyType::Zeroized => {
                 return Err(KeyMaterialError::ActingOnZeroizedKey);
             }
-            KeyType::BytesFullEntropy => {
+            KeyType::CryptographicRandom => {
                 // raw full entropy can be safely converted to anything.
                 self.key_type = key_type;
             }
-            KeyType::BytesLowEntropy => match key_type {
-                KeyType::BytesLowEntropy => { /* No change */ }
+            KeyType::Unknown => match key_type {
+                KeyType::Unknown => { /* No change */ }
                 _ => {
                     return Err(KeyMaterialError::HazardousOperationNotPermitted);
                 }
@@ -482,7 +477,7 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
             return Err(KeyMaterialError::HazardousOperationNotPermitted);
         };
 
-        if self.key_type <= KeyType::BytesLowEntropy && strength > SecurityStrength::None {
+        if self.key_type <= KeyType::Unknown && strength > SecurityStrength::None {
             return Err(KeyMaterialError::SecurityStrength(
                 "BytesLowEntropy keys cannot have a security strength other than None.",
             ));
@@ -525,11 +520,11 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
     }
     fn is_full_entropy(&self) -> bool {
         match self.key_type {
-            KeyType::BytesFullEntropy
+            KeyType::CryptographicRandom
             | KeyType::Seed
             | KeyType::MACKey
             | KeyType::SymmetricCipherKey => true,
-            KeyType::Zeroized | KeyType::BytesLowEntropy => false,
+            KeyType::Zeroized | KeyType::Unknown => false,
         }
     }
 
@@ -537,18 +532,6 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
         self.buf.fill(0u8);
         self.key_len = 0;
         self.key_type = KeyType::Zeroized;
-    }
-
-    fn concatenate(&mut self, other: &dyn KeyMaterialTrait) -> Result<usize, KeyMaterialError> {
-        let new_key_len = self.key_len() + other.key_len();
-        if self.key_len() + other.key_len() > KEY_LEN {
-            return Err(KeyMaterialError::InputDataLongerThanKeyCapacity);
-        }
-        self.buf[self.key_len..new_key_len].copy_from_slice(other.ref_to_bytes());
-        self.key_len += other.key_len();
-        self.key_type = min(&self.key_type, &other.key_type()).clone();
-        self.security_strength = min(&self.security_strength, &other.security_strength()).clone();
-        Ok(self.key_len())
     }
 
     fn equals(&self, other: &dyn KeyMaterialTrait) -> bool {
@@ -561,7 +544,7 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
 
 /// Checks for equality of the key data (using a constant-time comparison), but does not check that
 /// the two keys have the same type.
-/// Therefore, for example, two keys loaded from the same bytes, one with type [KeyType::BytesLowEntropy] and
+/// Therefore, for example, two keys loaded from the same bytes, one with type [KeyType::Unknown] and
 /// the other with [KeyType::MACKey] will be considered equal.
 impl<const KEY_LEN: usize> PartialEq for KeyMaterial<KEY_LEN> {
     fn eq(&self, other: &Self) -> bool {
@@ -582,18 +565,18 @@ impl PartialOrd for KeyType {
                 KeyType::Zeroized => Some(Ordering::Equal),
                 _ => Some(Ordering::Less),
             },
-            KeyType::BytesLowEntropy => match other {
+            KeyType::Unknown => match other {
                 KeyType::Zeroized => Some(Ordering::Greater),
-                KeyType::BytesLowEntropy => Some(Ordering::Equal),
+                KeyType::Unknown => Some(Ordering::Equal),
                 _ => Some(Ordering::Less),
             },
-            KeyType::BytesFullEntropy => match other {
-                KeyType::Zeroized | KeyType::BytesLowEntropy => Some(Ordering::Greater),
-                KeyType::BytesFullEntropy => Some(Ordering::Equal),
+            KeyType::CryptographicRandom => match other {
+                KeyType::Zeroized | KeyType::Unknown => Some(Ordering::Greater),
+                KeyType::CryptographicRandom => Some(Ordering::Equal),
                 _ => Some(Ordering::Less),
             },
             KeyType::Seed | KeyType::MACKey | KeyType::SymmetricCipherKey => match other {
-                KeyType::Zeroized | KeyType::BytesLowEntropy | KeyType::BytesFullEntropy => {
+                KeyType::Zeroized | KeyType::Unknown | KeyType::CryptographicRandom => {
                     Some(Ordering::Greater)
                 }
                 KeyType::Seed | KeyType::MACKey | KeyType::SymmetricCipherKey => {
@@ -736,7 +719,7 @@ impl<const KEY_LEN: usize> KeyMaterialInternalTrait for KeyMaterial<KEY_LEN> {
 /// // In this example, we initialize a KeyMateriol512 (64 bytes) with only 32 bytes of input.
 /// let mut key = KeyMaterial512::from_bytes_as_type(
 ///                                 &[1u8; 32],
-///                                 KeyType::BytesFullEntropy
+///                                 KeyType::CryptographicRandom
 ///                         ).unwrap();
 /// assert_eq!(key.key_len(), 32);
 ///
