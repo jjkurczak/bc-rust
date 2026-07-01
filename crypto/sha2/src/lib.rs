@@ -41,7 +41,7 @@ mod sha256;
 mod sha512;
 
 pub use self::sha256::SHA256Internal;
-pub use self::sha512::Sha512Internal;
+pub use self::sha512::SHA512Internal;
 use bouncycastle_core::traits::{Algorithm, HashAlgParams, SecurityStrength};
 
 /*** String constants ***/
@@ -53,8 +53,8 @@ pub const SHA512_NAME: &str = "SHA512";
 /*** pub types ***/
 pub type SHA224 = SHA256Internal<SHA224Params>;
 pub type SHA256 = SHA256Internal<SHA256Params>;
-pub type SHA384 = Sha512Internal<SHA384Params>;
-pub type SHA512 = Sha512Internal<SHA512Params>;
+pub type SHA384 = SHA512Internal<SHA384Params>;
+pub type SHA512 = SHA512Internal<SHA512Params>;
 
 /*** Param traits ***/
 

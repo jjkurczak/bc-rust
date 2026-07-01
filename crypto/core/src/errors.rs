@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum CoreError {
     IncompatibleVersion,
+    InvalidData,
 }
 
 #[derive(Debug)]

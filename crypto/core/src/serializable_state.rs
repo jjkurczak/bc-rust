@@ -45,17 +45,12 @@ fn test_cmp_lib_ver() {
     assert_eq!(cmp_lib_ver(&[1, 1, 1], &[1, 1, 1]), 0);
 }
 
-/// A helper for serializing an object's state
+/// Puts the library version into the first three bytes of the state array.
 ///
-/// The state array must have length SERIALIZED_LEN - 3 to account for adding the 3-byte symver tag.
-pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &[u8]) -> [u8; SERIALIZED_LEN] {
-    assert_eq!(state.len(), SERIALIZED_LEN - 3);
-
-    let mut out = [0u8; SERIALIZED_LEN];
-    out[..3].copy_from_slice(&LIB_VERSION);
-    out[3..].copy_from_slice(state);
-
-    out
+/// Hands back a slice to the same array, starting after the version tag.
+pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]) -> &mut [u8] {
+    state[..3].copy_from_slice(&LIB_VERSION);
+    &mut state[3..]
 }
 
 /// A helper for deserializing an object's state
@@ -67,14 +62,13 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &[u8]) -> [u8; SERIALIZED
 ///
 /// Note that for testability, this will always reject if the serialized state contains a version tag
 /// of `[0,0,0]`.
-pub fn remove_lib_ver<const SERIALIZED_LEN: usize>(
-    state_in: &[u8; SERIALIZED_LEN],
-    state_out: &mut [u8],
+///
+/// Hands back a slice to the same array, starting after the version tag.
+pub fn check_lib_ver<const SERIALIZED_LEN: usize>(
+    state: &[u8; SERIALIZED_LEN],
     not_before: Option<[u8; 3]>,
-) -> Result<usize, CoreError> {
-    assert!(state_out.len() >= SERIALIZED_LEN - 3);
-
-    let ver: [u8; 3] = state_in[..3].try_into().unwrap();
+) -> Result<&[u8], CoreError> {
+    let ver: [u8; 3] = state[..3].try_into().unwrap();
 
     let not_before = not_before.unwrap_or([0, 0, 0]);
 
@@ -85,6 +79,5 @@ pub fn remove_lib_ver<const SERIALIZED_LEN: usize>(
         return Err(CoreError::IncompatibleVersion);
     };
 
-    state_out.copy_from_slice(&state_in[3..]);
-    Ok(SERIALIZED_LEN - 3)
+    Ok(&state[3..])
 }
