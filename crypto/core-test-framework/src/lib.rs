@@ -13,6 +13,7 @@ pub mod hash;
 pub mod kdf;
 pub mod kem;
 pub mod mac;
+pub mod serializable_state;
 pub mod signature;
 
 mod fixed_seed_rng;

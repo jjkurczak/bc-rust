@@ -1,4 +1,9 @@
 #[derive(Debug)]
+pub enum CoreError {
+    IncompatibleVersion,
+}
+
+#[derive(Debug)]
 pub enum HashError {
     GenericError(&'static str),
     InvalidLength(&'static str),

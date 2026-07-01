@@ -1,6 +1,6 @@
 //! Provides simplified abstracted APIs over classes of cryptigraphic primitives, such as Hash, KDF, etc.
 
-use crate::errors::{HashError, KDFError, KEMError, MACError, RNGError, SignatureError};
+use crate::errors::{CoreError, HashError, KDFError, KEMError, MACError, RNGError, SignatureError};
 use crate::key_material::KeyMaterialTrait;
 use core::fmt::{Debug, Display};
 use core::marker::Sized;
@@ -37,7 +37,6 @@ pub trait Hash: Default {
     /// Provide a chunk of data to be absorbed into the hashes.
     /// `data` can be of any length, including zero bytes.
     /// do_update() is intended to be used as part of a streaming interface, and so may by called multiple times.
-    // fn do_update(&mut self, data: &[u8]) -> Result<(), HashError>;
     fn do_update(&mut self, data: &[u8]);
 
     /// Finish absorbing input and produce the hashes output.
@@ -469,6 +468,31 @@ pub trait RNG {
 // So I'm turning off this lint.
 #[allow(drop_bounds)]
 pub trait Secret: Drop + Debug + Display {}
+
+/// Allows a stateful object to serialize its state so that it can be paused and resumed later,
+/// potentially from a different host.
+///
+/// This is intended for situations where an object is being used through its streaming API
+/// (do_update, do_final) and the operation wants to be paused to a cache, for example while waiting
+/// for network IO.
+///
+/// This is not intended as a mechanism to clone the state of an object since in most cases `.clone()`
+/// will be more straightforward.
+pub trait SerializableState<const SERIALIZED_STATE_LEN: usize>: Sized {
+    /// Serialize the state of the object.
+    ///
+    /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
+    fn serialize_state(&self) -> [u8; SERIALIZED_STATE_LEN];
+
+    /// Create a new object from a serialized state.
+    ///
+    /// Deserializers SHOULD check the version and reject serialized states from incompatible versions.
+    /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
+    /// deserializer should reject serialized states from that version or older.
+    fn from_serialized_state(
+        serialized_state: [u8; SERIALIZED_STATE_LEN],
+    ) -> Result<Self, CoreError>;
+}
 
 /// Pre-Hashed Signer is an extension to [Signer] that adds functionality specific to signature
 /// primatives that can operate on a pre-hashed message instead of the full message.
