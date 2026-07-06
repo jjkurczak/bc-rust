@@ -403,7 +403,10 @@ mod sha3_tests {
         let str = "Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one SHA3 variant.
-        fn round_trip<const N: usize, H: Hash + SerializableState<N> + Clone>(mut hash: H, input: &[u8]) {
+        fn round_trip<const N: usize, H: Hash + SerializableState<N> + Clone>(
+            mut hash: H,
+            input: &[u8],
+        ) {
             hash.do_update(input);
 
             // do the default trait-conformance tests

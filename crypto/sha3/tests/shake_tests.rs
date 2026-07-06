@@ -247,7 +247,10 @@ mod shake_tests {
         let str = "Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one SHAKE variant.
-        fn round_trip<const N: usize, X: XOF + SerializableState<N> + Clone>(mut shake: X, input: &[u8]) {
+        fn round_trip<const N: usize, X: XOF + SerializableState<N> + Clone>(
+            mut shake: X,
+            input: &[u8],
+        ) {
             shake.absorb(input);
 
             // do the default trait-conformance tests
