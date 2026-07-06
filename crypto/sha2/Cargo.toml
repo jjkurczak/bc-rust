@@ -6,7 +6,6 @@ edition.workspace = true
 [dependencies]
 bouncycastle-core.workspace = true
 bouncycastle-utils.workspace = true
-serde = { version = "1.0.228", features = ["derive"] }
 
 [dev-dependencies]
 criterion.workspace = true

@@ -486,7 +486,8 @@ pub trait SerializableState<const SERIALIZED_STATE_LEN: usize>: Sized {
 
     /// Create a new object from a serialized state.
     ///
-    /// Deserializers SHOULD check the version and reject serialized states from incompatible versions.
+    /// Deserializers SHOULD check the version and reject serialized states from incompatible versions
+    /// (including rejecting serializations from a future version of the library).
     /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
     /// deserializer should reject serialized states from that version or older.
     fn from_serialized_state(

@@ -2,54 +2,56 @@
 
 use crate::errors::CoreError;
 
-/// The current library version.
-// There is almost certainly a more elegant way to do this.
-pub const LIB_VERSION: [u8; 3] = [0, 1, 2];
+/// A semantic library version, ordered by `major`, then `minor`, then `patch`.
+///
+/// The field declaration order matters: the derived [`Ord`]/[`PartialOrd`] compare fields
+/// lexicographically in declaration order, which is exactly semantic-version precedence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SemVer {
+    pub major: u8,
+    pub minor: u8,
+    pub patch: u8,
+    // A semantic version can often also take a suffix, e.g. "alpha", "beta", "rc1", etc.
+    // We're not going to model that here because it's not useful for versioning serialized states.
+}
 
-/// Compare two library semantic versions in the standard C format:
-/// * if a < b => -1
-///* if a == b => 0
-///* if a > b => 1
-pub fn cmp_lib_ver(a: &[u8; 3], b: &[u8; 3]) -> i8 {
-    if a[0] < b[0] {
-        -1
-    } else if a[0] > b[0] {
-        1
-    }
-    // first component is equal
-    else if a[1] < b[1] {
-        -1
-    } else if a[1] > b[1] {
-        1
-    }
-    // first two components are equal
-    else if a[2] < b[2] {
-        -1
-    } else if a[2] > b[2] {
-        1
-    }
-    // all three components are equal
-    else {
-        0
+impl From<[u8; 3]> for SemVer {
+    fn from(v: [u8; 3]) -> Self {
+        SemVer { major: v[0], minor: v[1], patch: v[2] }
     }
 }
 
+impl From<SemVer> for [u8; 3] {
+    fn from(v: SemVer) -> Self {
+        [v.major, v.minor, v.patch]
+    }
+}
+
+/// The current library version.
+// There is almost certainly a more elegant way to do this.
+pub const LIB_VERSION: SemVer = SemVer { major: 0, minor: 1, patch: 2 };
+
 #[test]
 fn test_cmp_lib_ver() {
-    assert_eq!(cmp_lib_ver(&[0, 2, 1], &[1, 1, 1]), -1);
-    assert_eq!(cmp_lib_ver(&[2, 1, 1], &[1, 1, 1]), 1);
-    assert_eq!(cmp_lib_ver(&[1, 0, 2], &[1, 1, 1]), -1);
-    assert_eq!(cmp_lib_ver(&[1, 2, 0], &[1, 1, 1]), 1);
-    assert_eq!(cmp_lib_ver(&[1, 1, 0], &[1, 1, 1]), -1);
-    assert_eq!(cmp_lib_ver(&[1, 1, 2], &[1, 1, 1]), 1);
-    assert_eq!(cmp_lib_ver(&[1, 1, 1], &[1, 1, 1]), 0);
+    use core::cmp::Ordering;
+
+    assert!([0, 0, 0] < [0, 0, 1]);
+
+    let cmp = |a: [u8; 3], b: [u8; 3]| SemVer::from(a).cmp(&SemVer::from(b));
+    assert_eq!(cmp([0, 2, 1], [1, 1, 1]), Ordering::Less);
+    assert_eq!(cmp([2, 1, 1], [1, 1, 1]), Ordering::Greater);
+    assert_eq!(cmp([1, 0, 2], [1, 1, 1]), Ordering::Less);
+    assert_eq!(cmp([1, 2, 0], [1, 1, 1]), Ordering::Greater);
+    assert_eq!(cmp([1, 1, 0], [1, 1, 1]), Ordering::Less);
+    assert_eq!(cmp([1, 1, 2], [1, 1, 1]), Ordering::Greater);
+    assert_eq!(cmp([1, 1, 1], [1, 1, 1]), Ordering::Equal);
 }
 
 /// Puts the library version into the first three bytes of the state array.
 ///
 /// Hands back a slice to the same array, starting after the version tag.
 pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]) -> &mut [u8] {
-    state[..3].copy_from_slice(&LIB_VERSION);
+    state[..3].copy_from_slice(&<[u8; 3]>::from(LIB_VERSION));
     &mut state[3..]
 }
 
@@ -68,16 +70,23 @@ pub fn check_lib_ver<const SERIALIZED_LEN: usize>(
     state: &[u8; SERIALIZED_LEN],
     not_before: Option<[u8; 3]>,
 ) -> Result<&[u8], CoreError> {
-    let ver: [u8; 3] = state[..3].try_into().unwrap();
+    let ver_bytes: [u8; 3] = state[..3].try_into().unwrap();
+    let ver = SemVer::from(ver_bytes);
 
-    let not_before = not_before.unwrap_or([0, 0, 0]);
+    let not_before = SemVer::from(not_before.unwrap_or([0, 0, 0]));
 
-    if cmp_lib_ver(&ver, &not_before) < 0 {
+    if ver < not_before {
         return Err(CoreError::IncompatibleVersion);
     };
-    if ver == [0, 0, 0] {
+    // Nothing is ever compatible with [0,0,0]
+    if ver == SemVer::from([0, 0, 0]) {
         return Err(CoreError::IncompatibleVersion);
     };
+
+    // Also not compatible with future versions.
+    if ver > LIB_VERSION {
+        return Err(CoreError::IncompatibleVersion);
+    }
 
     Ok(&state[3..])
 }

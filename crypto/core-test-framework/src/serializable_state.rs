@@ -1,5 +1,5 @@
 use bouncycastle_core::errors::CoreError;
-use bouncycastle_core::serializable_state::LIB_VERSION;
+use bouncycastle_core::serializable_state::{LIB_VERSION, SemVer};
 use bouncycastle_core::traits::SerializableState;
 
 pub struct TestFrameworkSerializableState {}
@@ -26,14 +26,28 @@ impl TestFrameworkSerializableState {
         let _deserialized_state = S::from_serialized_state(serialized_state).unwrap();
 
         // The serialized state MUST include a prefix indicating the current version of the library.
-        assert_eq!(serialized_state[..3], LIB_VERSION);
+        let state_sized: [u8; 3] = serialized_state[..3].try_into().unwrap();
+        assert_eq!(SemVer::from(state_sized), LIB_VERSION);
 
         // All implementations MUST reject a serialized state from lib ver 0.0.0
         // This doesn't really serve any purpose except testing that all impl's have properly
         // used the helper functions.
-        let mut busted_serialized_state = serialized_state.clone();
-        busted_serialized_state[..3].copy_from_slice(&[0, 0, 0]);
-        match S::from_serialized_state(busted_serialized_state) {
+        let mut ver0_serialized_state = serialized_state.clone();
+        ver0_serialized_state[..3].copy_from_slice(&[0, 0, 0]);
+        match S::from_serialized_state(ver0_serialized_state) {
+            Err(CoreError::IncompatibleVersion) => { /* good */ }
+            _ => {
+                panic!("Expected IncompatibleVersion error")
+            }
+        }
+
+        // All implementations MUST reject a serialized state from a future version.
+        let mut future_ver = LIB_VERSION;
+        future_ver.patch += 1;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        match S::from_serialized_state(futurever_serialized_state) {
             Err(CoreError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
