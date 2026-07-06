@@ -386,13 +386,32 @@ pub trait MAC: Sized {
     fn max_security_strength(&self) -> SecurityStrength;
 }
 
-#[derive(Eq, PartialEq, PartialOrd, Clone, Debug)]
+// The explicit `#[repr(u8)]` discriminants are the stable on-the-wire encoding used by
+// `SerializableState` implementations (see the `TryFrom<u8>` impl below).
+#[derive(Eq, PartialEq, PartialOrd, Clone, Copy, Debug)]
+#[repr(u8)]
 pub enum SecurityStrength {
-    None,
-    _112bit,
-    _128bit,
-    _192bit,
-    _256bit,
+    None = 0,
+    _112bit = 1,
+    _128bit = 2,
+    _192bit = 3,
+    _256bit = 4,
+}
+
+impl TryFrom<u8> for SecurityStrength {
+    type Error = CoreError;
+
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [CoreError::InvalidData].
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::None,
+            1 => Self::_112bit,
+            2 => Self::_128bit,
+            3 => Self::_192bit,
+            4 => Self::_256bit,
+            _ => return Err(CoreError::InvalidData),
+        })
+    }
 }
 
 impl SecurityStrength {

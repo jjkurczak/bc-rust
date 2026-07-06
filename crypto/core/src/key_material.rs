@@ -50,7 +50,7 @@
 //!
 //! See [do_hazardous_operations] for documentation and sample code.
 
-use crate::errors::KeyMaterialError;
+use crate::errors::{CoreError, KeyMaterialError};
 use crate::traits::{RNG, Secret, SecurityStrength};
 use bouncycastle_utils::{ct, min};
 
@@ -221,10 +221,15 @@ pub struct KeyMaterial<const KEY_LEN: usize> {
 
 impl<const KEY_LEN: usize> Secret for KeyMaterial<KEY_LEN> {}
 
+// The explicit `#[repr(u8)]` discriminants are the stable on-the-wire encoding used by
+// `SerializableState` implementations (see the `TryFrom<u8>` impl below). Pin each value to its
+// variant name: reordering variants is fine, but never reuse or renumber an existing discriminant,
+// or previously-serialized states will be misread.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
 pub enum KeyType {
     /// The KeyMaterial is zeroized and MUST NOT be used for any cryptographic operation in this state.
-    Zeroized,
+    Zeroized = 0,
 
     /// The KeyMaterial contains non-zero data of unknown key type.
     /// A KeyMaterial of key type Unknown will always have a [SecurityStrength] of [SecurityStrength::None].
@@ -234,19 +239,36 @@ pub enum KeyType {
     /// and must be done within a [do_hazardous_operations] closure.
     /// If you want to import key material directly into a known key type, use [KeyMaterial::from_bytes_as_type],
     /// which does not require a hazardous operations closure.
-    Unknown,
+    Unknown = 1,
 
     /// The KeyMaterial contains data of full entropy and can be safely converted to any other key type.
-    CryptographicRandom,
+    CryptographicRandom = 2,
 
     /// A seed for asymmetric private keys, RNGs, and other seed-based cryptographic objects.
-    Seed,
+    Seed = 3,
 
     /// A MAC key.
-    MACKey,
+    MACKey = 4,
 
     /// A key for a symmetric block or stream cipher.
-    SymmetricCipherKey,
+    SymmetricCipherKey = 5,
+}
+
+impl TryFrom<u8> for KeyType {
+    type Error = CoreError;
+
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [CoreError::InvalidData].
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::Zeroized,
+            1 => Self::Unknown,
+            2 => Self::CryptographicRandom,
+            3 => Self::Seed,
+            4 => Self::MACKey,
+            5 => Self::SymmetricCipherKey,
+            _ => return Err(CoreError::InvalidData),
+        })
+    }
 }
 
 impl<const KEY_LEN: usize> Default for KeyMaterial<KEY_LEN> {

@@ -9,7 +9,7 @@ mod shake_tests {
     use bouncycastle_core::traits::{KDF, SecurityStrength, XOF};
     use bouncycastle_core_test_framework::DUMMY_SEED_512;
     use bouncycastle_core_test_framework::kdf::TestFrameworkKDF;
-    use bouncycastle_sha3::{SHAKE128, SHAKE256};
+    use bouncycastle_sha3::{SHA3_256, SHAKE128, SHAKE256};
 
     #[test]
     fn test_xof_partial_bit_output() {
@@ -236,6 +236,63 @@ mod shake_tests {
     #[test]
     fn run_kats() {
         run_test_vectors(read_test_vectors("tests/data/SHAKETestVectors.txt"));
+    }
+
+    #[test]
+    fn test_serializable_state() {
+        use bouncycastle_core::errors::CoreError;
+        use bouncycastle_core::traits::SerializableState;
+        use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableState;
+
+        let str = "Colorless green ideas sleep furiously";
+
+        // A helper that exercises the full round-trip for one SHAKE variant.
+        fn round_trip<const N: usize, X: XOF + SerializableState<N>>(mut shake: X, input: &[u8]) {
+            shake.absorb(input);
+
+            // do the default trait-conformance tests
+            TestFrameworkSerializableState::new().test(&shake);
+
+            // serialize the in-progress (absorbing) state, then squeeze from the original
+            let serialized_state = shake.serialize_state();
+            let expected = shake.squeeze(64);
+
+            // rebuild from the serialized state and confirm it produces the same output
+            let mut from_state = X::from_serialized_state(serialized_state).unwrap();
+            assert_eq!(expected, from_state.squeeze(64));
+
+            // a corrupt `squeezing` byte (last byte of the keccak state) must be rejected.
+            // Layout: 3 version bytes + variant tag(1) + [u64;25](200) + data_queue(192)
+            //         + bits_in_queue(8) + squeezing(1)
+            let mut busted = serialized_state;
+            busted[3 + 1 + 400] = 42;
+            match X::from_serialized_state(busted) {
+                Err(CoreError::InvalidData) => { /* good */ }
+                _ => panic!("Expected an error for a corrupt squeezing byte"),
+            }
+        }
+
+        round_trip(SHAKE128::new(), str.as_bytes());
+        round_trip(SHAKE256::new(), str.as_bytes());
+
+        // A state serialized by one variant must be rejected by a different variant (mismatched
+        // variant tag). The SHAKE256 -> SHA3-256 case is the important one: they share the same rate
+        // (1088), so only the variant tag distinguishes them.
+        let mut shake128 = SHAKE128::new();
+        shake128.absorb(str.as_bytes());
+        let serialized_128 = shake128.serialize_state();
+        match SHAKE256::from_serialized_state(serialized_128) {
+            Err(CoreError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHAKE128 state into SHAKE256"),
+        }
+
+        let mut shake256 = SHAKE256::new();
+        shake256.absorb(str.as_bytes());
+        let serialized_256 = shake256.serialize_state();
+        match SHA3_256::from_serialized_state(serialized_256) {
+            Err(CoreError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHAKE256 state into SHA3-256"),
+        }
     }
 
     fn run_test_vectors(test_vectors: Vec<TestCase>) {

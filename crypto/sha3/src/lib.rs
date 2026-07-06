@@ -144,6 +144,10 @@ pub type SHAKE256 = SHAKE<SHAKE256Params>;
 /// Private trait on purpose so that only the NIST-approved params can be used.
 trait SHA3Params: HashAlgParams {
     const SIZE: KeccakSize;
+    /// A tag, unique across all SHA3 *and* SHAKE variants, identifying which variant produced a
+    /// serialized state. Distinguishing same-rate variants (e.g. SHA3-256 vs SHAKE256) requires
+    /// this to be distinct from every value used by [SHAKEParams::STATE_TAG]. Never reuse a value.
+    const STATE_TAG: u8;
 }
 
 // TODO: more elegant to macro this?
@@ -168,6 +172,7 @@ impl HashAlgParams for SHA3_224Params {
 }
 impl SHA3Params for SHA3_224Params {
     const SIZE: KeccakSize = KeccakSize::_224;
+    const STATE_TAG: u8 = 1;
 }
 
 impl Algorithm for SHA3_256 {
@@ -191,6 +196,7 @@ impl HashAlgParams for SHA3_256Params {
 }
 impl SHA3Params for SHA3_256Params {
     const SIZE: KeccakSize = KeccakSize::_256;
+    const STATE_TAG: u8 = 2;
 }
 
 pub struct SHA3_384Params;
@@ -214,6 +220,7 @@ impl HashAlgParams for SHA3_384Params {
 }
 impl SHA3Params for SHA3_384Params {
     const SIZE: KeccakSize = KeccakSize::_384;
+    const STATE_TAG: u8 = 3;
 }
 
 pub struct SHA3_512Params;
@@ -237,10 +244,13 @@ impl HashAlgParams for SHA3_512Params {
 }
 impl SHA3Params for SHA3_512Params {
     const SIZE: KeccakSize = KeccakSize::_512;
+    const STATE_TAG: u8 = 4;
 }
 
 trait SHAKEParams: Algorithm {
     const SIZE: KeccakSize;
+    /// See [SHA3Params::STATE_TAG]. Must be distinct from every SHA3 *and* SHAKE variant's tag.
+    const STATE_TAG: u8;
 }
 pub struct SHAKE128Params;
 impl Algorithm for SHAKE128Params {
@@ -249,6 +259,7 @@ impl Algorithm for SHAKE128Params {
 }
 impl SHAKEParams for SHAKE128Params {
     const SIZE: KeccakSize = KeccakSize::_128;
+    const STATE_TAG: u8 = 5;
 }
 
 pub struct SHAKE256Params;
@@ -258,4 +269,5 @@ impl Algorithm for SHAKE256Params {
 }
 impl SHAKEParams for SHAKE256Params {
     const SIZE: KeccakSize = KeccakSize::_256;
+    const STATE_TAG: u8 = 6;
 }

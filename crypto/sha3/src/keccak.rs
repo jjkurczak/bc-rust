@@ -1,4 +1,7 @@
-use bouncycastle_core::errors::HashError;
+use bouncycastle_core::errors::{CoreError, HashError};
+use bouncycastle_core::key_material::KeyType;
+use bouncycastle_core::traits::SecurityStrength;
+use crate::{SHA3_224Params, SHA3_256Params, SHA3_384Params, SHA3_512Params, SHAKE128Params, SHAKE256Params, SHA3, SHAKE};
 
 const KECCAK_ROUND_CONSTANTS: [u64; 24] = [
     0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
@@ -210,11 +213,6 @@ impl KeccakDigest {
     pub(super) fn new(size: KeccakSize) -> Self {
         let rate = 1600 - ((size as usize) << 1);
 
-        // todo I think this check is not needed since the fixed set of allowed sizes can't yield an invalid rate, but I'll leave this here for now.
-        // if rate == 0 || rate >= 1600 || (rate & 63) != 0 {
-        //     return Err(HashError::InvalidLength("invalid rate value"));
-        // }
-
         Self {
             state: KeccakState::new(rate),
             data_queue: [0u8; 192],
@@ -341,6 +339,151 @@ impl KeccakDigest {
         self.bits_in_queue = 0;
         self.squeezing = true;
     }
+}
+
+/*** State serialization ***/
+//
+// The SHA3 and SHAKE public objects have identical state: a [KeccakDigest] plus three pieces of
+// KDF metadata. The helpers below serialize that shared state so the `SerializableState` impls in
+// `sha3.rs` and `shake.rs` are just thin wrappers that add/check the library version header.
+
+/// Number of bytes needed to serialize a [KeccakDigest]'s mutable state.
+///
+/// The `rate` is intentionally NOT serialized: it is fully determined by the SHA3/SHAKE variant and
+/// is re-supplied at deserialization time (see [KeccakDigest::from_serialized_state]).
+///
+/// Layout (all integers little-endian):
+///   [0   .. 200)  state.buf     [u64; 25]
+///   [200 .. 392)  data_queue    [u8; 192]
+///   [392 .. 400)  bits_in_queue usize serialized as u64
+///   [400 .. 401)  squeezing     bool  (0 or 1)
+const KECCAK_SERIALIZED_LEN: usize = 200 + 192 + 8 + 1;
+
+/// Number of bytes needed to serialize the shared SHA3-family state (a variant tag, a [KeccakDigest],
+/// plus the three KDF metadata fields), excluding the library version header.
+///
+/// The leading variant tag distinguishes every SHA3/SHAKE variant — crucially including same-rate
+/// pairs such as SHA3-256 and SHAKE256 — so a serialized state can never be deserialized into a
+/// different algorithm (which would silently apply the wrong domain separation).
+///
+/// Layout (all integers little-endian):
+///   [0 .. 1)                              variant tag           (see `STATE_TAG` on the param traits)
+///   [1 .. 1 + KECCAK_SERIALIZED_LEN)      keccak digest state
+///   [.. + 1)                              kdf_key_type          (1 byte enum tag)
+///   [.. + 1)                              kdf_security_strength (1 byte enum tag)
+///   [.. + 8)                              kdf_entropy           usize serialized as u64
+pub(super) const SHA3_FAMILY_STATE_LEN: usize = 1 + KECCAK_SERIALIZED_LEN + 10;
+
+/// Total number of bytes in a serialized SHA3-family state, including the 3-byte library version
+/// header prepended by [add_lib_ver]. This is the const generic used by the `SerializableState`
+/// impls for SHA3 and SHAKE.
+pub(super) const SHA3_FAMILY_SERIALIZED_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
+
+impl KeccakDigest {
+    /// Serializes this digest's mutable state into `out`. The `rate` is deliberately omitted; see
+    /// [KECCAK_SERIALIZED_LEN].
+    fn serialize_state(&self, out: &mut [u8; KECCAK_SERIALIZED_LEN]) {
+        // state.buf: [u64; 25]
+        for i in 0..25 {
+            out[i * 8..(i * 8) + 8].copy_from_slice(&self.state.buf[i].to_le_bytes());
+        }
+
+        // data_queue: [u8; 192]
+        out[200..392].copy_from_slice(&self.data_queue);
+
+        // bits_in_queue: usize
+        out[392..400].copy_from_slice(&(self.bits_in_queue as u64).to_le_bytes());
+
+        // squeezing: bool
+        out[400] = self.squeezing as u8;
+    }
+
+    /// Reconstructs a [KeccakDigest] from a state produced by [KeccakDigest::serialize_state].
+    ///
+    /// `rate` is supplied by the caller (derived from its algorithm parameters) rather than read
+    /// from the serialized bytes, since the rate is fully determined by the SHA3/SHAKE variant. The
+    /// caller is responsible for having already verified the variant tag so that this `rate` is the
+    /// correct one for the serialized state.
+    fn from_serialized_state(
+        input: &[u8; KECCAK_SERIALIZED_LEN],
+        rate: usize,
+    ) -> Result<Self, CoreError> {
+        // state.buf: [u64; 25]
+        let mut buf = [0u64; 25];
+        for i in 0..25 {
+            buf[i] = u64::from_le_bytes(input[i * 8..(i * 8) + 8].try_into().unwrap());
+        }
+
+        // data_queue: [u8; 192]
+        let data_queue: [u8; 192] = input[200..392].try_into().unwrap();
+
+        // bits_in_queue: usize. It can never legitimately exceed the rate (which is at most 168
+        // bytes, well within data_queue's 192-byte capacity).
+        let bits_in_queue = u64::from_le_bytes(input[392..400].try_into().unwrap()) as usize;
+        if bits_in_queue > rate {
+            return Err(CoreError::InvalidData);
+        }
+
+        // squeezing: bool
+        let squeezing = match input[400] {
+            0 => false,
+            1 => true,
+            _ => return Err(CoreError::InvalidData),
+        };
+
+        Ok(Self { state: KeccakState { buf, rate }, data_queue, rate, bits_in_queue, squeezing })
+    }
+}
+
+/// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [KeccakDigest], plus
+/// the three KDF metadata fields) into `out`. See [SHA3_FAMILY_STATE_LEN] for the layout.
+pub(super) fn serialize_sha3_family_state(
+    out: &mut [u8; SHA3_FAMILY_STATE_LEN],
+    variant_tag: u8,
+    keccak: &KeccakDigest,
+    kdf_key_type: KeyType,
+    kdf_security_strength: SecurityStrength,
+    kdf_entropy: usize,
+) {
+    out[0] = variant_tag;
+
+    let keccak_out: &mut [u8; KECCAK_SERIALIZED_LEN] =
+        (&mut out[1..1 + KECCAK_SERIALIZED_LEN]).try_into().unwrap();
+    keccak.serialize_state(keccak_out);
+
+    out[1 + KECCAK_SERIALIZED_LEN] = kdf_key_type as u8;
+    out[1 + KECCAK_SERIALIZED_LEN + 1] = kdf_security_strength as u8;
+    out[1 + KECCAK_SERIALIZED_LEN + 2..1 + KECCAK_SERIALIZED_LEN + 10]
+        .copy_from_slice(&(kdf_entropy as u64).to_le_bytes());
+}
+
+/// Reconstructs the shared SHA3-family state from a buffer produced by [serialize_sha3_family_state].
+///
+/// `expected_variant_tag` and `rate` are both derived from the caller's algorithm parameters. The
+/// tag is checked against the serialized one first: this is what prevents a state from one variant
+/// being loaded into another (e.g. SHA3-256 vs SHAKE256, which share a rate but differ in domain
+/// separation). Only once the tag matches is `rate` guaranteed to be the correct one to rebuild with.
+pub(super) fn deserialize_sha3_family_state(
+    input: &[u8; SHA3_FAMILY_STATE_LEN],
+    expected_variant_tag: u8,
+    rate: usize,
+) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), CoreError> {
+    if input[0] != expected_variant_tag {
+        return Err(CoreError::InvalidData);
+    }
+
+    let keccak_in: &[u8; KECCAK_SERIALIZED_LEN] =
+        input[1..1 + KECCAK_SERIALIZED_LEN].try_into().unwrap();
+    let keccak = KeccakDigest::from_serialized_state(keccak_in, rate)?;
+
+    // KeyType and SecurityStrength each own their canonical 1-byte encoding (`as u8` / `TryFrom<u8>`).
+    let kdf_key_type = KeyType::try_from(input[1 + KECCAK_SERIALIZED_LEN])?;
+    let kdf_security_strength = SecurityStrength::try_from(input[1 + KECCAK_SERIALIZED_LEN + 1])?;
+    let kdf_entropy = u64::from_le_bytes(
+        input[1 + KECCAK_SERIALIZED_LEN + 2..1 + KECCAK_SERIALIZED_LEN + 10].try_into().unwrap(),
+    ) as usize;
+
+    Ok((keccak, kdf_key_type, kdf_security_strength, kdf_entropy))
 }
 
 #[cfg(test)]

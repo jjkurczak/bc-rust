@@ -1,9 +1,13 @@
 use crate::SHA3Params;
-use crate::keccak::KeccakDigest;
-use bouncycastle_core::errors::{HashError, KDFError};
+use crate::keccak::{
+    KeccakDigest, SHA3_FAMILY_SERIALIZED_STATE_LEN, SHA3_FAMILY_STATE_LEN,
+    deserialize_sha3_family_state, serialize_sha3_family_state,
+};
+use bouncycastle_core::errors::{CoreError, HashError, KDFError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
-use bouncycastle_core::traits::{Hash, KDF, SecurityStrength};
+use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
+use bouncycastle_core::traits::{Hash, KDF, SecurityStrength, SerializableState};
 use bouncycastle_utils::{max, min};
 
 #[derive(Clone)]
@@ -214,6 +218,49 @@ impl<PARAMS: SHA3Params> Hash for SHA3<PARAMS> {
 
     fn max_security_strength(&self) -> SecurityStrength {
         SecurityStrength::from_bytes(PARAMS::OUTPUT_LEN / 2)
+    }
+}
+
+impl<PARAMS: SHA3Params> SerializableState<SHA3_FAMILY_SERIALIZED_STATE_LEN> for SHA3<PARAMS> {
+    fn serialize_state(&self) -> [u8; SHA3_FAMILY_SERIALIZED_STATE_LEN] {
+        let mut out_to_return = [0u8; SHA3_FAMILY_SERIALIZED_STATE_LEN];
+
+        // insert the version tag
+        let out: &mut [u8; SHA3_FAMILY_STATE_LEN] =
+            add_lib_ver(&mut out_to_return).try_into().unwrap();
+
+        serialize_sha3_family_state(
+            out,
+            PARAMS::STATE_TAG,
+            &self.keccak,
+            self.kdf_key_type,
+            self.kdf_security_strength,
+            self.kdf_entropy,
+        );
+
+        out_to_return
+    }
+
+    fn from_serialized_state(
+        serialized_state: [u8; SHA3_FAMILY_SERIALIZED_STATE_LEN],
+    ) -> Result<Self, CoreError> {
+        // check the version tag. At the moment, we have no not_before version to specify.
+        let input: &[u8; SHA3_FAMILY_STATE_LEN] =
+            check_lib_ver(&serialized_state, None)?.try_into().unwrap();
+
+        // The variant tag rejects states from any other SHA3/SHAKE variant; the rate is then the
+        // correct one to rebuild with (both are fully determined by the algorithm parameters).
+        let rate = 1600 - ((PARAMS::SIZE as usize) << 1);
+        let (keccak, kdf_key_type, kdf_security_strength, kdf_entropy) =
+            deserialize_sha3_family_state(input, PARAMS::STATE_TAG, rate)?;
+
+        Ok(SHA3 {
+            _params: std::marker::PhantomData,
+            keccak,
+            kdf_key_type,
+            kdf_security_strength,
+            kdf_entropy,
+        })
     }
 }
 
