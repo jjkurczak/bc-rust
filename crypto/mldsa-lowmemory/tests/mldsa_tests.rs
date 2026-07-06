@@ -2,14 +2,16 @@
 #[cfg(test)]
 mod mldsa_tests {
     use crate::{MLDSA44_KAT1, MLDSA65_KAT1, MLDSA87_KAT1};
-    use bouncycastle_core::errors::{RNGError, SignatureError};
+    use bouncycastle_core::errors::{RNGError, SerializedStateError, SignatureError};
     use bouncycastle_core::key_material;
     use bouncycastle_core::key_material::{KeyMaterial256, KeyMaterialTrait, KeyType};
     use bouncycastle_core::traits::{
-        RNG, SecurityStrength, SignaturePrivateKey, SignaturePublicKey, SignatureVerifier, Signer,
+        RNG, SecurityStrength, SerializableState, SignaturePrivateKey, SignaturePublicKey,
+        SignatureVerifier, Signer,
     };
     use bouncycastle_core_test_framework::DUMMY_SEED_1024;
     use bouncycastle_core_test_framework::FixedSeedRNG;
+    use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableState;
     use bouncycastle_core_test_framework::signature::*;
     use bouncycastle_hex as hex;
     use bouncycastle_mldsa_lowmemory::{
@@ -810,6 +812,90 @@ mod mldsa_tests {
         mb.do_update(b"jumped over the lazy dog");
         let mu6 = mb.do_final();
         assert_eq!(mu1, mu6);
+
+        // test SerializedState for MuBuilder
+
+        // serializing and resuming after init
+        let mb = MuBuilder::do_init(&pk.compute_tr(), None).unwrap();
+        let serialized_state = mb.serialize_state();
+
+        let mut mb_resumed = MuBuilder::from_serialized_state(serialized_state).unwrap();
+        mb_resumed.do_update(msg);
+        let mu_resumed = mb_resumed.do_final();
+        assert_eq!(mu_resumed, mu1);
+
+        // serializing and resuming partway through message consumption
+        let msg1 = b"The quick brown fox";
+        let msg2 = b" jumped over the lazy dog";
+
+        let mut mb = MuBuilder::do_init(&pk.compute_tr(), None).unwrap();
+        mb.do_update(msg1);
+
+        let serialized_state = mb.serialize_state();
+        let mut mb_resumed = MuBuilder::from_serialized_state(serialized_state).unwrap();
+        mb_resumed.do_update(msg2);
+        let mu_resumed2 = mb_resumed.do_final();
+        assert_eq!(mu_resumed2, mu1);
+    }
+
+    #[test]
+    fn mubuilder_serializable_state() {
+        // `tr` is the 64-byte public-key hash that seeds mu computation; its exact value doesn't
+        // matter for exercising serialization, only that it is fixed across the comparison.
+        let tr = [0x42u8; 64];
+        let msg = b"Colorless green ideas sleep furiously";
+
+        // Put the builder into a mid-stream state (some, but not all, of the message absorbed).
+        let mut mb = MuBuilder::do_init(&tr, None).unwrap();
+        mb.do_update(&msg[..10]);
+
+        // Generic trait-conformance tests (version header present, [0,0,0] and future versions
+        // rejected).
+        TestFrameworkSerializableState::new().test(&mb);
+
+        // Serialize the in-progress state, then finish the original.
+        let serialized_state = mb.clone().serialize_state();
+        mb.do_update(&msg[10..]);
+        let expected_mu = mb.do_final();
+
+        // Rebuild from the serialized state, feed it the identical remaining input, and confirm it
+        // produces the same mu.
+        let mut from_state = MuBuilder::from_serialized_state(serialized_state).unwrap();
+        from_state.do_update(&msg[10..]);
+        assert_eq!(expected_mu, from_state.do_final());
+
+        // Anchor correctness to the existing one-shot path: streaming must match compute_mu.
+        let one_shot = MuBuilder::compute_mu(&tr, msg, None).unwrap();
+        assert_eq!(expected_mu, one_shot);
+
+        // A corrupt SHAKE256 `squeezing` byte must be rejected. Layout of the delegated SHAKE256
+        // state: 3 version bytes + variant tag(1) + [u64;25](200) + data_queue(192)
+        // + bits_in_queue(8) + squeezing(1) -> the squeezing byte is at offset 3 + 1 + 400.
+        let mut busted = serialized_state;
+        busted[3 + 1 + 400] = 42;
+        match MuBuilder::from_serialized_state(busted) {
+            Err(SerializedStateError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error for a corrupt squeezing byte"),
+        }
+    }
+
+    #[test]
+    fn serializable_state_mubuilder_rejects_wrong_variant() {
+        use bouncycastle_core::traits::XOF;
+        use bouncycastle_sha3::SHAKE128;
+
+        // A MuBuilder is always backed by SHAKE256. A serialized SHAKE128 state has the same length
+        // (both are SHA3-family states), so this would deserialize into the wrong sponge if the
+        // variant tag weren't checked -- SHAKE128 (tag 5) must be rejected by MuBuilder (SHAKE256,
+        // tag 6).
+        let mut shake128 = SHAKE128::new();
+        shake128.absorb(b"Colorless green ideas sleep furiously");
+        let serialized_128 = shake128.serialize_state();
+
+        match MuBuilder::from_serialized_state(serialized_128) {
+            Err(SerializedStateError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHAKE128 state into a MuBuilder"),
+        }
     }
 
     #[test]

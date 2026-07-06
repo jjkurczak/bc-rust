@@ -1236,7 +1236,7 @@ impl<
         let mut mu = [0u8; MLDSA_MU_LEN];
         _ = h.squeeze_out(&mut mu);
 
-        if MLDSA::<
+        MLDSA::<
             PK_LEN,
             SK_LEN,
             FULL_SK_LEN,
@@ -1262,11 +1262,6 @@ impl<
             GAMMA1_MINUS_BETA,
             GAMMA2_MINUS_BETA,
             GAMMA1_MASK_LEN,
-        >::verify_mu_internal(pk, &mu, sig_sized)
-        {
-            Ok(())
-        } else {
-            Err(SignatureError::SignatureVerificationFailed)
-        }
+        >::verify_mu(pk, &mu, sig_sized)
     }
 }

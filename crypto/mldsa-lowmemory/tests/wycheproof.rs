@@ -333,16 +333,13 @@ impl MLDSASignSeedTestCase {
         let sig = MLDSA44::sign_mu_deterministic(&sk, &mu, [0u8; 32]).unwrap();
         assert_eq!(sig, hex::decode(&self.sig).unwrap().as_slice());
 
-        let res = MLDSA44::verify_mu_internal(
-            &pk,
-            &mu,
-            &hex::decode(&self.sig).unwrap().try_into().unwrap(),
-        );
+        let res =
+            MLDSA44::verify_mu(&pk, &mu, &hex::decode(&self.sig).unwrap().try_into().unwrap());
 
         if self.result == "valid" {
-            assert!(res);
+            res.unwrap();
         } else {
-            assert!(!res);
+            assert!(res.is_err());
         };
     }
 
@@ -430,16 +427,13 @@ impl MLDSASignSeedTestCase {
         let sig = MLDSA65::sign_mu_deterministic(&sk, &mu, [0u8; 32]).unwrap();
         assert_eq!(sig, hex::decode(&self.sig).unwrap().as_slice());
 
-        let res = MLDSA65::verify_mu_internal(
-            &pk,
-            &mu,
-            &hex::decode(&self.sig).unwrap().try_into().unwrap(),
-        );
+        let res =
+            MLDSA65::verify_mu(&pk, &mu, &hex::decode(&self.sig).unwrap().try_into().unwrap());
 
         if self.result == "valid" {
-            assert!(res);
+            res.unwrap();
         } else {
-            assert!(!res);
+            assert!(res.is_err());
         };
     }
 
@@ -527,16 +521,13 @@ impl MLDSASignSeedTestCase {
         let sig = MLDSA87::sign_mu_deterministic(&sk, &mu, [0u8; 32]).unwrap();
         assert_eq!(sig, hex::decode(&self.sig).unwrap().as_slice());
 
-        let res = MLDSA87::verify_mu_internal(
-            &pk,
-            &mu,
-            &hex::decode(&self.sig).unwrap().try_into().unwrap(),
-        );
+        let res =
+            MLDSA87::verify_mu(&pk, &mu, &hex::decode(&self.sig).unwrap().try_into().unwrap());
 
         if self.result == "valid" {
-            assert!(res);
+            res.unwrap();
         } else {
-            assert!(!res);
+            assert!(res.is_err());
         };
     }
 }
