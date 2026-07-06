@@ -1,9 +1,9 @@
 use crate::SHA3Params;
 use crate::keccak::{
-    KeccakDigest, SHA3_FAMILY_SERIALIZED_STATE_LEN, SHA3_FAMILY_STATE_LEN,
-    deserialize_sha3_family_state, serialize_sha3_family_state,
+    KeccakDigest, SHA3_FAMILY_STATE_LEN, SHA3_SERIALIZED_STATE_LEN, deserialize_sha3_family_state,
+    serialize_sha3_family_state,
 };
-use bouncycastle_core::errors::{CoreError, HashError, KDFError};
+use bouncycastle_core::errors::{HashError, KDFError, SerializedStateError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
@@ -221,9 +221,9 @@ impl<PARAMS: SHA3Params> Hash for SHA3<PARAMS> {
     }
 }
 
-impl<PARAMS: SHA3Params> SerializableState<SHA3_FAMILY_SERIALIZED_STATE_LEN> for SHA3<PARAMS> {
-    fn serialize_state(&self) -> [u8; SHA3_FAMILY_SERIALIZED_STATE_LEN] {
-        let mut out_to_return = [0u8; SHA3_FAMILY_SERIALIZED_STATE_LEN];
+impl<PARAMS: SHA3Params> SerializableState<SHA3_SERIALIZED_STATE_LEN> for SHA3<PARAMS> {
+    fn serialize_state(self) -> [u8; SHA3_SERIALIZED_STATE_LEN] {
+        let mut out_to_return = [0u8; SHA3_SERIALIZED_STATE_LEN];
 
         // insert the version tag
         let out: &mut [u8; SHA3_FAMILY_STATE_LEN] =
@@ -242,8 +242,8 @@ impl<PARAMS: SHA3Params> SerializableState<SHA3_FAMILY_SERIALIZED_STATE_LEN> for
     }
 
     fn from_serialized_state(
-        serialized_state: [u8; SHA3_FAMILY_SERIALIZED_STATE_LEN],
-    ) -> Result<Self, CoreError> {
+        serialized_state: [u8; SHA3_SERIALIZED_STATE_LEN],
+    ) -> Result<Self, SerializedStateError> {
         // check the version tag. At the moment, we have no not_before version to specify.
         let input: &[u8; SHA3_FAMILY_STATE_LEN] =
             check_lib_ver(&serialized_state, None)?.try_into().unwrap();

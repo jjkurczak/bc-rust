@@ -1,6 +1,6 @@
 //! Helper functions for standardizing serialization and deserialization of stateful objects.
 
-use crate::errors::CoreError;
+use crate::errors::SerializedStateError;
 
 /// A semantic library version, ordered by `major`, then `minor`, then `patch`.
 ///
@@ -27,9 +27,28 @@ impl From<SemVer> for [u8; 3] {
     }
 }
 
-/// The current library version.
-// There is almost certainly a more elegant way to do this.
-pub const LIB_VERSION: SemVer = SemVer { major: 0, minor: 1, patch: 2 };
+/// Parse a decimal ASCII string (a Cargo version component) into a u8 at compile time.
+const fn parse_version_component(s: &str) -> u8 {
+    let bytes = s.as_bytes();
+    let mut result: u8 = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        let d = bytes[i];
+        assert!(d >= b'0' && d <= b'9', "version component must be numeric");
+        // A component > 255 overflows u8 and fails the build (SemVer fields are u8 by design).
+        result = result * 10 + (d - b'0');
+        i += 1;
+    }
+    result
+}
+
+/// The current library version, taken from this crate's `Cargo.toml` at compile time (via Cargo's
+/// `CARGO_PKG_VERSION_*` env vars) so it can never drift from the published version.
+pub const LIB_VERSION: SemVer = SemVer {
+    major: parse_version_component(env!("CARGO_PKG_VERSION_MAJOR")),
+    minor: parse_version_component(env!("CARGO_PKG_VERSION_MINOR")),
+    patch: parse_version_component(env!("CARGO_PKG_VERSION_PATCH")),
+};
 
 #[test]
 fn test_cmp_lib_ver() {
@@ -59,7 +78,7 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]
 ///
 /// The state_out array must have length at least SERIALIZED_LEN - 3.
 ///
-/// Returns the number of bytes written to state_out, or a [CoreError::IncompatibleVersion] if the
+/// Returns the number of bytes written to state_out, or a [SerializedStateError::IncompatibleVersion] if the
 /// serialized state contains a version header earlier than the specified `not_before` version.
 ///
 /// Note that for testability, this will always reject if the serialized state contains a version tag
@@ -69,23 +88,23 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]
 pub fn check_lib_ver<const SERIALIZED_LEN: usize>(
     state: &[u8; SERIALIZED_LEN],
     not_before: Option<[u8; 3]>,
-) -> Result<&[u8], CoreError> {
+) -> Result<&[u8], SerializedStateError> {
     let ver_bytes: [u8; 3] = state[..3].try_into().unwrap();
     let ver = SemVer::from(ver_bytes);
 
     let not_before = SemVer::from(not_before.unwrap_or([0, 0, 0]));
 
     if ver < not_before {
-        return Err(CoreError::IncompatibleVersion);
+        return Err(SerializedStateError::IncompatibleVersion);
     };
     // Nothing is ever compatible with [0,0,0]
     if ver == SemVer::from([0, 0, 0]) {
-        return Err(CoreError::IncompatibleVersion);
+        return Err(SerializedStateError::IncompatibleVersion);
     };
 
     // Also not compatible with future versions.
     if ver > LIB_VERSION {
-        return Err(CoreError::IncompatibleVersion);
+        return Err(SerializedStateError::IncompatibleVersion);
     }
 
     Ok(&state[3..])

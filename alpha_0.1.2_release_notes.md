@@ -38,11 +38,20 @@
 
 # 0.1.2 Features / Changelog
 
+## Major features
+
 * New algorithms added to crypto/ :
     * mldsa (FIPS 204)
     * mldsa-lowmemory -- runs in about 1/10th of the usual memory (~ 30 kb of stack) with comparable performance impact.
     * mlkem (FIPS 203)
     * mlkem-lowmemory -- runs in about 1/4th of the usual memory (~ 12 kb of stack) with comparable performance impact.
+* New traits SerializeState and SerializeKeyedState allow algorithms with a streaming API (`do_update()` ->
+  `do_final()`) to be suspended to a small byte array and then resumed later, potentially from a different host. The
+  intended use case is if you are processing a large input that depends on one or more network round-trips and you wish
+  to suspect and potentially transfer to a new host while waiting for network IO.
+
+## Minor features / bug fixes
+
 * All public `*_out(.., out: &mut [u8])` functions now begin by zeroizing the entire output buffer with `.fill(0)`,
   preventing exposure of stale data in oversized output buffers or on early error returns.
 * Reworked the way KeyMaterial hazardous operations work; instead of a stateful .allow_hazardous_operations() /

@@ -240,21 +240,21 @@ mod shake_tests {
 
     #[test]
     fn test_serializable_state() {
-        use bouncycastle_core::errors::CoreError;
+        use bouncycastle_core::errors::SerializedStateError;
         use bouncycastle_core::traits::SerializableState;
         use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableState;
 
         let str = "Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one SHAKE variant.
-        fn round_trip<const N: usize, X: XOF + SerializableState<N>>(mut shake: X, input: &[u8]) {
+        fn round_trip<const N: usize, X: XOF + SerializableState<N> + Clone>(mut shake: X, input: &[u8]) {
             shake.absorb(input);
 
             // do the default trait-conformance tests
             TestFrameworkSerializableState::new().test(&shake);
 
             // serialize the in-progress (absorbing) state, then squeeze from the original
-            let serialized_state = shake.serialize_state();
+            let serialized_state = shake.clone().serialize_state();
             let expected = shake.squeeze(64);
 
             // rebuild from the serialized state and confirm it produces the same output
@@ -267,7 +267,7 @@ mod shake_tests {
             let mut busted = serialized_state;
             busted[3 + 1 + 400] = 42;
             match X::from_serialized_state(busted) {
-                Err(CoreError::InvalidData) => { /* good */ }
+                Err(SerializedStateError::InvalidData) => { /* good */ }
                 _ => panic!("Expected an error for a corrupt squeezing byte"),
             }
         }
@@ -282,7 +282,7 @@ mod shake_tests {
         shake128.absorb(str.as_bytes());
         let serialized_128 = shake128.serialize_state();
         match SHAKE256::from_serialized_state(serialized_128) {
-            Err(CoreError::InvalidData) => { /* good */ }
+            Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE128 state into SHAKE256"),
         }
 
@@ -290,7 +290,7 @@ mod shake_tests {
         shake256.absorb(str.as_bytes());
         let serialized_256 = shake256.serialize_state();
         match SHA3_256::from_serialized_state(serialized_256) {
-            Err(CoreError::InvalidData) => { /* good */ }
+            Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE256 state into SHA3-256"),
         }
     }

@@ -1,10 +1,4 @@
 #[derive(Debug)]
-pub enum CoreError {
-    IncompatibleVersion,
-    InvalidData,
-}
-
-#[derive(Debug)]
 pub enum HashError {
     GenericError(&'static str),
     InvalidLength(&'static str),
@@ -76,6 +70,17 @@ pub enum RNGError {
     SecurityStrengthInsufficientForAlgorithm,
 
     KeyMaterialError(KeyMaterialError),
+}
+
+#[derive(Debug)]
+pub enum SerializedStateError {
+    /// The serialized state was produced by a library version incompatible with this one.
+    IncompatibleVersion,
+    /// The serialized state is malformed or corrupt.
+    InvalidData,
+    /// The key supplied to [crate::traits::SerializableKeyedState::from_serialized_state] does not
+    /// match the key the state was created with (it is bound to a different public-key hash `tr`).
+    IncorrectKey,
 }
 
 #[derive(Debug)]

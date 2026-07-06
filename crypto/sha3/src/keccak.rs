@@ -1,7 +1,6 @@
-use bouncycastle_core::errors::{CoreError, HashError};
+use bouncycastle_core::errors::{HashError, SerializedStateError};
 use bouncycastle_core::key_material::KeyType;
 use bouncycastle_core::traits::SecurityStrength;
-use crate::{SHA3_224Params, SHA3_256Params, SHA3_384Params, SHA3_512Params, SHAKE128Params, SHAKE256Params, SHA3, SHAKE};
 
 const KECCAK_ROUND_CONSTANTS: [u64; 24] = [
     0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
@@ -190,13 +189,14 @@ impl Drop for KeccakState {
     }
 }
 
+// This is pub(crate) so that the SerializableState handlers can unpack it.
 #[derive(Clone)]
-pub(super) struct KeccakDigest {
+pub(crate) struct KeccakDigest {
     state: KeccakState,
     pub data_queue: [u8; 192],
     rate: usize,
     pub bits_in_queue: usize,
-    pub(super) squeezing: bool,
+    pub squeezing: bool,
 }
 
 #[derive(Clone)]
@@ -372,12 +372,10 @@ const KECCAK_SERIALIZED_LEN: usize = 200 + 192 + 8 + 1;
 ///   [.. + 1)                              kdf_key_type          (1 byte enum tag)
 ///   [.. + 1)                              kdf_security_strength (1 byte enum tag)
 ///   [.. + 8)                              kdf_entropy           usize serialized as u64
-pub(super) const SHA3_FAMILY_STATE_LEN: usize = 1 + KECCAK_SERIALIZED_LEN + 10;
+pub(crate) const SHA3_FAMILY_STATE_LEN: usize = 1 + KECCAK_SERIALIZED_LEN + 10;
 
-/// Total number of bytes in a serialized SHA3-family state, including the 3-byte library version
-/// header prepended by [add_lib_ver]. This is the const generic used by the `SerializableState`
-/// impls for SHA3 and SHAKE.
-pub(super) const SHA3_FAMILY_SERIALIZED_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
+/// Total number of bytes in a serialized state of a SHA3 or SHAKE instance.
+pub const SHA3_SERIALIZED_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
 
 impl KeccakDigest {
     /// Serializes this digest's mutable state into `out`. The `rate` is deliberately omitted; see
@@ -407,7 +405,7 @@ impl KeccakDigest {
     fn from_serialized_state(
         input: &[u8; KECCAK_SERIALIZED_LEN],
         rate: usize,
-    ) -> Result<Self, CoreError> {
+    ) -> Result<Self, SerializedStateError> {
         // state.buf: [u64; 25]
         let mut buf = [0u64; 25];
         for i in 0..25 {
@@ -421,14 +419,14 @@ impl KeccakDigest {
         // bytes, well within data_queue's 192-byte capacity).
         let bits_in_queue = u64::from_le_bytes(input[392..400].try_into().unwrap()) as usize;
         if bits_in_queue > rate {
-            return Err(CoreError::InvalidData);
+            return Err(SerializedStateError::InvalidData);
         }
 
         // squeezing: bool
         let squeezing = match input[400] {
             0 => false,
             1 => true,
-            _ => return Err(CoreError::InvalidData),
+            _ => return Err(SerializedStateError::InvalidData),
         };
 
         Ok(Self { state: KeccakState { buf, rate }, data_queue, rate, bits_in_queue, squeezing })
@@ -437,7 +435,7 @@ impl KeccakDigest {
 
 /// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [KeccakDigest], plus
 /// the three KDF metadata fields) into `out`. See [SHA3_FAMILY_STATE_LEN] for the layout.
-pub(super) fn serialize_sha3_family_state(
+pub(crate) fn serialize_sha3_family_state(
     out: &mut [u8; SHA3_FAMILY_STATE_LEN],
     variant_tag: u8,
     keccak: &KeccakDigest,
@@ -463,13 +461,13 @@ pub(super) fn serialize_sha3_family_state(
 /// tag is checked against the serialized one first: this is what prevents a state from one variant
 /// being loaded into another (e.g. SHA3-256 vs SHAKE256, which share a rate but differ in domain
 /// separation). Only once the tag matches is `rate` guaranteed to be the correct one to rebuild with.
-pub(super) fn deserialize_sha3_family_state(
+pub(crate) fn deserialize_sha3_family_state(
     input: &[u8; SHA3_FAMILY_STATE_LEN],
     expected_variant_tag: u8,
     rate: usize,
-) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), CoreError> {
+) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), SerializedStateError> {
     if input[0] != expected_variant_tag {
-        return Err(CoreError::InvalidData);
+        return Err(SerializedStateError::InvalidData);
     }
 
     let keccak_in: &[u8; KECCAK_SERIALIZED_LEN] =

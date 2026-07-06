@@ -103,6 +103,36 @@
 //! This would also be the case even if the input had type
 //! [KeyType::CryptographicRandom] since the input [KeyMaterial] is 16 bytes but [SHA3_256] needs at least 32 bytes of
 //! full-entropy input key material in order to be able to produce full entropy output key material.
+//!
+//! # Suspending and resuming execution via SerializableState
+//!
+//! When hashing a large message, it can be advantageous to be able to suspend the operation
+//! to a cache and resume it later; for example if waiting for the message to stream over a slow network
+//! connection.
+//!
+//! For this reason, all SHA3 algorithms impl [SerializableState].
+//!
+//!```rust
+//! use bouncycastle_sha3 as sha3;
+//! use bouncycastle_core::traits::{Hash, SerializableState};
+//!
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let mut sha3 = sha3::SHA3_256::new();
+//! sha3.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = sha3.serialize_state();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! let mut sha3_resumed = sha3::SHA3_256::from_serialized_state(serialized_state).unwrap();
+//! sha3_resumed.do_update(msg_part2);
+//! let h: Vec<u8> = sha3_resumed.do_final();
+//! ```
 
 #![forbid(unsafe_code)]
 #![allow(private_bounds)]
@@ -132,6 +162,10 @@ pub const SHAKE256_NAME: &str = "SHAKE256";
 /*** pub types ***/
 pub use sha3::SHA3;
 pub use shake::SHAKE;
+
+/// The number of bytes produced by [SerializableState::serialize_state] for any SHA3 or SHAKE
+/// object.
+pub use keccak::SHA3_SERIALIZED_STATE_LEN;
 pub type SHA3_224 = SHA3<SHA3_224Params>;
 pub type SHA3_256 = SHA3<SHA3_256Params>;
 pub type SHA3_384 = SHA3<SHA3_384Params>;
@@ -160,6 +194,7 @@ impl HashAlgParams for SHA3_224 {
     // const BLOCK_LEN: usize = 64;
     const BLOCK_LEN: usize = 144; // FIPS 202 Table 3
 }
+#[derive(Clone)]
 pub struct SHA3_224Params;
 impl Algorithm for SHA3_224Params {
     const ALG_NAME: &'static str = SHA3_224_NAME;
@@ -184,6 +219,7 @@ impl HashAlgParams for SHA3_256 {
     // const BLOCK_LEN: usize = 64;
     const BLOCK_LEN: usize = 136; // FIPS 202 Table 3
 }
+#[derive(Clone)]
 pub struct SHA3_256Params;
 impl Algorithm for SHA3_256Params {
     const ALG_NAME: &'static str = SHA3_256_NAME;
@@ -199,6 +235,7 @@ impl SHA3Params for SHA3_256Params {
     const STATE_TAG: u8 = 2;
 }
 
+#[derive(Clone)]
 pub struct SHA3_384Params;
 impl Algorithm for SHA3_384 {
     const ALG_NAME: &'static str = SHA3_384_NAME;
@@ -223,6 +260,7 @@ impl SHA3Params for SHA3_384Params {
     const STATE_TAG: u8 = 3;
 }
 
+#[derive(Clone)]
 pub struct SHA3_512Params;
 impl Algorithm for SHA3_512 {
     const ALG_NAME: &'static str = SHA3_512_NAME;
@@ -252,6 +290,7 @@ trait SHAKEParams: Algorithm {
     /// See [SHA3Params::STATE_TAG]. Must be distinct from every SHA3 *and* SHAKE variant's tag.
     const STATE_TAG: u8;
 }
+#[derive(Clone)]
 pub struct SHAKE128Params;
 impl Algorithm for SHAKE128Params {
     const ALG_NAME: &'static str = SHAKE128_NAME;
@@ -262,6 +301,7 @@ impl SHAKEParams for SHAKE128Params {
     const STATE_TAG: u8 = 5;
 }
 
+#[derive(Clone)]
 pub struct SHAKE256Params;
 impl Algorithm for SHAKE256Params {
     const ALG_NAME: &'static str = SHAKE256_NAME;

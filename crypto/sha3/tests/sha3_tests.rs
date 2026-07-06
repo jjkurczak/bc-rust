@@ -396,21 +396,21 @@ mod sha3_tests {
 
     #[test]
     fn test_serializable_state() {
-        use bouncycastle_core::errors::CoreError;
+        use bouncycastle_core::errors::SerializedStateError;
         use bouncycastle_core::traits::SerializableState;
         use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableState;
 
         let str = "Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one SHA3 variant.
-        fn round_trip<const N: usize, H: Hash + SerializableState<N>>(mut hash: H, input: &[u8]) {
+        fn round_trip<const N: usize, H: Hash + SerializableState<N> + Clone>(mut hash: H, input: &[u8]) {
             hash.do_update(input);
 
             // do the default trait-conformance tests
             TestFrameworkSerializableState::new().test(&hash);
 
             // serialize the in-progress state, then finish the original
-            let serialized_state = hash.serialize_state();
+            let serialized_state = hash.clone().serialize_state();
             let expected = hash.do_final();
 
             // rebuild from the serialized state and confirm it produces the same digest
@@ -423,7 +423,7 @@ mod sha3_tests {
             let mut busted = serialized_state;
             busted[3 + 1 + 400] = 42;
             match H::from_serialized_state(busted) {
-                Err(CoreError::InvalidData) => { /* good */ }
+                Err(SerializedStateError::InvalidData) => { /* good */ }
                 _ => panic!("Expected an error for a corrupt squeezing byte"),
             }
         }
@@ -440,11 +440,11 @@ mod sha3_tests {
         sha3_256.do_update(str.as_bytes());
         let serialized_256 = sha3_256.serialize_state();
         match SHA3_512::from_serialized_state(serialized_256) {
-            Err(CoreError::InvalidData) => { /* good */ }
+            Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHA3-256 state into SHA3-512"),
         }
         match SHAKE256::from_serialized_state(serialized_256) {
-            Err(CoreError::InvalidData) => { /* good */ }
+            Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHA3-256 state into SHAKE256"),
         }
     }

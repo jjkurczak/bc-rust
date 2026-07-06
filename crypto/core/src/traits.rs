@@ -1,6 +1,6 @@
 //! Provides simplified abstracted APIs over classes of cryptigraphic primitives, such as Hash, KDF, etc.
 
-use crate::errors::{CoreError, HashError, KDFError, KEMError, MACError, RNGError, SignatureError};
+use crate::errors::*;
 use crate::key_material::KeyMaterialTrait;
 use core::fmt::{Debug, Display};
 use core::marker::Sized;
@@ -399,9 +399,9 @@ pub enum SecurityStrength {
 }
 
 impl TryFrom<u8> for SecurityStrength {
-    type Error = CoreError;
+    type Error = SerializedStateError;
 
-    /// Inverse of `self as u8`; rejects unrecognized discriminants with [CoreError::InvalidData].
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SerializedStateError::InvalidData].
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::None,
@@ -409,7 +409,7 @@ impl TryFrom<u8> for SecurityStrength {
             2 => Self::_128bit,
             3 => Self::_192bit,
             4 => Self::_256bit,
-            _ => return Err(CoreError::InvalidData),
+            _ => return Err(SerializedStateError::InvalidData),
         })
     }
 }
@@ -497,11 +497,18 @@ pub trait Secret: Drop + Debug + Display {}
 ///
 /// This is not intended as a mechanism to clone the state of an object since in most cases `.clone()`
 /// will be more straightforward.
+///
+/// The serialized state MAY contain short-term sensitive values such as nonces or IVs,
+/// but it MUST NOT include a serialized private key. Keyed algorithms MUST instead impl
+/// [SerializableKeyedState] which requires the key to be supplied independently at the time of deserialization.
 pub trait SerializableState<const SERIALIZED_STATE_LEN: usize>: Sized {
     /// Serialize the state of the object.
     ///
+    /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
+    /// If you want to do this intentionally, then you will need to clone the object before serializing it.
+    ///
     /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
-    fn serialize_state(&self) -> [u8; SERIALIZED_STATE_LEN];
+    fn serialize_state(self) -> [u8; SERIALIZED_STATE_LEN];
 
     /// Create a new object from a serialized state.
     ///
@@ -511,7 +518,34 @@ pub trait SerializableState<const SERIALIZED_STATE_LEN: usize>: Sized {
     /// deserializer should reject serialized states from that version or older.
     fn from_serialized_state(
         serialized_state: [u8; SERIALIZED_STATE_LEN],
-    ) -> Result<Self, CoreError>;
+    ) -> Result<Self, SerializedStateError>;
+}
+
+/// Similar to [SerializableState] in that it allows a stateful object to serialize its state so that
+/// it can be paused and resumed later, potentially from a different host.
+///
+/// The difference is that this trait is for keyed algorithms -- MACs, symmetric ciphers, signatures, etc --
+/// which require a private key. For security reasons, the private key is not included in the serialized state
+/// and must be provided separately as part of the deserialization process.
+pub trait SerializableKeyedState<const SERIALIZED_STATE_LEN: usize, K>: Sized {
+    /// Serialize the state of the object.
+    ///
+    /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
+    /// If you want to do this intentionally, then you will need to clone the object before serializing it.
+    ///
+    /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
+    fn serialize_state(self) -> [u8; SERIALIZED_STATE_LEN];
+
+    /// Create a new object from a serialized state.
+    ///
+    /// Deserializers SHOULD check the version and reject serialized states from incompatible versions
+    /// (including rejecting serializations from a future version of the library).
+    /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
+    /// deserializer should reject serialized states from that version or older.
+    fn from_serialized_state(
+        serialized_state: [u8; SERIALIZED_STATE_LEN],
+        key: K,
+    ) -> Result<Self, SerializedStateError>;
 }
 
 /// Pre-Hashed Signer is an extension to [Signer] that adds functionality specific to signature

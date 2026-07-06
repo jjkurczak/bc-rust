@@ -1,5 +1,5 @@
 use crate::SHA2Params;
-use bouncycastle_core::errors::{CoreError, HashError};
+use bouncycastle_core::errors::{HashError, SerializedStateError};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Hash, SecurityStrength, SerializableState};
 use bouncycastle_utils::min;
@@ -319,9 +319,15 @@ impl<PARAMS: SHA2Params> Hash for SHA512Internal<PARAMS> {
     }
 }
 
-impl<PARAMS: SHA2Params> SerializableState<204> for SHA512Internal<PARAMS> {
-    fn serialize_state(&self) -> [u8; 204] {
-        let mut out_to_return = [0u8; 204];
+/// The number of bytes produced by [SerializableState::serialize_state] for any SHA384 or SHA512
+/// object.
+pub const SHA512_SERIALIZED_STATE_LEN: usize = 204;
+
+impl<PARAMS: SHA2Params> SerializableState<SHA512_SERIALIZED_STATE_LEN> for SHA512Internal<PARAMS> {
+    fn serialize_state(self) -> [u8; SHA512_SERIALIZED_STATE_LEN] {
+        debug_assert_eq!(SHA512_SERIALIZED_STATE_LEN, 204);
+
+        let mut out_to_return = [0u8; SHA512_SERIALIZED_STATE_LEN];
 
         // insert the version tag
         let out: &mut [u8; 201] = add_lib_ver(&mut out_to_return).try_into().unwrap();
@@ -346,7 +352,9 @@ impl<PARAMS: SHA2Params> SerializableState<204> for SHA512Internal<PARAMS> {
         out_to_return
     }
 
-    fn from_serialized_state(serialized_state: [u8; 204]) -> Result<Self, CoreError> {
+    fn from_serialized_state(
+        serialized_state: [u8; SHA512_SERIALIZED_STATE_LEN],
+    ) -> Result<Self, SerializedStateError> {
         // check the version tag
         // At the moment, we have no not_before version to specify.
         let input: &[u8; 201] = check_lib_ver(&serialized_state, None)?.try_into().unwrap();
@@ -368,7 +376,7 @@ impl<PARAMS: SHA2Params> SerializableState<204> for SHA512Internal<PARAMS> {
         // in general, a usize should be serialized into a u64, but in this case, it can't ever be larger than 128
         let x_buf_off: usize = input[200] as usize;
         if x_buf_off >= 128 {
-            return Err(CoreError::InvalidData);
+            return Err(SerializedStateError::InvalidData);
         }
 
         // Construct the object

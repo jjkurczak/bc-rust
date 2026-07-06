@@ -18,8 +18,8 @@
 //! for example if input is received in chunks and not all available at the same time:
 //!
 //! ```
-//! use bouncycastle_core::traits::Hash;
 //! use bouncycastle_sha2 as sha2;
+//! use bouncycastle_core::traits::Hash;
 //!
 //! let data: &[u8] = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F
 //!                     \x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F
@@ -32,6 +32,36 @@
 //! }
 //!
 //! let output: Vec<u8> = sha2.do_final();
+//! ```
+//!
+//! # Suspending and resuming execution via SerializableState
+//!
+//! When hashing a large message, it can be advantageous to be able to suspend the operation
+//! to a cache and resume it later; for example if waiting for the message to stream over a slow network
+//! connection.
+//!
+//! For this reason, all SHA2 algorithms impl [SerializableState].
+//!
+//! ```rust
+//! use bouncycastle_sha2 as sha2;
+//! use bouncycastle_core::traits::{Hash, SerializableState};
+//!
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let mut sha2 = sha2::SHA256::new();
+//! sha2.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = sha2.serialize_state();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! let mut sha2_resumed = sha2::SHA256::from_serialized_state(serialized_state).unwrap();
+//! sha2_resumed.do_update(msg_part2);
+//! let h: Vec<u8> = sha2_resumed.do_final();
 //! ```
 
 #![forbid(unsafe_code)]
@@ -68,6 +98,7 @@ impl HashAlgParams for SHA224 {
     const OUTPUT_LEN: usize = 28;
     const BLOCK_LEN: usize = 64;
 }
+#[derive(Clone)]
 pub struct SHA224Params;
 impl Algorithm for SHA224Params {
     const ALG_NAME: &'static str = SHA224_NAME;
@@ -87,6 +118,7 @@ impl HashAlgParams for SHA256 {
     const OUTPUT_LEN: usize = 32;
     const BLOCK_LEN: usize = 64;
 }
+#[derive(Clone)]
 pub struct SHA256Params;
 impl Algorithm for SHA256Params {
     const ALG_NAME: &'static str = SHA256_NAME;
@@ -106,6 +138,7 @@ impl HashAlgParams for SHA384 {
     const OUTPUT_LEN: usize = 48;
     const BLOCK_LEN: usize = 128;
 }
+#[derive(Clone)]
 pub struct SHA384Params;
 impl Algorithm for SHA384Params {
     const ALG_NAME: &'static str = SHA384_NAME;
@@ -117,6 +150,7 @@ impl HashAlgParams for SHA384Params {
 }
 impl SHA2Params for SHA384Params {}
 
+#[derive(Clone)]
 pub struct SHA512Params;
 impl Algorithm for SHA512 {
     const ALG_NAME: &'static str = SHA512_NAME;
@@ -135,3 +169,6 @@ impl HashAlgParams for SHA512Params {
     const BLOCK_LEN: usize = 128;
 }
 impl SHA2Params for SHA512Params {}
+
+pub use sha256::SHA256_SERIALIZED_STATE_LEN;
+pub use sha512::SHA512_SERIALIZED_STATE_LEN;
