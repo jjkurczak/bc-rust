@@ -580,4 +580,63 @@ mod hmac_tests {
             );
         }
     }
+
+    #[test]
+    fn serializable_keyed_state() {
+        use bouncycastle_core::errors::SerializedStateError;
+        use bouncycastle_core::serializable_state::LIB_VERSION;
+        use bouncycastle_core::traits::SerializableKeyedState;
+        use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableKeyedState;
+
+        let key =
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::MACKey).unwrap();
+        let msg = b"Colorless green ideas sleep furiously";
+
+        // A helper that exercises the full round-trip for one HMAC variant. HMAC is keyed, so the
+        // key is NOT in the serialized state -- it is re-supplied (by reference) to
+        // from_serialized_state.
+        // The `+ 'static` on the trait object matches the associated type `type Key = dyn
+        // KeyMaterialTrait` (a bare `dyn` in an associated type defaults to `'static`). The concrete
+        // key types are owned, so they satisfy it.
+        fn round_trip<const N: usize, H>(
+            mut hmac: H,
+            key: &(dyn KeyMaterialTrait + 'static),
+            input: &[u8],
+        ) where
+            H: MAC + Clone + SerializableKeyedState<N, Key = dyn KeyMaterialTrait>,
+        {
+            hmac.do_update(&input[..10]);
+
+            // do the default trait-conformance tests
+            TestFrameworkSerializableKeyedState::new().test(&hmac, key);
+
+            // serialize the in-progress state (on a clone), then finish the original
+            let serialized_state = hmac.clone().serialize_state();
+
+            // the serialized state carries the library version header (from the inner hash)
+            let header: [u8; 3] = serialized_state[..3].try_into().unwrap();
+            assert_eq!(header, <[u8; 3]>::from(LIB_VERSION));
+
+            hmac.do_update(&input[10..]);
+            let expected = hmac.do_final();
+
+            // rebuild from the serialized state (re-supplying the key), feed the identical remaining
+            // input, and confirm the MAC matches
+            let mut from_state = H::from_serialized_state(serialized_state, key).unwrap();
+            from_state.do_update(&input[10..]);
+            assert_eq!(expected, from_state.do_final());
+
+            // a state whose version header is zeroed must be rejected (delegated to the hash's impl)
+            let mut busted = serialized_state;
+            busted[..3].copy_from_slice(&[0, 0, 0]);
+            match H::from_serialized_state(busted, key) {
+                Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
+                _ => panic!("Expected IncompatibleVersion for a zeroed version header"),
+            }
+        }
+
+        round_trip(HMAC_SHA256::new(&key).unwrap(), &key, msg);
+        round_trip(HMAC_SHA512::new(&key).unwrap(), &key, msg);
+        round_trip(HMAC_SHA3_256::new(&key).unwrap(), &key, msg);
+    }
 }

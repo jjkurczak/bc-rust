@@ -137,29 +137,58 @@
 //! }
 //! ```
 //!
-//! # Request for feedback on fallability of this API
-//! We have made an effort to reduce the number of fallibly APIs in the [MAC] trait; in particular
-//! the APIs for the update and most of the finalize phases are infallible -- they just work.
-//! However, we were not able to design it to completely avoid runtime error conditions, such as
-//! providing [MAC::do_final_out] with a buffer that is too small to hold what NIST considered the smallest
-//! valid MAC value for the given underlying hash function.
+//! # Suspending and resuming execution via SerializableState
 //!
-//! Also, the key strength and type checking in the initialization phase means that both [MAC::new] and
-//! [MAC::new_allow_weak_key] have several runtime error conditions that they check for.
+//! When MAC'ing a large message, it can be advantageous to be able to suspend the operation
+//! to a cache and resume it later; for example if waiting for the message to stream over a slow network
+//! connection. For this reason, all HMAC algorithms impl [SerializableKeyedState].
 //!
-//! All of this leads to application code that requires a lot more .unwrap(), .expect(), or match than we would
-//! really like.
+//! Note that since HMAC is a keyed
+//! algorithm and we do not want to serialize the private key into the state, the trait structure forces you to
+//! re-provide the same key when you resume the operation. Securely storing this key in the interim
+//! is the responsibility of the caller. Note also that if you resume the HMAC with the wrong key,
+//! `from_serialized_state` has no way to detect this, so the end result will be a broken MAC value
+//! computed with different keys in the inner and outer pad. So make sure you resume with the same key!
 //!
-//! We would love feedback on an alternate design for this API than carries less runtime error
-//! conditions, without sacrificing the key strength checking that the metadata in the [KeyMaterialTrait] object allows.
+//!```rust
+//! use bouncycastle_hmac::HMAC_SHA256;
+//! use bouncycastle_core::key_material::KeyMaterial256;
+//! use bouncycastle_core::traits::{MAC, SerializableKeyedState};
+//! use bouncycastle_core::key_material::KeyType;
+//!
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let key = KeyMaterial256::from_bytes_as_type(
+//!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+//!             KeyType::MACKey).unwrap();
+//!
+//! let mut hmac = HMAC_SHA256::new(&key).unwrap();
+//! hmac.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = hmac.serialize_state();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! // Since the key is not serialized into the state, you have to store it somewhere and provide
+//! // it to the deserializer. Make sure you store it securely!
+//! let mut hmac_resumed = HMAC_SHA256::from_serialized_state(serialized_state, &key).unwrap();
+//! hmac_resumed.do_update(msg_part2);
+//! let h: Vec<u8> = hmac_resumed.do_final();
+//! ```
 
 #![forbid(unsafe_code)]
 #![allow(incomplete_features)] // because at time of writing, generic_const_exprs is not a stable feature
 #![feature(generic_const_exprs)]
 
-use bouncycastle_core::errors::{KeyMaterialError, MACError};
+use bouncycastle_core::errors::{KeyMaterialError, MACError, SerializedStateError};
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
-use bouncycastle_core::traits::{Algorithm, Hash, MAC, SecurityStrength};
+use bouncycastle_core::traits::{
+    Algorithm, Hash, MAC, SecurityStrength, SerializableKeyedState, SerializableState,
+};
 use bouncycastle_sha2::{SHA224, SHA256, SHA384, SHA512};
 use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512};
 use bouncycastle_utils::ct;
@@ -283,6 +312,20 @@ impl<HASH: Hash + Default> HMAC<HASH> {
         self.hasher.do_update(&padded)
     }
 
+    /// Loads the raw key bytes into `self.key` / `self.key_len`, pre-hashing them first if they
+    /// exceed the underlying hash's block length (per RFC 2104 Section 2). This does NOT absorb the
+    /// key into the hasher; that is done separately via [HMAC::pad_key_into_hasher].
+    fn load_key_material(&mut self, key_bytes: &[u8]) {
+        if key_bytes.len() > self.hasher.block_bitlen() / 8 {
+            // then we have to pre-hash it -- use a new instance of the hasher rather than the internal one
+            HASH::default().hash_out(key_bytes, &mut self.key[..self.hasher.output_len()]);
+            self.key_len = self.hasher.output_len();
+        } else {
+            self.key[..key_bytes.len()].copy_from_slice(key_bytes);
+            self.key_len = key_bytes.len();
+        }
+    }
+
     /// Private init so that users are forced to go through one of the public new methods and thus we
     /// don't need to track state errors.
     fn init(&mut self, key: &impl KeyMaterialTrait, allow_weak_keys: bool) -> Result<(), MACError> {
@@ -300,14 +343,7 @@ impl<HASH: Hash + Default> HMAC<HASH> {
         // length of the underlying hashes algorithm, we apply a hash invocation
         // over the key first.
 
-        if key.key_len() > self.hasher.block_bitlen() / 8 {
-            // then we have to pre-hash it -- use a new instance of the hasher rather than the internal one
-            HASH::default().hash_out(key.ref_to_bytes(), &mut self.key[..self.hasher.output_len()]);
-            self.key_len = self.hasher.output_len();
-        } else {
-            self.key[..key.key_len()].copy_from_slice(key.ref_to_bytes());
-            self.key_len = key.key_len();
-        }
+        self.load_key_material(key.ref_to_bytes());
 
         self.pad_key_into_hasher(IPAD_BYTE);
 
@@ -418,5 +454,49 @@ impl<HASH: Hash + Default> MAC for HMAC<HASH> {
 
     fn max_security_strength(&self) -> SecurityStrength {
         HASH::default().max_security_strength()
+    }
+}
+
+/// HMAC is a keyed algorithm, so it implements [SerializableKeyedState] (rather than
+/// [SerializableState]) for suspending and resuming in-progress operations.
+/// The key is deliberately NOT written into the serialized
+/// bytes and must be re-supplied at deserialization.
+///
+/// The serialized state is exactly the inner hasher's state (which has already absorbed `K ⊕ ipad`
+/// and any message chunks provided so far) — so this is a straight passthrough to the underlying hash's
+/// [SerializableState] impl. The re-supplied key is needed to reconstruct the material for the outer
+/// (`K ⊕ opad`) step at finalization.
+///
+/// There is no way to detect a mismatched key on
+/// resume: the caller MUST supply the same key the HMAC was created with, otherwise the resumed
+/// operation will silently produce an incorrect MAC.
+impl<const HASH_STATE_LEN: usize, HASH: Hash + Default + SerializableState<HASH_STATE_LEN>>
+    SerializableKeyedState<HASH_STATE_LEN> for HMAC<HASH>
+{
+    // HMAC accepts any key material, so the key type is the trait object `dyn KeyMaterialTrait`
+    // rather than a single concrete key type. The key is only used (by reference) to reload the key
+    // bytes at from_serialized_state, so dynamic dispatch here is negligible.
+    type Key = dyn KeyMaterialTrait;
+
+    fn serialize_state(self) -> [u8; HASH_STATE_LEN] {
+        // The key is intentionally excluded; the resumable state is just the inner hasher, which
+        // already carries the library version header from the hash's own SerializableState impl.
+        self.hasher.serialize_state()
+    }
+
+    fn from_serialized_state(
+        serialized_state: [u8; HASH_STATE_LEN],
+        key: &dyn KeyMaterialTrait,
+    ) -> Result<Self, SerializedStateError> {
+        // Rebuild the inner hasher (version-compatibility is validated by the hash's impl).
+        let hasher = HASH::from_serialized_state(serialized_state)?;
+
+        // Re-load the key material exactly as `new()` did (pre-hashing an over-length key), but do
+        // NOT re-absorb `K ⊕ ipad` — the deserialized hasher already contains it. The key is only
+        // needed for the outer `K ⊕ opad` step at finalization.
+        let mut hmac = HMAC { hasher, key: [0u8; LARGEST_HASHER_OUTPUT_LEN], key_len: 0 };
+        hmac.load_key_material(key.ref_to_bytes());
+
+        Ok(hmac)
     }
 }

@@ -527,7 +527,10 @@ pub trait SerializableState<const SERIALIZED_STATE_LEN: usize>: Sized {
 /// The difference is that this trait is for keyed algorithms -- MACs, symmetric ciphers, signatures, etc --
 /// which require a private key. For security reasons, the private key is not included in the serialized state
 /// and must be provided separately as part of the deserialization process.
-pub trait SerializableKeyedState<const SERIALIZED_STATE_LEN: usize, K>: Sized {
+pub trait SerializableKeyedState<const SERIALIZED_STATE_LEN: usize>: Sized {
+    /// The type of key that must be re-supplied to resume this object.
+    type Key: ?Sized;
+
     /// Serialize the state of the object.
     ///
     /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
@@ -544,7 +547,7 @@ pub trait SerializableKeyedState<const SERIALIZED_STATE_LEN: usize, K>: Sized {
     /// deserializer should reject serialized states from that version or older.
     fn from_serialized_state(
         serialized_state: [u8; SERIALIZED_STATE_LEN],
-        key: K,
+        key: &Self::Key,
     ) -> Result<Self, SerializedStateError>;
 }
 
