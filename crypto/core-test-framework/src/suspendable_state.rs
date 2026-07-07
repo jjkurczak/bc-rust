@@ -1,10 +1,10 @@
 use bouncycastle_core::errors::SerializedStateError;
 use bouncycastle_core::serializable_state::{LIB_VERSION, SemVer};
-use bouncycastle_core::traits::{SerializableKeyedState, SerializableState};
+use bouncycastle_core::traits::{Suspendable, SuspendableKeyed};
 
-pub struct TestFrameworkSerializableState {}
+pub struct TestFrameworkSuspendableState {}
 
-impl TestFrameworkSerializableState {
+impl TestFrameworkSuspendableState {
     pub fn new() -> Self {
         Self {}
     }
@@ -12,10 +12,7 @@ impl TestFrameworkSerializableState {
     /// Test all the members of trait SerializableState.
     ///
     /// Expects ta be handed an instance of the object that has some in-progress state to be serialized.
-    pub fn test<
-        const SERIALIZED_STATE_LEN: usize,
-        S: SerializableState<SERIALIZED_STATE_LEN> + Clone,
-    >(
+    pub fn test<const SERIALIZED_STATE_LEN: usize, S: Suspendable<SERIALIZED_STATE_LEN> + Clone>(
         &self,
         instance: &S,
     ) {
@@ -27,10 +24,10 @@ impl TestFrameworkSerializableState {
         let instance_clone = instance.clone();
 
         // You can serialize and then deserialize the state.
-        let serialized_state = instance_clone.serialize_state();
+        let serialized_state = instance_clone.suspend();
         assert_eq!(serialized_state.len(), SERIALIZED_STATE_LEN);
 
-        let _deserialized_state = S::from_serialized_state(serialized_state).unwrap();
+        let _deserialized_state = S::from_suspended(serialized_state).unwrap();
 
         // The serialized state MUST include a prefix indicating the current version of the library.
         let state_sized: [u8; 3] = serialized_state[..3].try_into().unwrap();
@@ -41,7 +38,7 @@ impl TestFrameworkSerializableState {
         // used the helper functions.
         let mut ver0_serialized_state = serialized_state.clone();
         ver0_serialized_state[..3].copy_from_slice(&[0, 0, 0]);
-        match S::from_serialized_state(ver0_serialized_state) {
+        match S::from_suspended(ver0_serialized_state) {
             Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
@@ -54,7 +51,7 @@ impl TestFrameworkSerializableState {
         let mut futurever_serialized_state = serialized_state.clone();
         futurever_serialized_state[..3]
             .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
-        match S::from_serialized_state(futurever_serialized_state) {
+        match S::from_suspended(futurever_serialized_state) {
             Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
@@ -63,9 +60,9 @@ impl TestFrameworkSerializableState {
     }
 }
 
-pub struct TestFrameworkSerializableKeyedState {}
+pub struct TestFrameworkSuspendableKeyedState {}
 
-impl TestFrameworkSerializableKeyedState {
+impl TestFrameworkSuspendableKeyedState {
     pub fn new() -> Self {
         Self {}
     }
@@ -75,7 +72,7 @@ impl TestFrameworkSerializableKeyedState {
     /// Expects ta be handed an instance of the object that has some in-progress state to be serialized.
     pub fn test<
         const SERIALIZED_STATE_LEN: usize,
-        S: SerializableKeyedState<SERIALIZED_STATE_LEN> + Clone,
+        S: SuspendableKeyed<SERIALIZED_STATE_LEN> + Clone,
     >(
         &self,
         instance: &S,
@@ -89,10 +86,10 @@ impl TestFrameworkSerializableKeyedState {
         let instance_clone = instance.clone();
 
         // You can serialize and then deserialize the state.
-        let serialized_state = instance_clone.serialize_state();
+        let serialized_state = instance_clone.suspend();
         assert_eq!(serialized_state.len(), SERIALIZED_STATE_LEN);
 
-        let _deserialized_state = S::from_serialized_state(serialized_state, key).unwrap();
+        let _deserialized_state = S::from_suspended(serialized_state, key).unwrap();
 
         // The serialized state MUST include a prefix indicating the current version of the library.
         let state_sized: [u8; 3] = serialized_state[..3].try_into().unwrap();
@@ -103,7 +100,7 @@ impl TestFrameworkSerializableKeyedState {
         // used the helper functions.
         let mut ver0_serialized_state = serialized_state.clone();
         ver0_serialized_state[..3].copy_from_slice(&[0, 0, 0]);
-        match S::from_serialized_state(ver0_serialized_state, key) {
+        match S::from_suspended(ver0_serialized_state, key) {
             Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
@@ -116,7 +113,7 @@ impl TestFrameworkSerializableKeyedState {
         let mut futurever_serialized_state = serialized_state.clone();
         futurever_serialized_state[..3]
             .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
-        match S::from_serialized_state(futurever_serialized_state, key) {
+        match S::from_suspended(futurever_serialized_state, key) {
             Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")

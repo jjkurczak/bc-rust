@@ -374,8 +374,8 @@ const KECCAK_SERIALIZED_LEN: usize = 200 + 192 + 8 + 1;
 ///   [.. + 8)                              kdf_entropy           usize serialized as u64
 pub(crate) const SHA3_FAMILY_STATE_LEN: usize = 1 + KECCAK_SERIALIZED_LEN + 10;
 
-/// Total number of bytes in a serialized state of a SHA3 or SHAKE instance.
-pub const SHA3_SERIALIZED_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
+/// Length in bytes of the serialized state of a SHA3 or SHAKE instance.
+pub const SUSPENDED_SHA3_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
 
 impl KeccakDigest {
     /// Serializes this digest's mutable state into `out`. The `rate` is deliberately omitted; see

@@ -34,17 +34,17 @@
 //! let output: Vec<u8> = sha2.do_final();
 //! ```
 //!
-//! # Suspending and resuming execution via SerializableState
+//! # Suspending and resuming execution
 //!
 //! When hashing a large message, it can be advantageous to be able to suspend the operation
 //! to a cache and resume it later; for example if waiting for the message to stream over a slow network
 //! connection.
 //!
-//! For this reason, all SHA2 algorithms impl [SerializableState].
+//! For this reason, all SHA2 algorithms impl [Suspendable].
 //!
 //! ```rust
 //! use bouncycastle_sha2 as sha2;
-//! use bouncycastle_core::traits::{Hash, SerializableState};
+//! use bouncycastle_core::traits::{Hash, Suspendable};
 //!
 //! let msg_part1 = b"The quick brown fox";
 //! let msg_part2 = b" jumped over the lazy dog";
@@ -52,14 +52,15 @@
 //! let mut sha2 = sha2::SHA256::new();
 //! sha2.do_update(msg_part1);
 //!
-//! // here, we'll suspend while "waiting" for the second part of the message
-//! let serialized_state = sha2.serialize_state();
+//! // suspend the in-progress extract while "waiting" for the second part of the message.
+//! let serialized_state = sha2.suspend();
 //!
 //! // ...
 //! // do other things in the meantime
 //! // ...
 //!
-//! let mut sha2_resumed = sha2::SHA256::from_serialized_state(serialized_state).unwrap();
+//! // ... later, possibly on another host: resume from the serialized state.
+//! let mut sha2_resumed = sha2::SHA256::from_suspended(serialized_state).unwrap();
 //! sha2_resumed.do_update(msg_part2);
 //! let h: Vec<u8> = sha2_resumed.do_final();
 //! ```
@@ -73,6 +74,10 @@ mod sha512;
 pub use self::sha256::SHA256Internal;
 pub use self::sha512::SHA512Internal;
 use bouncycastle_core::traits::{Algorithm, HashAlgParams, SecurityStrength};
+
+/*** Imports needed for docs ***/
+#[allow(unused_imports)]
+use bouncycastle_core::traits::Suspendable;
 
 /*** String constants ***/
 pub const SHA224_NAME: &str = "SHA224";
@@ -170,5 +175,5 @@ impl HashAlgParams for SHA512Params {
 }
 impl SHA2Params for SHA512Params {}
 
-pub use sha256::SHA256_SERIALIZED_STATE_LEN;
-pub use sha512::SHA512_SERIALIZED_STATE_LEN;
+pub use sha256::SUSPENDED_SHA256_STATE_LEN;
+pub use sha512::SUSPENDED_SHA512_STATE_LEN;

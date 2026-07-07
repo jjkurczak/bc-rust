@@ -1,13 +1,13 @@
 use crate::SHAKEParams;
 use crate::keccak::{
-    KeccakDigest, KeccakSize, SHA3_FAMILY_STATE_LEN, SHA3_SERIALIZED_STATE_LEN,
+    KeccakDigest, KeccakSize, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN,
     deserialize_sha3_family_state, serialize_sha3_family_state,
 };
 use bouncycastle_core::errors::{HashError, KDFError, SerializedStateError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
-use bouncycastle_core::traits::{Algorithm, KDF, SecurityStrength, SerializableState, XOF};
+use bouncycastle_core::traits::{Algorithm, KDF, SecurityStrength, Suspendable, XOF};
 use bouncycastle_utils::{max, min};
 
 /// Note: FIPS 202 section 7 states:
@@ -142,9 +142,9 @@ impl<PARAMS: SHAKEParams> SHAKE<PARAMS> {
     }
 }
 
-impl<PARAMS: SHAKEParams> SerializableState<SHA3_SERIALIZED_STATE_LEN> for SHAKE<PARAMS> {
-    fn serialize_state(self) -> [u8; SHA3_SERIALIZED_STATE_LEN] {
-        let mut out_to_return = [0u8; SHA3_SERIALIZED_STATE_LEN];
+impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKE<PARAMS> {
+    fn suspend(self) -> [u8; SUSPENDED_SHA3_STATE_LEN] {
+        let mut out_to_return = [0u8; SUSPENDED_SHA3_STATE_LEN];
 
         // insert the version tag
         let out: &mut [u8; SHA3_FAMILY_STATE_LEN] =
@@ -162,8 +162,8 @@ impl<PARAMS: SHAKEParams> SerializableState<SHA3_SERIALIZED_STATE_LEN> for SHAKE
         out_to_return
     }
 
-    fn from_serialized_state(
-        serialized_state: [u8; SHA3_SERIALIZED_STATE_LEN],
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA3_STATE_LEN],
     ) -> Result<Self, SerializedStateError> {
         // check the version tag. At the moment, we have no not_before version to specify.
         let input: &[u8; SHA3_FAMILY_STATE_LEN] =

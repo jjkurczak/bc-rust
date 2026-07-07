@@ -11,7 +11,7 @@ mod hkdf_tests {
     use bouncycastle_core_test_framework::kdf::TestFrameworkKDF;
     use bouncycastle_hex as hex;
     use bouncycastle_hkdf::{HKDF, HKDF_SHA256, HKDF_SHA512};
-    use bouncycastle_sha2::SHA256;
+    use bouncycastle_sha2::{SHA256, SHA512};
     use bouncycastle_utils::ct;
 
     #[test]
@@ -738,5 +738,56 @@ mod hkdf_tests {
             additional_input.as_slice(),
             &mut expected_key,
         );
+    }
+    #[test]
+    fn serializable_keyed_state() {
+        use bouncycastle_core::traits::{Hash, SuspendableKeyed};
+        use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableKeyedState;
+        use bouncycastle_hkdf::{SUSPENDED_HKDF_SHA256_STATE_LEN, SUSPENDED_HKDF_SHA512_STATE_LEN};
+
+        // HKDF is keyed by its salt: the salt is NOT serialized and is re-supplied on resume.
+        let salt =
+            KeyMaterial128::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::MACKey).unwrap();
+        let ikm = &DUMMY_SEED_512[16..64];
+        let (part1, part2) = ikm.split_at(20);
+
+        // A helper that exercises the full round-trip for one HKDF variant. A concrete `&KeyMaterial128`
+        // works for `do_extract_init` (which wants a `Sized` `&impl KeyMaterialTrait`) and coerces to
+        // `&dyn KeyMaterialTrait` for the serialization APIs.
+        fn round_trip<const LEN: usize, H>(salt: &KeyMaterial128, part1: &[u8], part2: &[u8])
+        where
+            H: Hash + HashAlgParams + Default,
+            HKDF<H>: Clone + SuspendableKeyed<LEN, Key = dyn KeyMaterialTrait>,
+        {
+            let hkdf = HKDF::<H>::new();
+
+            // it can be serialized pre-init, which is kinda a no-op, but at least it works.
+            let serialized_state = hkdf.suspend();
+            assert_eq!(serialized_state.len(), LEN);
+            let mut hkdf = HKDF::<H>::from_suspended(serialized_state, salt).unwrap();
+
+            hkdf.do_extract_init(salt).unwrap();
+            hkdf.do_extract_update_bytes(part1).unwrap();
+
+            // generic trait-conformance tests (version header present, [0,0,0]/future rejected)
+            TestFrameworkSuspendableKeyedState::new().test(&hkdf, salt);
+
+            // serialize the in-progress extract state (on a clone), then finish the original
+            let serialized_state = hkdf.clone().suspend();
+            assert_eq!(serialized_state.len(), LEN);
+
+            hkdf.do_extract_update_bytes(part2).unwrap();
+            let prk = hkdf.do_extract_final().unwrap();
+
+            // resume (re-supplying the salt), feed the identical remaining IKM, and compare PRKs
+            let mut resumed = HKDF::<H>::from_suspended(serialized_state, salt).unwrap();
+            resumed.do_extract_update_bytes(part2).unwrap();
+            let prk_resumed = resumed.do_extract_final().unwrap();
+
+            assert_eq!(prk.ref_to_bytes(), prk_resumed.ref_to_bytes());
+        }
+
+        round_trip::<SUSPENDED_HKDF_SHA256_STATE_LEN, SHA256>(&salt, part1, part2);
+        round_trip::<SUSPENDED_HKDF_SHA512_STATE_LEN, SHA512>(&salt, part1, part2);
     }
 }

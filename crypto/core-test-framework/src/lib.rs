@@ -13,8 +13,8 @@ pub mod hash;
 pub mod kdf;
 pub mod kem;
 pub mod mac;
-pub mod serializable_state;
 pub mod signature;
+pub mod suspendable_state;
 
 mod fixed_seed_rng;
 pub use fixed_seed_rng::FixedSeedRNG;

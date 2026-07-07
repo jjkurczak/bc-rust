@@ -137,11 +137,11 @@
 //! }
 //! ```
 //!
-//! # Suspending and resuming execution via SerializableState
+//! # Suspending and resuming execution
 //!
 //! When MAC'ing a large message, it can be advantageous to be able to suspend the operation
 //! to a cache and resume it later; for example if waiting for the message to stream over a slow network
-//! connection. For this reason, all HMAC algorithms impl [SerializableKeyedState].
+//! connection. For this reason, all HMAC algorithms impl [SuspendableKeyed].
 //!
 //! Note that since HMAC is a keyed
 //! algorithm and we do not want to serialize the private key into the state, the trait structure forces you to
@@ -153,7 +153,7 @@
 //!```rust
 //! use bouncycastle_hmac::HMAC_SHA256;
 //! use bouncycastle_core::key_material::KeyMaterial256;
-//! use bouncycastle_core::traits::{MAC, SerializableKeyedState};
+//! use bouncycastle_core::traits::{MAC, SuspendableKeyed};
 //! use bouncycastle_core::key_material::KeyType;
 //!
 //! let msg_part1 = b"The quick brown fox";
@@ -166,16 +166,16 @@
 //! let mut hmac = HMAC_SHA256::new(&key).unwrap();
 //! hmac.do_update(msg_part1);
 //!
-//! // here, we'll suspend while "waiting" for the second part of the message
-//! let serialized_state = hmac.serialize_state();
+//! // suspend the in-progress mac (the key is NOT included in the serialized state)
+//! let serialized_state = hmac.suspend();
 //!
 //! // ...
 //! // do other things in the meantime
 //! // ...
 //!
-//! // Since the key is not serialized into the state, you have to store it somewhere and provide
-//! // it to the deserializer. Make sure you store it securely!
-//! let mut hmac_resumed = HMAC_SHA256::from_serialized_state(serialized_state, &key).unwrap();
+//! // ... later, possibly on another host: resume from the serialized state by re-supplying
+//! // the same salt (make sure you store it securely!).
+//! let mut hmac_resumed = HMAC_SHA256::from_suspended(serialized_state, &key).unwrap();
 //! hmac_resumed.do_update(msg_part2);
 //! let h: Vec<u8> = hmac_resumed.do_final();
 //! ```
@@ -187,20 +187,30 @@
 use bouncycastle_core::errors::{KeyMaterialError, MACError, SerializedStateError};
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, Hash, MAC, SecurityStrength, SerializableKeyedState, SerializableState,
+    Algorithm, Hash, MAC, SecurityStrength, Suspendable, SuspendableKeyed,
 };
-use bouncycastle_sha2::{SHA224, SHA256, SHA384, SHA512};
-use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512};
+use bouncycastle_sha2::{
+    SHA224, SHA256, SHA384, SHA512, SUSPENDED_SHA256_STATE_LEN, SUSPENDED_SHA512_STATE_LEN,
+};
+use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512, SUSPENDED_SHA3_STATE_LEN};
 use bouncycastle_utils::ct;
 
 /*** String constants ***/
+///
 pub const HMAC_SHA224_NAME: &str = "HMAC-SHA224";
+///
 pub const HMAC_SHA256_NAME: &str = "HMAC-SHA256";
+///
 pub const HMAC_SHA384_NAME: &str = "HMAC-SHA384";
+///
 pub const HMAC_SHA512_NAME: &str = "HMAC-SHA512";
+///
 pub const HMAC_SHA3_224_NAME: &str = "HMAC-SHA3-224";
+///
 pub const HMAC_SHA3_256_NAME: &str = "HMAC-SHA3-256";
+///
 pub const HMAC_SHA3_384_NAME: &str = "HMAC-SHA3-384";
+///
 pub const HMAC_SHA3_512_NAME: &str = "HMAC-SHA3-512";
 
 /*** Type aliases ***/
@@ -298,7 +308,7 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
         // TODO: it would be nice to be able to statically extract the length of HASH and not need a Vec or over-sized array here.
         // TODO: make this no_std-friendly
         let mut padded = vec![0u8; self.hasher.block_bitlen() / 8];
-        
+
         padded[..self.key_len].copy_from_slice(&self.key[..self.key_len]);
 
         // XXX: easier way to xor over Vec?
@@ -324,7 +334,7 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
             self.key[..key_bytes.len()].copy_from_slice(key_bytes);
             self.key_len = key_bytes.len();
         }
-        
+
         // Just as a sanity-check.
         assert!(
             self.key_len <= KEY_BUF_LEN,
@@ -461,14 +471,34 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> MAC for HMAC<HASH, KEY_BUF_
     }
 }
 
-/// HMAC is a keyed algorithm, so it implements [SerializableKeyedState] (rather than
-/// [SerializableState]) for suspending and resuming in-progress operations.
+/* SerializedState */
+
+/*** Serialized-state length constants ***/
+/// Length in bytes of the serialized state of [HMAC_SHA224].
+pub const SUSPENDED_HMAC_SHA224_STATE_LEN: usize = SUSPENDED_SHA256_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA256].
+pub const SUSPENDED_HMAC_SHA256_STATE_LEN: usize = SUSPENDED_SHA256_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA384].
+pub const SUSPENDED_HMAC_SHA384_STATE_LEN: usize = SUSPENDED_SHA512_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA512].
+pub const SUSPENDED_HMAC_SHA512_STATE_LEN: usize = SUSPENDED_SHA512_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA3_224].
+pub const SUSPENDED_HMAC_SHA3_224_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA3_256].
+pub const SUSPENDED_HMAC_SHA3_256_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA3_384].
+pub const SUSPENDED_HMAC_SHA3_384_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+/// Length in bytes of the serialized state of [HMAC_SHA3_512].
+pub const SUSPENDED_HMAC_SHA3_512_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+
+/// HMAC is a keyed algorithm, so it implements [SuspendableKeyed] (rather than
+/// [Suspendable]) for suspending and resuming in-progress operations.
 /// The key is deliberately NOT written into the serialized
 /// bytes and must be re-supplied at deserialization.
 ///
 /// The serialized state is exactly the inner hasher's state (which has already absorbed `K ⊕ ipad`
 /// and any message chunks provided so far) — so this is a straight passthrough to the underlying hash's
-/// [SerializableState] impl. The re-supplied key is needed to reconstruct the material for the outer
+/// [Suspendable] impl. The re-supplied key is needed to reconstruct the material for the outer
 /// (`K ⊕ opad`) step at finalization.
 ///
 /// There is no way to detect a mismatched key on
@@ -477,26 +507,26 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> MAC for HMAC<HASH, KEY_BUF_
 impl<
     const HASH_STATE_LEN: usize,
     const KEY_BUF_LEN: usize,
-    HASH: Hash + Default + SerializableState<HASH_STATE_LEN>,
-> SerializableKeyedState<HASH_STATE_LEN> for HMAC<HASH, KEY_BUF_LEN>
+    HASH: Hash + Default + Suspendable<HASH_STATE_LEN>,
+> SuspendableKeyed<HASH_STATE_LEN> for HMAC<HASH, KEY_BUF_LEN>
 {
     // HMAC accepts any key material, so the key type is the trait object `dyn KeyMaterialTrait`
     // rather than a single concrete key type. The key is only used (by reference) to reload the key
     // bytes at from_serialized_state, so dynamic dispatch here is negligible.
     type Key = dyn KeyMaterialTrait;
 
-    fn serialize_state(self) -> [u8; HASH_STATE_LEN] {
+    fn suspend(self) -> [u8; HASH_STATE_LEN] {
         // The key is intentionally excluded; the resumable state is just the inner hasher, which
         // already carries the library version header from the hash's own SerializableState impl.
-        self.hasher.serialize_state()
+        self.hasher.suspend()
     }
 
-    fn from_serialized_state(
-        serialized_state: [u8; HASH_STATE_LEN],
-        key: &dyn KeyMaterialTrait,
+    fn from_suspended(
+        state: [u8; HASH_STATE_LEN],
+        key: &Self::Key,
     ) -> Result<Self, SerializedStateError> {
         // Rebuild the inner hasher (version-compatibility is validated by the hash's impl).
-        let hasher = HASH::from_serialized_state(serialized_state)?;
+        let hasher = HASH::from_suspended(state)?;
 
         // Re-load the key material exactly as `new()` did (pre-hashing an over-length key), but do
         // NOT re-absorb `K ⊕ ipad` — the deserialized hasher already contains it. The key is only

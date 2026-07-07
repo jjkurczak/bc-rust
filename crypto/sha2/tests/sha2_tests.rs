@@ -92,9 +92,9 @@ mod sha2_tests {
     }
 
     #[test]
-    fn test_serializable_state() {
-        use bouncycastle_core::traits::SerializableState;
-        use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableState;
+    fn suspendable_state() {
+        use bouncycastle_core::traits::Suspendable;
+        use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
 
         let str = "Colorless green ideas sleep furiously";
 
@@ -103,24 +103,25 @@ mod sha2_tests {
         sha256.do_update(str.as_bytes());
 
         // do the default tests
-        let test_framework = TestFrameworkSerializableState::new();
+        let test_framework = TestFrameworkSuspendableState::new();
         test_framework.test(&sha256);
 
         // now let's serialize the in-progress state
-        let serialized_state = sha256.clone().serialize_state();
+        let serialized_state = sha256.clone().suspend();
+        assert_eq!(serialized_state.len(), SUSPENDED_SHA256_STATE_LEN);
 
         // finish the hash
         let output = sha256.do_final();
 
         // then load from state and finish the hash and make sure we get the same thing
-        let sha2_from_state = SHA256::from_serialized_state(serialized_state).unwrap();
+        let sha2_from_state = SHA256::from_suspended(serialized_state).unwrap();
         let output2 = sha2_from_state.do_final();
         assert_eq!(output, output2);
 
         // also, give it a busted x_buf_off, just to satisfy mutants that that's been tested
         let mut busted_state = serialized_state.clone();
         busted_state[3 + 104] = 65;
-        match SHA256::from_serialized_state(busted_state) {
+        match SHA256::from_suspended(busted_state) {
             Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error"),
         }
@@ -130,24 +131,25 @@ mod sha2_tests {
         sha512.do_update(str.as_bytes());
 
         // do the default tests
-        let test_framework = TestFrameworkSerializableState::new();
+        let test_framework = TestFrameworkSuspendableState::new();
         test_framework.test(&sha512);
 
         // now let's serialize the in-progress state
-        let serialized_state = sha512.clone().serialize_state();
+        let serialized_state = sha512.clone().suspend();
+        assert_eq!(serialized_state.len(), SUSPENDED_SHA512_STATE_LEN);
 
         // finish the hash
         let output = sha512.do_final();
 
         // then load from state and finish the hash and make sure we get the same thing
-        let sha2_from_state = SHA512::from_serialized_state(serialized_state).unwrap();
+        let sha2_from_state = SHA512::from_suspended(serialized_state).unwrap();
         let output2 = sha2_from_state.do_final();
         assert_eq!(output, output2);
 
         // also, give it a busted x_buf_off, just to satisfy mutants that that's been tested
         let mut busted_state = serialized_state.clone();
         busted_state[3 + 200] = 129;
-        match SHA512::from_serialized_state(busted_state) {
+        match SHA512::from_suspended(busted_state) {
             Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error"),
         }

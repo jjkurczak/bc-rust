@@ -78,7 +78,7 @@ pub enum SerializedStateError {
     IncompatibleVersion,
     /// The serialized state is malformed or corrupt.
     InvalidData,
-    /// The key supplied to [crate::traits::SerializableKeyedState::from_serialized_state] does not
+    /// The key supplied to [crate::traits::SuspendableKeyed::from_suspended] does not
     /// match the key the state was created with (it is bound to a different public-key hash `tr`).
     IncorrectKey,
 }

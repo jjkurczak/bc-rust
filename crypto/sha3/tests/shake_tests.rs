@@ -226,7 +226,7 @@ mod shake_tests {
     }
 
     #[test]
-    fn test_security_strength() {
+    fn security_strength() {
         assert_eq!(KDF::max_security_strength(&SHAKE128::default()), SecurityStrength::_128bit);
         assert_eq!(XOF::max_security_strength(&SHAKE128::default()), SecurityStrength::_128bit);
         assert_eq!(KDF::max_security_strength(&SHAKE256::default()), SecurityStrength::_256bit);
@@ -239,29 +239,26 @@ mod shake_tests {
     }
 
     #[test]
-    fn test_serializable_state() {
+    fn suspendable_state() {
         use bouncycastle_core::errors::SerializedStateError;
-        use bouncycastle_core::traits::SerializableState;
-        use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableState;
+        use bouncycastle_core::traits::Suspendable;
+        use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
 
         let str = "Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one SHAKE variant.
-        fn round_trip<const N: usize, X: XOF + SerializableState<N> + Clone>(
-            mut shake: X,
-            input: &[u8],
-        ) {
+        fn round_trip<const N: usize, X: XOF + Suspendable<N> + Clone>(mut shake: X, input: &[u8]) {
             shake.absorb(input);
 
             // do the default trait-conformance tests
-            TestFrameworkSerializableState::new().test(&shake);
+            TestFrameworkSuspendableState::new().test(&shake);
 
             // serialize the in-progress (absorbing) state, then squeeze from the original
-            let serialized_state = shake.clone().serialize_state();
+            let serialized_state = shake.clone().suspend();
             let expected = shake.squeeze(64);
 
             // rebuild from the serialized state and confirm it produces the same output
-            let mut from_state = X::from_serialized_state(serialized_state).unwrap();
+            let mut from_state = X::from_suspended(serialized_state).unwrap();
             assert_eq!(expected, from_state.squeeze(64));
 
             // a corrupt `squeezing` byte (last byte of the keccak state) must be rejected.
@@ -269,7 +266,7 @@ mod shake_tests {
             //         + bits_in_queue(8) + squeezing(1)
             let mut busted = serialized_state;
             busted[3 + 1 + 400] = 42;
-            match X::from_serialized_state(busted) {
+            match X::from_suspended(busted) {
                 Err(SerializedStateError::InvalidData) => { /* good */ }
                 _ => panic!("Expected an error for a corrupt squeezing byte"),
             }
@@ -283,16 +280,16 @@ mod shake_tests {
         // (1088), so only the variant tag distinguishes them.
         let mut shake128 = SHAKE128::new();
         shake128.absorb(str.as_bytes());
-        let serialized_128 = shake128.serialize_state();
-        match SHAKE256::from_serialized_state(serialized_128) {
+        let serialized_128 = shake128.suspend();
+        match SHAKE256::from_suspended(serialized_128) {
             Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE128 state into SHAKE256"),
         }
 
         let mut shake256 = SHAKE256::new();
         shake256.absorb(str.as_bytes());
-        let serialized_256 = shake256.serialize_state();
-        match SHA3_256::from_serialized_state(serialized_256) {
+        let serialized_256 = shake256.suspend();
+        match SHA3_256::from_suspended(serialized_256) {
             Err(SerializedStateError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE256 state into SHA3-256"),
         }

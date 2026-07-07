@@ -148,7 +148,7 @@ mod hmac_tests {
     fn long_key() {
         // Regression test: a key just under the maximum length before HMAC will hash it down.
         // (RFC 2104 only pre-hashes keys *longer* than the block).
-        // This test wil detect an overflow-write and panic on HMAC's internal key buffer.
+        // This test is designed to detect an overflow-write and panic on HMAC's internal key buffer.
 
         // SHA-512 has a 128-byte block, so use a 127-byte key
         let key = KeyMaterial::<200>::from_bytes_as_type(&[0x0B; 127], KeyType::MACKey).unwrap();
@@ -603,11 +603,11 @@ mod hmac_tests {
     }
 
     #[test]
-    fn serializable_keyed_state() {
+    fn suspendable_keyed_state() {
         use bouncycastle_core::errors::SerializedStateError;
         use bouncycastle_core::serializable_state::LIB_VERSION;
-        use bouncycastle_core::traits::SerializableKeyedState;
-        use bouncycastle_core_test_framework::serializable_state::TestFrameworkSerializableKeyedState;
+        use bouncycastle_core::traits::SuspendableKeyed;
+        use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableKeyedState;
 
         let key =
             KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::MACKey).unwrap();
@@ -624,15 +624,15 @@ mod hmac_tests {
             key: &(dyn KeyMaterialTrait + 'static),
             input: &[u8],
         ) where
-            H: MAC + Clone + SerializableKeyedState<N, Key = dyn KeyMaterialTrait>,
+            H: MAC + Clone + SuspendableKeyed<N, Key = dyn KeyMaterialTrait>,
         {
             hmac.do_update(&input[..10]);
 
             // do the default trait-conformance tests
-            TestFrameworkSerializableKeyedState::new().test(&hmac, key);
+            TestFrameworkSuspendableKeyedState::new().test(&hmac, key);
 
             // serialize the in-progress state (on a clone), then finish the original
-            let serialized_state = hmac.clone().serialize_state();
+            let serialized_state = hmac.clone().suspend();
 
             // the serialized state carries the library version header (from the inner hash)
             let header: [u8; 3] = serialized_state[..3].try_into().unwrap();
@@ -643,14 +643,14 @@ mod hmac_tests {
 
             // rebuild from the serialized state (re-supplying the key), feed the identical remaining
             // input, and confirm the MAC matches
-            let mut from_state = H::from_serialized_state(serialized_state, key).unwrap();
+            let mut from_state = H::from_suspended(serialized_state, key).unwrap();
             from_state.do_update(&input[10..]);
             assert_eq!(expected, from_state.do_final());
 
             // a state whose version header is zeroed must be rejected (delegated to the hash's impl)
             let mut busted = serialized_state;
             busted[..3].copy_from_slice(&[0, 0, 0]);
-            match H::from_serialized_state(busted, key) {
+            match H::from_suspended(busted, key) {
                 Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
                 _ => panic!("Expected IncompatibleVersion for a zeroed version header"),
             }

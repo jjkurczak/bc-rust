@@ -488,8 +488,8 @@ pub trait RNG {
 #[allow(drop_bounds)]
 pub trait Secret: Drop + Debug + Display {}
 
-/// Allows a stateful object to serialize its state so that it can be paused and resumed later,
-/// potentially from a different host.
+/// Allows a stateful object to suspend its operation by serializing its state into a byte array
+///so that it can be resumed later, potentially from a different host.
 ///
 /// This is intended for situations where an object is being used through its streaming API
 /// (do_update, do_final) and the operation wants to be paused to a cache, for example while waiting
@@ -499,54 +499,56 @@ pub trait Secret: Drop + Debug + Display {}
 /// will be more straightforward.
 ///
 /// The serialized state MAY contain short-term sensitive values such as nonces or IVs,
-/// but it MUST NOT include a serialized private key. Keyed algorithms MUST instead impl
-/// [SerializableKeyedState] which requires the key to be supplied independently at the time of deserialization.
-pub trait SerializableState<const SERIALIZED_STATE_LEN: usize>: Sized {
-    /// Serialize the state of the object.
+/// but it MUST NOT include a serialized private key.
+/// Keyed algorithms MUST instead impl
+/// [SuspendableKeyed] which requires the key to be supplied independently at the time of deserialization.
+pub trait Suspendable<const SERIALIZED_STATE_LEN: usize>: Sized {
+    /// Suspend operation by serializing out the state of the object.
     ///
     /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
     /// If you want to do this intentionally, then you will need to clone the object before serializing it.
     ///
     /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
-    fn serialize_state(self) -> [u8; SERIALIZED_STATE_LEN];
+    fn suspend(self) -> [u8; SERIALIZED_STATE_LEN];
 
-    /// Create a new object from a serialized state.
+    /// Resume operation from a serialized state.
     ///
     /// Deserializers SHOULD check the version and reject serialized states from incompatible versions
     /// (including rejecting serializations from a future version of the library).
     /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
     /// deserializer should reject serialized states from that version or older.
-    fn from_serialized_state(
-        serialized_state: [u8; SERIALIZED_STATE_LEN],
+    fn from_suspended(
+        state: [u8; SERIALIZED_STATE_LEN],
     ) -> Result<Self, SerializedStateError>;
 }
 
-/// Similar to [SerializableState] in that it allows a stateful object to serialize its state so that
-/// it can be paused and resumed later, potentially from a different host.
+/// Similar to [Suspendable] in that it allows a stateful object to suspend its operation by
+/// serializing its state into a byte array so that it can be resumed later, potentially from a different host.
 ///
 /// The difference is that this trait is for keyed algorithms -- MACs, symmetric ciphers, signatures, etc --
-/// which require a private key. For security reasons, the private key is not included in the serialized state
+/// which require a private key in order to resume successfully.
+/// For security reasons, the private key is not included in the serialized state
 /// and must be provided separately as part of the deserialization process.
-pub trait SerializableKeyedState<const SERIALIZED_STATE_LEN: usize>: Sized {
+pub trait SuspendableKeyed<const SERIALIZED_STATE_LEN: usize>: Sized {
     /// The type of key that must be re-supplied to resume this object.
     type Key: ?Sized;
 
-    /// Serialize the state of the object.
+    /// Suspend operation by serializing out the state of the object.
     ///
     /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
     /// If you want to do this intentionally, then you will need to clone the object before serializing it.
     ///
     /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
-    fn serialize_state(self) -> [u8; SERIALIZED_STATE_LEN];
+    fn suspend(self) -> [u8; SERIALIZED_STATE_LEN];
 
-    /// Create a new object from a serialized state.
+    /// Resume operation from a serialized state and the key.
     ///
     /// Deserializers SHOULD check the version and reject serialized states from incompatible versions
     /// (including rejecting serializations from a future version of the library).
     /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
     /// deserializer should reject serialized states from that version or older.
-    fn from_serialized_state(
-        serialized_state: [u8; SERIALIZED_STATE_LEN],
+    fn from_suspended(
+        state: [u8; SERIALIZED_STATE_LEN],
         key: &Self::Key,
     ) -> Result<Self, SerializedStateError>;
 }

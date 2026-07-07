@@ -411,7 +411,7 @@
 //!
 //! ```rust
 //! use bouncycastle_mldsa::{MLDSA65, MuBuilder, MLDSATrait, MLDSAPublicKeyTrait};
-//! use bouncycastle_core::traits::{Signer, SerializableState};
+//! use bouncycastle_core::traits::{Signer, Suspendable};
 //!
 //! let msg_part1 = b"The quick brown fox";
 //! let msg_part2 = b" jumped over the lazy dog";
@@ -422,13 +422,13 @@
 //! mb.do_update(msg_part1);
 //!
 //! // here, we'll suspend while "waiting" for the second part of the message
-//! let serialized_state = mb.serialize_state();
+//! let serialized_state = mb.suspend();
 //!
 //! // ...
 //! // do other things in the meantime
 //! // ...
 //!
-//! let mut mb_resumed = MuBuilder::from_serialized_state(serialized_state).unwrap();
+//! let mut mb_resumed = MuBuilder::from_suspended(serialized_state).unwrap();
 //! mb_resumed.do_update(msg_part2);
 //! let mu: [u8; 64] = mb_resumed.do_final();
 //!
@@ -440,7 +440,7 @@
 //!
 //! ```rust
 //! use bouncycastle_mldsa::{MLDSA65, MuBuilder, MLDSATrait, MLDSAPublicKeyTrait};
-//! use bouncycastle_core::traits::{Signer, SerializableState};
+//! use bouncycastle_core::traits::{Signer, Suspendable};
 //! use bouncycastle_core::errors::SignatureError;
 //!
 //! let (pk, sk) = MLDSA65::keygen().unwrap();
@@ -456,13 +456,13 @@
 //! mb.do_update(msg_part1);
 //!
 //! // here, we'll suspend while "waiting" for the second part of the message
-//! let serialized_state = mb.serialize_state();
+//! let serialized_state = mb.suspend();
 //!
 //! // ...
 //! // do other things in the meantime
 //! // ...
 //!
-//! let mut mb_resumed = MuBuilder::from_serialized_state(serialized_state).unwrap();
+//! let mut mb_resumed = MuBuilder::from_suspended(serialized_state).unwrap();
 //! mb_resumed.do_update(msg_part2);
 //! let mu: [u8; 64] = mb_resumed.do_final();
 //!
@@ -488,10 +488,10 @@ use crate::{
 use bouncycastle_core::errors::{RNGError, SerializedStateError, SignatureError};
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterial256, KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, RNG, SecurityStrength, SerializableState, SignatureVerifier, Signer, XOF,
+    Algorithm, RNG, SecurityStrength, SignatureVerifier, Signer, Suspendable, XOF,
 };
 use bouncycastle_rng::HashDRBG_SHA512;
-use bouncycastle_sha3::{SHA3_SERIALIZED_STATE_LEN, SHAKE128, SHAKE256};
+use bouncycastle_sha3::{SHAKE128, SHAKE256, SUSPENDED_SHA3_STATE_LEN};
 use core::marker::PhantomData;
 
 // imports needed just for docs
@@ -2259,23 +2259,23 @@ impl MuBuilder {
 }
 
 /// The length, in bytes, of a serialized state of a [MuBuilder] object.
-pub const MU_BUILDER_SERIALIZED_STATE_LEN: usize = SHA3_SERIALIZED_STATE_LEN;
+pub const MU_BUILDER_SERIALIZED_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
 
 /// If you are processing a large input message into ML-DSA and want to pause the operation
-/// -- maybe while waiting for slow network IO), you'll need to use [SerializableState].
+/// -- maybe while waiting for slow network IO), you'll need to use [Suspendable].
 /// Serialization of the state of an in-progress ML-DSA instance is really just serialization
 /// of the construction of the message representative mu, since no other part of the ML-DSA algorithm
 /// has a pausable state.
 // A [MuBuilder]'s (and by virtue, an ML-DSA instance's) entire mutable state is its inner SHAKE256 sponge,
 // so serialization delegates directly to [SHAKE256]'s [SerializableState] impl.
-impl SerializableState<SHA3_SERIALIZED_STATE_LEN> for MuBuilder {
-    fn serialize_state(self) -> [u8; SHA3_SERIALIZED_STATE_LEN] {
-        self.h.serialize_state()
+impl Suspendable<SUSPENDED_SHA3_STATE_LEN> for MuBuilder {
+    fn suspend(self) -> [u8; SUSPENDED_SHA3_STATE_LEN] {
+        self.h.suspend()
     }
 
-    fn from_serialized_state(
-        serialized_state: [u8; SHA3_SERIALIZED_STATE_LEN],
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA3_STATE_LEN],
     ) -> Result<Self, SerializedStateError> {
-        Ok(MuBuilder { h: H::from_serialized_state(serialized_state)? })
+        Ok(MuBuilder { h: H::from_suspended(serialized_state)? })
     }
 }

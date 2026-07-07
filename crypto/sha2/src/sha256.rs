@@ -1,7 +1,7 @@
 use crate::SHA2Params;
 use bouncycastle_core::errors::{HashError, SerializedStateError};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
-use bouncycastle_core::traits::{Hash, SecurityStrength, SerializableState};
+use bouncycastle_core::traits::{Hash, SecurityStrength, Suspendable};
 use bouncycastle_utils::min;
 use core::slice;
 
@@ -304,15 +304,14 @@ impl<PARAMS: SHA2Params> Hash for SHA256Internal<PARAMS> {
     }
 }
 
-/// The number of bytes produced by [SerializableState::serialize_state] for any SHA224 or SHA256
-/// object.
-pub const SHA256_SERIALIZED_STATE_LEN: usize = 108;
+/// Length in bytes of the serialized state of SHA224 and SHA256.
+pub const SUSPENDED_SHA256_STATE_LEN: usize = 108;
 
-impl<PARAMS: SHA2Params> SerializableState<SHA256_SERIALIZED_STATE_LEN> for SHA256Internal<PARAMS> {
-    fn serialize_state(self) -> [u8; SHA256_SERIALIZED_STATE_LEN] {
-        debug_assert_eq!(SHA256_SERIALIZED_STATE_LEN, 108);
+impl<PARAMS: SHA2Params> Suspendable<SUSPENDED_SHA256_STATE_LEN> for SHA256Internal<PARAMS> {
+    fn suspend(self) -> [u8; SUSPENDED_SHA256_STATE_LEN] {
+        debug_assert_eq!(SUSPENDED_SHA256_STATE_LEN, 108);
 
-        let mut out_to_return = [0u8; SHA256_SERIALIZED_STATE_LEN];
+        let mut out_to_return = [0u8; SUSPENDED_SHA256_STATE_LEN];
 
         // insert the version tag
         let out: &mut [u8; 105] = add_lib_ver(&mut out_to_return).try_into().unwrap();
@@ -337,10 +336,10 @@ impl<PARAMS: SHA2Params> SerializableState<SHA256_SERIALIZED_STATE_LEN> for SHA2
         out_to_return
     }
 
-    fn from_serialized_state(
-        serialized_state: [u8; SHA256_SERIALIZED_STATE_LEN],
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA256_STATE_LEN],
     ) -> Result<Self, SerializedStateError> {
-        debug_assert_eq!(SHA256_SERIALIZED_STATE_LEN, 108);
+        debug_assert_eq!(SUSPENDED_SHA256_STATE_LEN, 108);
 
         // check the version tag
         // At the moment, we have no not_before version to specify.
