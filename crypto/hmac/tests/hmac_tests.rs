@@ -145,6 +145,27 @@ mod hmac_tests {
     }
 
     #[test]
+    fn long_key() {
+        // Regression test: a key just under the maximum length before HMAC will hash it down.
+        // (RFC 2104 only pre-hashes keys *longer* than the block).
+        // This test wil detect an overflow-write and panic on HMAC's internal key buffer.
+
+        // SHA-512 has a 128-byte block, so use a 127-byte key
+        let key = KeyMaterial::<200>::from_bytes_as_type(&[0x0B; 127], KeyType::MACKey).unwrap();
+        let mut mac = HMAC_SHA512::new(&key).unwrap();
+        mac.do_update(b"Hi There");
+        let tag = mac.do_final();
+        assert!(HMAC_SHA512::new(&key).unwrap().verify(b"Hi There", &tag));
+
+        // SHA3-224 has the largest block (144 bytes); a 143-byte key exercises the top of the range.
+        let key = KeyMaterial::<200>::from_bytes_as_type(&[0x0B; 143], KeyType::MACKey).unwrap();
+        let mut mac = HMAC_SHA3_224::new(&key).unwrap();
+        mac.do_update(b"Hi There");
+        let tag = mac.do_final();
+        assert!(HMAC_SHA3_224::new(&key).unwrap().verify(b"Hi There", &tag));
+    }
+
+    #[test]
     fn security_strength_tests() {
         // test: provided key has the correct length, but insufficient tagged security strength
         // HMAC should still work, but should return an error

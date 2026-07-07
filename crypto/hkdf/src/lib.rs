@@ -179,9 +179,10 @@ pub type HKDF_SHA256 = HKDF<SHA256>;
 pub type HKDF_SHA512 = HKDF<SHA512>;
 
 pub struct HKDF<H: Hash + HashAlgParams + Default> {
-    hmac: Option<HMAC<H>>, // Optional because we can't construct an HMAC until they give us a key
+    // Optional because we can't construct an HMAC until they give us a key
     // to initialize it with.
     // None should correspond to a state of Uninitialized.
+    hmac: Option<HMAC<H>>,
     entropy: HkdfEntropyTracker<H>,
     state: HkdfStates,
 }
@@ -410,7 +411,6 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         key_material::do_hazardous_operations(okm, |okm| {
             let out = okm.ref_to_bytes_mut()?;
             while i < N {
-                // todo: might need this to be new_allow_weak_key()
                 let mut hmac = HMAC::<H>::new(&prk_as_mac_key)
                     .map_err(|_| KeyMaterialError::GenericError("HMAC initialization failed"))?;
                 hmac.do_update(&T[..t_len]);
@@ -430,7 +430,6 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
 
         // On the last iteration, we don't take all of the output.
         let remaining = L - bytes_written;
-        // todo: might need this to be new_allow_weak_key()
         let mut hmac = HMAC::<H>::new(&prk_as_mac_key)?;
         hmac.do_update(&T[..t_len]);
         hmac.do_update(info);
@@ -489,8 +488,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
     /// The output KeyMaterial will be of fixed size, with a capacity large enough to cover any
     /// underlying hash function, but the actual key length will be appropriate to the underlying hash function.
     ///
-    /// Salt is optional, which is indicated by providing an uninitialized KeyMaterial object of length zero,
-    /// the capacity is irrelevant, so KeyMateriol256::new() or KeyMaterial_internal::<0>::new() would both count as an absent salt.
+    /// Salt is optional; to omit it, provide a KeyMaterial0, which will cause HKDF to use the default all-zero salt.
     ///
     /// Returns the number of bits of entropy credited to this input key material.
     pub fn do_extract_init(&mut self, salt: &impl KeyMaterialTrait) -> Result<usize, MACError> {

@@ -205,69 +205,76 @@ pub const HMAC_SHA3_512_NAME: &str = "HMAC-SHA3-512";
 
 /*** Type aliases ***/
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA224 = HMAC<SHA224>;
+pub type HMAC_SHA224 = HMAC<SHA224, 64>;
 impl Algorithm for HMAC_SHA224 {
     const ALG_NAME: &'static str = HMAC_SHA224_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA256 = HMAC<SHA256>;
+pub type HMAC_SHA256 = HMAC<SHA256, 64>;
 impl Algorithm for HMAC_SHA256 {
     const ALG_NAME: &'static str = HMAC_SHA256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA384 = HMAC<SHA384>;
+pub type HMAC_SHA384 = HMAC<SHA384, 128>;
 impl Algorithm for HMAC_SHA384 {
     const ALG_NAME: &'static str = HMAC_SHA384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA512 = HMAC<SHA512>;
+pub type HMAC_SHA512 = HMAC<SHA512, 128>;
 impl Algorithm for HMAC_SHA512 {
     const ALG_NAME: &'static str = HMAC_SHA512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA3_224 = HMAC<SHA3_224>;
+pub type HMAC_SHA3_224 = HMAC<SHA3_224, 144>;
 impl Algorithm for HMAC_SHA3_224 {
     const ALG_NAME: &'static str = HMAC_SHA3_224_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA3_256 = HMAC<SHA3_256>;
+pub type HMAC_SHA3_256 = HMAC<SHA3_256, 136>;
 impl Algorithm for HMAC_SHA3_256 {
     const ALG_NAME: &'static str = HMAC_SHA3_256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA3_384 = HMAC<SHA3_384>;
+pub type HMAC_SHA3_384 = HMAC<SHA3_384, 104>;
 impl Algorithm for HMAC_SHA3_384 {
     const ALG_NAME: &'static str = HMAC_SHA3_384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
 
 #[allow(non_camel_case_types)]
-pub type HMAC_SHA3_512 = HMAC<SHA3_512>;
+pub type HMAC_SHA3_512 = HMAC<SHA3_512, 72>;
 impl Algorithm for HMAC_SHA3_512 {
     const ALG_NAME: &'static str = HMAC_SHA3_512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
 }
 
-// TODO: is there a rustacious way to extract this from HASH?
-const LARGEST_HASHER_OUTPUT_LEN: usize = 64;
+// The internal key buffer must be able to hold a key up to the *block length* of the underlying hash:
+// per RFC 2104, a key no longer than the block is used verbatim (only longer keys are pre-hashed down
+// to the output length). So the buffer size is a const parameter of the struct, set per hash to its
+// block length by the type aliases below. Block lengths (bytes): SHA-224/256 = 64, SHA-384/512 = 128,
+// SHA3-224 = 144, SHA3-256 = 136, SHA3-384 = 104, SHA3-512 = 72.
+//
+// The default is used only when `HMAC<HASH>` is written without an explicit buffer size; it is the
+// largest block length across all supported hashes, so it is always large enough.
+const LARGEST_HASHER_BLOCK_LEN: usize = 144;
 
 // HMAC implements RFC 2104.
 #[derive(Clone)]
-pub struct HMAC<HASH: Hash + Default> {
+pub struct HMAC<HASH: Hash + Default, const KEY_BUF_LEN: usize = LARGEST_HASHER_BLOCK_LEN> {
     hasher: HASH,
-    key: [u8; LARGEST_HASHER_OUTPUT_LEN],
+    key: [u8; KEY_BUF_LEN],
     key_len: usize, // Doing it this way to avoid needing a vec, so that this can be made no_std friendly.
 }
 
@@ -286,21 +293,13 @@ const OPAD_BYTE: u8 = 0x5C;
 // be too strict about it,
 pub const MIN_FIPS_DIGEST_LEN: usize = 4; // 32 / 8;
 
-impl<HASH: Hash + Default> HMAC<HASH> {
+impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
     fn pad_key_into_hasher(&mut self, padding: u8) {
         // TODO: it would be nice to be able to statically extract the length of HASH and not need a Vec or over-sized array here.
         // TODO: make this no_std-friendly
         let mut padded = vec![0u8; self.hasher.block_bitlen() / 8];
-
-        // Per RFC 2104 Section 2, if the application key exceeds the block
-        // length of the underlying hashes algorithm, we apply a hash invocation
-        // over the key first.
-        // if self.key_len > self.hasher.block_bitlen() / 8 {
-        //     HASH::default().hash_out(&self.key[..self.key_len], &mut padded[..self.hasher.output_len()])?;
-        // } else {
-        // TODO: does this need a guard for a key_len longer than the block length?
+        
         padded[..self.key_len].copy_from_slice(&self.key[..self.key_len]);
-        // }
 
         // XXX: easier way to xor over Vec?
         for entry in &mut padded {
@@ -312,9 +311,10 @@ impl<HASH: Hash + Default> HMAC<HASH> {
         self.hasher.do_update(&padded)
     }
 
-    /// Loads the raw key bytes into `self.key` / `self.key_len`, pre-hashing them first if they
-    /// exceed the underlying hash's block length (per RFC 2104 Section 2). This does NOT absorb the
-    /// key into the hasher; that is done separately via [HMAC::pad_key_into_hasher].
+    /// Per RFC 2104 Section 2, if the application key exceeds the block
+    /// length of the underlying hashes algorithm, we apply a hash invocation
+    /// over the key first.
+    /// This does NOT absorb the key into the hasher; that is done separately via [HMAC::pad_key_into_hasher].
     fn load_key_material(&mut self, key_bytes: &[u8]) {
         if key_bytes.len() > self.hasher.block_bitlen() / 8 {
             // then we have to pre-hash it -- use a new instance of the hasher rather than the internal one
@@ -324,6 +324,12 @@ impl<HASH: Hash + Default> HMAC<HASH> {
             self.key[..key_bytes.len()].copy_from_slice(key_bytes);
             self.key_len = key_bytes.len();
         }
+        
+        // Just as a sanity-check.
+        assert!(
+            self.key_len <= KEY_BUF_LEN,
+            "Fatal error: Key length exceeds HMAC internal buffer length"
+        );
     }
 
     /// Private init so that users are forced to go through one of the public new methods and thus we
@@ -390,17 +396,15 @@ impl<HASH: Hash + Default> HMAC<HASH> {
 // TODO: This is essentially a "batch mode" where you want to perform many MACs or Verifications with the same key
 // TODO: against different data.
 
-impl<HASH: Hash + Default> MAC for HMAC<HASH> {
+impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> MAC for HMAC<HASH, KEY_BUF_LEN> {
     fn new(key: &impl KeyMaterialTrait) -> Result<Self, MACError> {
-        let mut hmac =
-            Self { hasher: HASH::default(), key: [0u8; LARGEST_HASHER_OUTPUT_LEN], key_len: 0 };
+        let mut hmac = Self { hasher: HASH::default(), key: [0u8; KEY_BUF_LEN], key_len: 0 };
         hmac.init(key, false)?;
         Ok(hmac)
     }
 
     fn new_allow_weak_key(key: &impl KeyMaterialTrait) -> Result<Self, MACError> {
-        let mut hmac =
-            Self { hasher: HASH::default(), key: [0u8; LARGEST_HASHER_OUTPUT_LEN], key_len: 0 };
+        let mut hmac = Self { hasher: HASH::default(), key: [0u8; KEY_BUF_LEN], key_len: 0 };
         hmac.init(key, true)?;
         Ok(hmac)
     }
@@ -470,8 +474,11 @@ impl<HASH: Hash + Default> MAC for HMAC<HASH> {
 /// There is no way to detect a mismatched key on
 /// resume: the caller MUST supply the same key the HMAC was created with, otherwise the resumed
 /// operation will silently produce an incorrect MAC.
-impl<const HASH_STATE_LEN: usize, HASH: Hash + Default + SerializableState<HASH_STATE_LEN>>
-    SerializableKeyedState<HASH_STATE_LEN> for HMAC<HASH>
+impl<
+    const HASH_STATE_LEN: usize,
+    const KEY_BUF_LEN: usize,
+    HASH: Hash + Default + SerializableState<HASH_STATE_LEN>,
+> SerializableKeyedState<HASH_STATE_LEN> for HMAC<HASH, KEY_BUF_LEN>
 {
     // HMAC accepts any key material, so the key type is the trait object `dyn KeyMaterialTrait`
     // rather than a single concrete key type. The key is only used (by reference) to reload the key
@@ -494,7 +501,7 @@ impl<const HASH_STATE_LEN: usize, HASH: Hash + Default + SerializableState<HASH_
         // Re-load the key material exactly as `new()` did (pre-hashing an over-length key), but do
         // NOT re-absorb `K ⊕ ipad` — the deserialized hasher already contains it. The key is only
         // needed for the outer `K ⊕ opad` step at finalization.
-        let mut hmac = HMAC { hasher, key: [0u8; LARGEST_HASHER_OUTPUT_LEN], key_len: 0 };
+        let mut hmac = HMAC { hasher, key: [0u8; KEY_BUF_LEN], key_len: 0 };
         hmac.load_key_material(key.ref_to_bytes());
 
         Ok(hmac)
