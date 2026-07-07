@@ -30,18 +30,29 @@
 //! ```
 //! use bouncycastle_hmac::HMAC_SHA256;
 //! use bouncycastle_core::traits::MAC;
-//! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
+//! use bouncycastle_core::key_material::{KeyMaterial256};
 //!
-//! let key = KeyMaterial256::from_bytes_as_type(
-//!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-//!             KeyType::MACKey).unwrap();
+//! let key: KeyMaterial256 = HMAC_SHA256::keygen().expect("Will only fail if the system RNG can't start up.");
 //!
-//! let hmac = HMAC_SHA256::new(&key).expect("Should succeed because key is long enough and tagged KeyType::MACKey");
+//! let hmac = HMAC_SHA256::new(&key).expect(
+//!         "Should succeed because key is long enough and tagged KeyType::MACKey");
 //! ```
 //! and
 //! ```
 //! use bouncycastle_hmac::HMAC;
 //! use bouncycastle_sha2::SHA256;
+//! use bouncycastle_core::traits::MAC;
+//! use bouncycastle_core::key_material::{KeyMaterial256};
+//!
+//! let key: KeyMaterial256 = HMAC::<SHA256>::keygen().expect("Will only fail if the system RNG can't start up.");
+//!
+//! let hmac = HMAC::<SHA256>::new(&key).expect(
+//!         "Should succeed because key is long enough and tagged KeyType::MACKey");
+//! ```
+//!
+//! Alternatively, if you have key material from somewhere else, you can create the key manually, like so:
+//! ```
+//! use bouncycastle_hmac::HMAC_SHA256;
 //! use bouncycastle_core::traits::MAC;
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //!
@@ -49,7 +60,8 @@
 //!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
 //!             KeyType::MACKey).unwrap();
 //!
-//! let hmac = HMAC::<SHA256>::new(&key).expect("Should succeed because key is long enough and tagged KeyType::MACKey");
+//! let hmac = HMAC_SHA256::new(&key).expect(
+//!         "Should succeed because key is long enough and tagged KeyType::MACKey");
 //! ```
 //!
 //! ## Computing a MAC
@@ -61,9 +73,7 @@
 //! use bouncycastle_core::traits::MAC;
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //!
-//! let key = KeyMaterial256::from_bytes_as_type(
-//!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-//!             KeyType::MACKey).unwrap();
+//! let key: KeyMaterial256 = HMAC_SHA256::keygen().expect("Will only fail if the system RNG can't start up.");
 //!
 //! let data: &[u8] = b"Hello, world!";
 //! let hmac = HMAC_SHA256::new(&key).expect("Should succeed because key is long enough and tagged KeyType::MACKey");
@@ -74,13 +84,12 @@
 //! for example if input is received in chunks and not all available at the same time:
 //!
 //! ```
-//! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //! use bouncycastle_core::traits::MAC;
 //! use bouncycastle_hmac::HMAC_SHA256;
+//! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //!
-//! let key = KeyMaterial256::from_bytes_as_type(
-//!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-//!             KeyType::MACKey).unwrap();
+//! let key: KeyMaterial256 = HMAC_SHA256::keygen().expect("Will only fail if the system RNG can't start up.");
+//!
 //! let mut hmac = HMAC_SHA256::new(&key).expect("Should succeed because key is long enough and tagged KeyType::MACKey");
 //! hmac.do_update(b"Hello,");
 //! hmac.do_update(b" world!");
@@ -97,15 +106,19 @@
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //! use bouncycastle_core::traits::MAC;
 //!
+//! // For this example to work, we are hard-coding both the key and the MAC value that it generates
+//! // for this data.
 //! let key = KeyMaterial256::from_bytes_as_type(
 //!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
 //!             KeyType::MACKey).unwrap();
+//!
 //! let data: &[u8] = b"Hello, world!";
 //!
 //! // .verify() returns a bool: true if the MAC is valid, false otherwise.
 //! if bouncycastle_hmac::HMAC_SHA256::new(&key).unwrap()
 //!                 .verify(data,
-//!                         b"\xa2\xd1\x2e\xcf\xfc\x41\xba\xf1\x23\xd6\x3e\x44\xfc\x27\x88\x90\x47\xcd\x08\xe7\x05\xd7\x0f\xa3\xb8\xaa\x8a\x5c\x18\x7c\x6c\xa9"
+//!                         b"\xa2\xd1\x2e\xcf\xfc\x41\xba\xf1\x23\xd6\x3e\x44\xfc\x27\x88\x90
+//!                            \x47\xcd\x08\xe7\x05\xd7\x0f\xa3\xb8\xaa\x8a\x5c\x18\x7c\x6c\xa9"
 //!                         )
 //! {
 //!     println!("MAC is valid!");
@@ -122,6 +135,8 @@
 //! use bouncycastle_core::traits::MAC;
 //! use bouncycastle_hmac::HMAC_SHA256;
 //!
+//! // For this example to work, we are hard-coding both the key and the MAC value that it generates
+//! // for this data.
 //! let key = KeyMaterial256::from_bytes_as_type(
 //!             b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
 //!             KeyType::MACKey).unwrap();
@@ -136,30 +151,15 @@
 //!     println!("MAC is invalid!");
 //! }
 //! ```
-//!
-//! # Request for feedback on fallability of this API
-//! We have made an effort to reduce the number of fallibly APIs in the [MAC] trait; in particular
-//! the APIs for the update and most of the finalize phases are infallible -- they just work.
-//! However, we were not able to design it to completely avoid runtime error conditions, such as
-//! providing [MAC::do_final_out] with a buffer that is too small to hold what NIST considered the smallest
-//! valid MAC value for the given underlying hash function.
-//!
-//! Also, the key strength and type checking in the initialization phase means that both [MAC::new] and
-//! [MAC::new_allow_weak_key] have several runtime error conditions that they check for.
-//!
-//! All of this leads to application code that requires a lot more .unwrap(), .expect(), or match than we would
-//! really like.
-//!
-//! We would love feedback on an alternate design for this API than carries less runtime error
-//! conditions, without sacrificing the key strength checking that the metadata in the [KeyMaterialTrait] object allows.
 
 #![forbid(unsafe_code)]
 #![allow(incomplete_features)] // because at time of writing, generic_const_exprs is not a stable feature
 #![feature(generic_const_exprs)]
 
-use bouncycastle_core::errors::{KeyMaterialError, MACError};
-use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
-use bouncycastle_core::traits::{Algorithm, Hash, MAC, SecurityStrength};
+use bouncycastle_core::errors::{KeyMaterialError, MACError, RNGError};
+use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
+use bouncycastle_core::traits::{Algorithm, Hash, MAC, RNG, SecurityStrength};
+use bouncycastle_rng::{HashDRBG_SHA256, HashDRBG_SHA512};
 use bouncycastle_sha2::{SHA224, SHA256, SHA384, SHA512};
 use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512};
 use bouncycastle_utils::ct;
@@ -420,3 +420,30 @@ impl<HASH: Hash + Default> MAC for HMAC<HASH> {
         HASH::default().max_security_strength()
     }
 }
+
+/* KeyGen functions */
+// These need to be separate intrinsic impl's because there isn't a way to statically-type the
+// KeyMaterial<N> based on the HASH type.
+// Using a macro to cut down on code duplication.
+macro_rules! impl_hmac_keygen {
+    ($ty:ty, $n:literal, $drbg:ty) => {
+        impl $ty {
+            pub fn keygen() -> Result<KeyMaterial<$n>, RNGError> {
+                let mut key = KeyMaterial::<$n>::new();
+                let mut os_rng = <$drbg>::new_from_os();
+                os_rng.fill_keymaterial_out(&mut key)?;
+                key.set_key_type(KeyType::MACKey)?;
+                Ok(key)
+            }
+        }
+    };
+}
+
+impl_hmac_keygen!(HMAC_SHA224, 28, HashDRBG_SHA256);
+impl_hmac_keygen!(HMAC_SHA256, 32, HashDRBG_SHA256);
+impl_hmac_keygen!(HMAC_SHA384, 48, HashDRBG_SHA512);
+impl_hmac_keygen!(HMAC_SHA512, 64, HashDRBG_SHA512);
+impl_hmac_keygen!(HMAC_SHA3_224, 28, HashDRBG_SHA256);
+impl_hmac_keygen!(HMAC_SHA3_256, 32, HashDRBG_SHA256);
+impl_hmac_keygen!(HMAC_SHA3_384, 48, HashDRBG_SHA512);
+impl_hmac_keygen!(HMAC_SHA3_512, 64, HashDRBG_SHA512);
