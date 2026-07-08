@@ -398,7 +398,7 @@ mod sha3_tests {
 
     #[test]
     fn serializable_state() {
-        use bouncycastle_core::errors::SerializedStateError;
+        use bouncycastle_core::errors::SuspendableError;
         use bouncycastle_core::traits::Suspendable;
         use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
 
@@ -427,7 +427,7 @@ mod sha3_tests {
             let mut busted = serialized_state;
             busted[3 + 1 + 400] = 42;
             match H::from_suspended(busted) {
-                Err(SerializedStateError::InvalidData) => { /* good */ }
+                Err(SuspendableError::InvalidData) => { /* good */ }
                 _ => panic!("Expected an error for a corrupt squeezing byte"),
             }
         }
@@ -444,11 +444,11 @@ mod sha3_tests {
         sha3_256.do_update(str.as_bytes());
         let serialized_256 = sha3_256.suspend();
         match SHA3_512::from_suspended(serialized_256) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHA3-256 state into SHA3-512"),
         }
         match SHAKE256::from_suspended(serialized_256) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHA3-256 state into SHAKE256"),
         }
     }

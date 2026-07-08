@@ -50,7 +50,7 @@
 //!
 //! See [do_hazardous_operations] for documentation and sample code.
 
-use crate::errors::{KeyMaterialError, SerializedStateError};
+use crate::errors::{KeyMaterialError, SuspendableError};
 use crate::traits::{RNG, Secret, SecurityStrength};
 use bouncycastle_utils::{ct, min};
 
@@ -255,9 +255,9 @@ pub enum KeyType {
 }
 
 impl TryFrom<u8> for KeyType {
-    type Error = SerializedStateError;
+    type Error = SuspendableError;
 
-    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SerializedStateError::InvalidData].
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SuspendableError::InvalidData].
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::Zeroized,
@@ -266,7 +266,7 @@ impl TryFrom<u8> for KeyType {
             3 => Self::Seed,
             4 => Self::MACKey,
             5 => Self::SymmetricCipherKey,
-            _ => return Err(SerializedStateError::InvalidData),
+            _ => return Err(SuspendableError::InvalidData),
         })
     }
 }

@@ -17,7 +17,7 @@ pub trait Algorithm {
     const MAX_SECURITY_STRENGTH: SecurityStrength;
 }
 
-pub trait Hash: Default {
+pub trait Hash: Algorithm + Default {
     /// The size of the internal block in bits -- needed by functions such as HMAC to compute security parameters.
     fn block_bitlen(&self) -> usize;
 
@@ -399,9 +399,9 @@ pub enum SecurityStrength {
 }
 
 impl TryFrom<u8> for SecurityStrength {
-    type Error = SerializedStateError;
+    type Error = SuspendableError;
 
-    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SerializedStateError::InvalidData].
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SuspendableError::InvalidData].
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::None,
@@ -409,7 +409,7 @@ impl TryFrom<u8> for SecurityStrength {
             2 => Self::_128bit,
             3 => Self::_192bit,
             4 => Self::_256bit,
-            _ => return Err(SerializedStateError::InvalidData),
+            _ => return Err(SuspendableError::InvalidData),
         })
     }
 }
@@ -517,7 +517,7 @@ pub trait Suspendable<const SERIALIZED_STATE_LEN: usize>: Sized {
     /// (including rejecting serializations from a future version of the library).
     /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
     /// deserializer should reject serialized states from that version or older.
-    fn from_suspended(state: [u8; SERIALIZED_STATE_LEN]) -> Result<Self, SerializedStateError>;
+    fn from_suspended(state: [u8; SERIALIZED_STATE_LEN]) -> Result<Self, SuspendableError>;
 }
 
 /// Similar to [Suspendable] in that it allows a stateful object to suspend its operation by
@@ -548,7 +548,7 @@ pub trait SuspendableKeyed<const SERIALIZED_STATE_LEN: usize>: Sized {
     fn from_suspended(
         state: [u8; SERIALIZED_STATE_LEN],
         key: &Self::Key,
-    ) -> Result<Self, SerializedStateError>;
+    ) -> Result<Self, SuspendableError>;
 }
 
 /// Pre-Hashed Signer is an extension to [Signer] that adds functionality specific to signature

@@ -240,7 +240,7 @@ mod shake_tests {
 
     #[test]
     fn suspendable_state() {
-        use bouncycastle_core::errors::SerializedStateError;
+        use bouncycastle_core::errors::SuspendableError;
         use bouncycastle_core::traits::Suspendable;
         use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
 
@@ -253,7 +253,17 @@ mod shake_tests {
             // do the default trait-conformance tests
             TestFrameworkSuspendableState::new().test(&shake);
 
-            // serialize the in-progress (absorbing) state, then squeeze from the original
+            // Test #1
+            // serialize the in-progress (absorbing) state, then squeeze from the original and compare
+            let serialized_state = shake.clone().suspend();
+            let expected = shake.squeeze(64);
+
+            // rebuild from the serialized state and confirm it produces the same output
+            let mut from_state = X::from_suspended(serialized_state).unwrap();
+            assert_eq!(expected, from_state.squeeze(64));
+
+            // Test #2
+            // serialize the in-progress (squeezing) state, then squeeze more from the original and compare
             let serialized_state = shake.clone().suspend();
             let expected = shake.squeeze(64);
 
@@ -267,7 +277,7 @@ mod shake_tests {
             let mut busted = serialized_state;
             busted[3 + 1 + 400] = 42;
             match X::from_suspended(busted) {
-                Err(SerializedStateError::InvalidData) => { /* good */ }
+                Err(SuspendableError::InvalidData) => { /* good */ }
                 _ => panic!("Expected an error for a corrupt squeezing byte"),
             }
         }
@@ -282,7 +292,7 @@ mod shake_tests {
         shake128.absorb(str.as_bytes());
         let serialized_128 = shake128.suspend();
         match SHAKE256::from_suspended(serialized_128) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE128 state into SHAKE256"),
         }
 
@@ -290,7 +300,7 @@ mod shake_tests {
         shake256.absorb(str.as_bytes());
         let serialized_256 = shake256.suspend();
         match SHA3_256::from_suspended(serialized_256) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE256 state into SHA3-256"),
         }
     }

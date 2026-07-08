@@ -3,11 +3,11 @@ use crate::keccak::{
     KeccakDigest, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN, deserialize_sha3_family_state,
     serialize_sha3_family_state,
 };
-use bouncycastle_core::errors::{HashError, KDFError, SerializedStateError};
+use bouncycastle_core::errors::{HashError, KDFError, SuspendableError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
-use bouncycastle_core::traits::{Hash, KDF, SecurityStrength, Suspendable};
+use bouncycastle_core::traits::{Algorithm, Hash, KDF, SecurityStrength, Suspendable};
 use bouncycastle_utils::{max, min};
 
 #[derive(Clone)]
@@ -122,6 +122,11 @@ impl<PARAMS: SHA3Params> Default for SHA3<PARAMS> {
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl<PARAMS: SHA3Params> Algorithm for SHA3<PARAMS> {
+    const ALG_NAME: &'static str = PARAMS::ALG_NAME;
+    const MAX_SECURITY_STRENGTH: SecurityStrength = PARAMS::MAX_SECURITY_STRENGTH;
 }
 
 impl<PARAMS: SHA3Params> Hash for SHA3<PARAMS> {
@@ -297,7 +302,7 @@ impl<PARAMS: SHA3Params> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHA3<PARAMS> 
 
     fn from_suspended(
         serialized_state: [u8; SUSPENDED_SHA3_STATE_LEN],
-    ) -> Result<Self, SerializedStateError> {
+    ) -> Result<Self, SuspendableError> {
         // check the version tag. At the moment, we have no not_before version to specify.
         let input: &[u8; SHA3_FAMILY_STATE_LEN] =
             check_lib_ver(&serialized_state, None)?.try_into().unwrap();

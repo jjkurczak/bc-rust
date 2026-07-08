@@ -192,7 +192,7 @@
 
 #![forbid(unsafe_code)]
 
-use bouncycastle_core::errors::{KDFError, KeyMaterialError, MACError, SerializedStateError};
+use bouncycastle_core::errors::{KDFError, KeyMaterialError, MACError, SuspendableError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{
     KeyMaterial, KeyMaterial0, KeyMaterial512, KeyMaterialTrait, KeyType,
@@ -252,15 +252,15 @@ enum HkdfStates {
 }
 
 impl TryFrom<u8> for HkdfStates {
-    type Error = SerializedStateError;
+    type Error = SuspendableError;
 
-    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SerializedStateError::InvalidData].
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SuspendableError::InvalidData].
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::Uninitialized,
             1 => Self::Initialized,
             2 => Self::TakingAdditionalInfo,
-            _ => return Err(SerializedStateError::InvalidData),
+            _ => return Err(SuspendableError::InvalidData),
         })
     }
 }
@@ -830,7 +830,7 @@ macro_rules! impl_suspendable_keyed_state_for_hkdf {
             fn from_suspended(
                 state: [u8; $serialized_hkdf_len],
                 salt: &Self::Key,
-            ) -> Result<Self, SerializedStateError> {
+            ) -> Result<Self, SuspendableError> {
                 // Rebuild the salt-keyed HMAC (first in the payload) by re-supplying the salt.
 
                 // This double-dips on HMAC checking the version tag before going any further.
@@ -843,10 +843,21 @@ macro_rules! impl_suspendable_keyed_state_for_hkdf {
                         state[..$serialized_hmac_len].try_into().unwrap(),
                         salt,
                     )?),
-                    _ => return Err(SerializedStateError::InvalidData),
+                    _ => return Err(SuspendableError::InvalidData),
                 };
 
                 let hkdf_state = HkdfStates::try_from(state[$serialized_hmac_len + 1])?;
+
+                // check that the hkdf_state aligns with the presence of an hmac
+                if
+                    // an hmac object should not be present in the init state.
+                    (hmac.is_some() && hkdf_state == HkdfStates::Uninitialized) ||
+                    // any other state must have an hmac object.
+                    (hmac.is_none() && hkdf_state != HkdfStates::Uninitialized)
+                {
+                    return Err(SuspendableError::InvalidData);
+                }
+
                 let entropy = u64::from_le_bytes(
                     state[$serialized_hmac_len + 2..$serialized_hmac_len + 10].try_into().unwrap(),
                 ) as usize;

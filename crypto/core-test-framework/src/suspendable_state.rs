@@ -1,4 +1,4 @@
-use bouncycastle_core::errors::SerializedStateError;
+use bouncycastle_core::errors::SuspendableError;
 use bouncycastle_core::serializable_state::{LIB_VERSION, SemVer};
 use bouncycastle_core::traits::{Suspendable, SuspendableKeyed};
 
@@ -39,7 +39,7 @@ impl TestFrameworkSuspendableState {
         let mut ver0_serialized_state = serialized_state.clone();
         ver0_serialized_state[..3].copy_from_slice(&[0, 0, 0]);
         match S::from_suspended(ver0_serialized_state) {
-            Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
+            Err(SuspendableError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
             }
@@ -52,7 +52,7 @@ impl TestFrameworkSuspendableState {
         futurever_serialized_state[..3]
             .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
         match S::from_suspended(futurever_serialized_state) {
-            Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
+            Err(SuspendableError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
             }
@@ -101,7 +101,7 @@ impl TestFrameworkSuspendableKeyedState {
         let mut ver0_serialized_state = serialized_state.clone();
         ver0_serialized_state[..3].copy_from_slice(&[0, 0, 0]);
         match S::from_suspended(ver0_serialized_state, key) {
-            Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
+            Err(SuspendableError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
             }
@@ -114,7 +114,7 @@ impl TestFrameworkSuspendableKeyedState {
         futurever_serialized_state[..3]
             .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
         match S::from_suspended(futurever_serialized_state, key) {
-            Err(SerializedStateError::IncompatibleVersion) => { /* good */ }
+            Err(SuspendableError::IncompatibleVersion) => { /* good */ }
             _ => {
                 panic!("Expected IncompatibleVersion error")
             }

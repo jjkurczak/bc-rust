@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod mldsa_tests {
     use crate::{MLDSA44_KAT1, MLDSA65_KAT1, MLDSA87_KAT1};
-    use bouncycastle_core::errors::{RNGError, SerializedStateError, SignatureError};
+    use bouncycastle_core::errors::{RNGError, SignatureError, SuspendableError};
     use bouncycastle_core::key_material::{
         KeyMaterial256, KeyMaterialTrait, KeyType, do_hazardous_operations,
     };
@@ -1061,7 +1061,7 @@ mod mldsa_tests {
         let mut busted = serialized_state;
         busted[3 + 1 + 400] = 42;
         match MuBuilder::from_suspended(busted) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error for a corrupt squeezing byte"),
         }
     }
@@ -1080,7 +1080,7 @@ mod mldsa_tests {
         let serialized_128 = shake128.suspend();
 
         match MuBuilder::from_suspended(serialized_128) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error when loading a SHAKE128 state into a MuBuilder"),
         }
     }

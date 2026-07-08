@@ -95,10 +95,6 @@ pub type SHA512 = SHA512Internal<SHA512Params>;
 
 trait SHA2Params: HashAlgParams {}
 
-impl Algorithm for SHA224 {
-    const ALG_NAME: &'static str = SHA224_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
-}
 impl HashAlgParams for SHA224 {
     const OUTPUT_LEN: usize = 28;
     const BLOCK_LEN: usize = 64;
@@ -115,10 +111,6 @@ impl HashAlgParams for SHA224Params {
 }
 impl SHA2Params for SHA224Params {}
 
-impl Algorithm for SHA256 {
-    const ALG_NAME: &'static str = SHA256_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
-}
 impl HashAlgParams for SHA256 {
     const OUTPUT_LEN: usize = 32;
     const BLOCK_LEN: usize = 64;
@@ -135,10 +127,6 @@ impl HashAlgParams for SHA256Params {
 }
 impl SHA2Params for SHA256Params {}
 
-impl Algorithm for SHA384 {
-    const ALG_NAME: &'static str = SHA384_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
-}
 impl HashAlgParams for SHA384 {
     const OUTPUT_LEN: usize = 48;
     const BLOCK_LEN: usize = 128;
@@ -157,10 +145,6 @@ impl SHA2Params for SHA384Params {}
 
 #[derive(Clone)]
 pub struct SHA512Params;
-impl Algorithm for SHA512 {
-    const ALG_NAME: &'static str = SHA512_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
-}
 impl HashAlgParams for SHA512 {
     const OUTPUT_LEN: usize = 64;
     const BLOCK_LEN: usize = 128;

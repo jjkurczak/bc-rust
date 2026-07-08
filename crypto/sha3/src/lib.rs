@@ -183,11 +183,6 @@ trait SHA3Params: HashAlgParams {
     const STATE_TAG: u8;
 }
 
-// TODO: more elegant to macro this?
-impl Algorithm for SHA3_224 {
-    const ALG_NAME: &'static str = SHA3_224_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
-}
 impl HashAlgParams for SHA3_224 {
     const OUTPUT_LEN: usize = 28;
     // const BLOCK_LEN: usize = 64;
@@ -209,10 +204,6 @@ impl SHA3Params for SHA3_224Params {
     const STATE_TAG: u8 = 1;
 }
 
-impl Algorithm for SHA3_256 {
-    const ALG_NAME: &'static str = SHA3_256_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
-}
 impl HashAlgParams for SHA3_256 {
     const OUTPUT_LEN: usize = 32;
     // const BLOCK_LEN: usize = 64;
@@ -236,10 +227,6 @@ impl SHA3Params for SHA3_256Params {
 
 #[derive(Clone)]
 pub struct SHA3_384Params;
-impl Algorithm for SHA3_384 {
-    const ALG_NAME: &'static str = SHA3_384_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
-}
 impl HashAlgParams for SHA3_384 {
     const OUTPUT_LEN: usize = 48;
     // const BLOCK_LEN: usize = 128;
@@ -261,10 +248,6 @@ impl SHA3Params for SHA3_384Params {
 
 #[derive(Clone)]
 pub struct SHA3_512Params;
-impl Algorithm for SHA3_512 {
-    const ALG_NAME: &'static str = SHA3_512_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
-}
 impl HashAlgParams for SHA3_512 {
     const OUTPUT_LEN: usize = 64;
     // const BLOCK_LEN: usize = 128;

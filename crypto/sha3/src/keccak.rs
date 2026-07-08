@@ -1,4 +1,4 @@
-use bouncycastle_core::errors::{HashError, SerializedStateError};
+use bouncycastle_core::errors::{HashError, SuspendableError};
 use bouncycastle_core::key_material::KeyType;
 use bouncycastle_core::traits::SecurityStrength;
 
@@ -405,7 +405,7 @@ impl KeccakDigest {
     fn from_serialized_state(
         input: &[u8; KECCAK_SERIALIZED_LEN],
         rate: usize,
-    ) -> Result<Self, SerializedStateError> {
+    ) -> Result<Self, SuspendableError> {
         // state.buf: [u64; 25]
         let mut buf = [0u64; 25];
         for i in 0..25 {
@@ -419,14 +419,14 @@ impl KeccakDigest {
         // bytes, well within data_queue's 192-byte capacity).
         let bits_in_queue = u64::from_le_bytes(input[392..400].try_into().unwrap()) as usize;
         if bits_in_queue > rate {
-            return Err(SerializedStateError::InvalidData);
+            return Err(SuspendableError::InvalidData);
         }
 
         // squeezing: bool
         let squeezing = match input[400] {
             0 => false,
             1 => true,
-            _ => return Err(SerializedStateError::InvalidData),
+            _ => return Err(SuspendableError::InvalidData),
         };
 
         Ok(Self { state: KeccakState { buf, rate }, data_queue, rate, bits_in_queue, squeezing })
@@ -465,9 +465,9 @@ pub(crate) fn deserialize_sha3_family_state(
     input: &[u8; SHA3_FAMILY_STATE_LEN],
     expected_variant_tag: u8,
     rate: usize,
-) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), SerializedStateError> {
+) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), SuspendableError> {
     if input[0] != expected_variant_tag {
-        return Err(SerializedStateError::InvalidData);
+        return Err(SuspendableError::InvalidData);
     }
 
     let keccak_in: &[u8; KECCAK_SERIALIZED_LEN] =

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod sha2_tests {
-    use bouncycastle_core::errors::SerializedStateError;
+    use bouncycastle_core::errors::SuspendableError;
     use bouncycastle_core::traits::{Algorithm, Hash, HashAlgParams, SecurityStrength};
     use bouncycastle_core_test_framework::DUMMY_SEED_512;
     use bouncycastle_core_test_framework::hash::TestFrameworkHash;
@@ -122,7 +122,7 @@ mod sha2_tests {
         let mut busted_state = serialized_state.clone();
         busted_state[3 + 104] = 65;
         match SHA256::from_suspended(busted_state) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error"),
         }
 
@@ -150,7 +150,7 @@ mod sha2_tests {
         let mut busted_state = serialized_state.clone();
         busted_state[3 + 200] = 129;
         match SHA512::from_suspended(busted_state) {
-            Err(SerializedStateError::InvalidData) => { /* good */ }
+            Err(SuspendableError::InvalidData) => { /* good */ }
             _ => panic!("Expected an error"),
         }
     }

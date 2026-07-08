@@ -1,6 +1,6 @@
 //! Helper functions for standardizing serialization and deserialization of stateful objects.
 
-use crate::errors::SerializedStateError;
+use crate::errors::SuspendableError;
 
 /// A semantic library version, ordered by `major`, then `minor`, then `patch`.
 ///
@@ -78,7 +78,7 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]
 ///
 /// The state_out array must have length at least SERIALIZED_LEN - 3.
 ///
-/// Returns the number of bytes written to state_out, or a [SerializedStateError::IncompatibleVersion] if the
+/// Returns the number of bytes written to state_out, or a [SuspendableError::IncompatibleVersion] if the
 /// serialized state contains a version header earlier than the specified `not_before` version.
 ///
 /// Note that for testability, this will always reject if the serialized state contains a version tag
@@ -88,23 +88,23 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]
 pub fn check_lib_ver<const SERIALIZED_LEN: usize>(
     state: &[u8; SERIALIZED_LEN],
     not_before: Option<[u8; 3]>,
-) -> Result<&[u8], SerializedStateError> {
+) -> Result<&[u8], SuspendableError> {
     let ver_bytes: [u8; 3] = state[..3].try_into().unwrap();
     let ver = SemVer::from(ver_bytes);
 
     let not_before = SemVer::from(not_before.unwrap_or([0, 0, 0]));
 
     if ver < not_before {
-        return Err(SerializedStateError::IncompatibleVersion);
+        return Err(SuspendableError::IncompatibleVersion);
     };
     // Nothing is ever compatible with [0,0,0]
     if ver == SemVer::from([0, 0, 0]) {
-        return Err(SerializedStateError::IncompatibleVersion);
+        return Err(SuspendableError::IncompatibleVersion);
     };
 
     // Also not compatible with future versions.
     if ver > LIB_VERSION {
-        return Err(SerializedStateError::IncompatibleVersion);
+        return Err(SuspendableError::IncompatibleVersion);
     }
 
     Ok(&state[3..])

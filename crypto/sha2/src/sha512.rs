@@ -1,7 +1,7 @@
 use crate::SHA2Params;
-use bouncycastle_core::errors::{HashError, SerializedStateError};
+use bouncycastle_core::errors::{HashError, SuspendableError};
 use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
-use bouncycastle_core::traits::{Hash, SecurityStrength, Suspendable};
+use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength, Suspendable};
 use bouncycastle_utils::min;
 use core::slice;
 
@@ -193,6 +193,11 @@ impl<PARAMS: SHA2Params> Default for SHA512Internal<PARAMS> {
     }
 }
 
+impl<PARAMS: SHA2Params> Algorithm for SHA512Internal<PARAMS> {
+    const ALG_NAME: &'static str = PARAMS::ALG_NAME;
+    const MAX_SECURITY_STRENGTH: SecurityStrength = PARAMS::MAX_SECURITY_STRENGTH;
+}
+
 impl<PARAMS: SHA2Params> Hash for SHA512Internal<PARAMS> {
     /// As per FIPS 180-4 Figure 1
     fn block_bitlen(&self) -> usize {
@@ -353,7 +358,7 @@ impl<PARAMS: SHA2Params> Suspendable<SUSPENDED_SHA512_STATE_LEN> for SHA512Inter
 
     fn from_suspended(
         serialized_state: [u8; SUSPENDED_SHA512_STATE_LEN],
-    ) -> Result<Self, SerializedStateError> {
+    ) -> Result<Self, SuspendableError> {
         // check the version tag
         // At the moment, we have no not_before version to specify.
         let input: &[u8; 201] = check_lib_ver(&serialized_state, None)?.try_into().unwrap();
@@ -375,7 +380,7 @@ impl<PARAMS: SHA2Params> Suspendable<SUSPENDED_SHA512_STATE_LEN> for SHA512Inter
         // in general, a usize should be serialized into a u64, but in this case, it can't ever be larger than 128
         let x_buf_off: usize = input[200] as usize;
         if x_buf_off >= 128 {
-            return Err(SerializedStateError::InvalidData);
+            return Err(SuspendableError::InvalidData);
         }
 
         // Construct the object

@@ -73,7 +73,7 @@ pub enum RNGError {
 }
 
 #[derive(Debug)]
-pub enum SerializedStateError {
+pub enum SuspendableError {
     /// The serialized state was produced by a library version incompatible with this one.
     IncompatibleVersion,
     /// The serialized state is malformed or corrupt.

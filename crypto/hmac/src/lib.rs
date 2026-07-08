@@ -184,16 +184,17 @@
 #![allow(incomplete_features)] // because at time of writing, generic_const_exprs is not a stable feature
 #![feature(generic_const_exprs)]
 
-use bouncycastle_core::errors::{KeyMaterialError, MACError, SerializedStateError};
+use bouncycastle_core::errors::{KeyMaterialError, MACError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, Hash, MAC, SecurityStrength, Suspendable, SuspendableKeyed,
+    Algorithm, Hash, MAC, Secret, SecurityStrength, Suspendable, SuspendableKeyed,
 };
 use bouncycastle_sha2::{
     SHA224, SHA256, SHA384, SHA512, SUSPENDED_SHA256_STATE_LEN, SUSPENDED_SHA512_STATE_LEN,
 };
 use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512, SUSPENDED_SHA3_STATE_LEN};
 use bouncycastle_utils::ct;
+use core::fmt::{Debug, Display, Formatter};
 
 /*** String constants ***/
 ///
@@ -286,6 +287,28 @@ pub struct HMAC<HASH: Hash + Default, const KEY_BUF_LEN: usize = LARGEST_HASHER_
     hasher: HASH,
     key: [u8; KEY_BUF_LEN],
     key_len: usize, // Doing it this way to avoid needing a vec, so that this can be made no_std friendly.
+}
+
+// Because the HMAC struct contains a copy of the long-term key
+impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Secret for HMAC<HASH, KEY_BUF_LEN> {}
+
+impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Drop for HMAC<HASH, KEY_BUF_LEN> {
+    fn drop(&mut self) {
+        self.key.fill(0);
+        self.key_len = 0;
+    }
+}
+
+impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Debug for HMAC<HASH, KEY_BUF_LEN> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HMAC-{} instance", HASH::ALG_NAME,)
+    }
+}
+
+impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Display for HMAC<HASH, KEY_BUF_LEN> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HMAC-{} instance", HASH::ALG_NAME,)
+    }
 }
 
 // See definitions in RFC 2104 Section 2.
@@ -391,13 +414,15 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
         // invalid outer hashes.
         // TODO: rework this to be no_std friendly (ie no vec!)
         let mut ihash = vec![0u8; self.hasher.output_len()];
-        self.hasher.do_final_out(&mut ihash);
+        // `HMAC` implements `Drop` (required by `Secret`), so we cannot move `self.hasher` out
+        // directly. Swap in a fresh default and consume the taken-out hasher instead.
+        core::mem::take(&mut self.hasher).do_final_out(&mut ihash);
 
         // ohash
         self.hasher = HASH::default();
         self.pad_key_into_hasher(OPAD_BYTE);
         self.hasher.do_update(&ihash);
-        Ok(self.hasher.do_final_out(out))
+        Ok(core::mem::take(&mut self.hasher).do_final_out(out))
     }
 }
 
@@ -515,16 +540,18 @@ impl<
     // bytes at from_serialized_state, so dynamic dispatch here is negligible.
     type Key = dyn KeyMaterialTrait;
 
-    fn suspend(self) -> [u8; HASH_STATE_LEN] {
+    fn suspend(mut self) -> [u8; HASH_STATE_LEN] {
         // The key is intentionally excluded; the resumable state is just the inner hasher, which
         // already carries the library version header from the hash's own SerializableState impl.
-        self.hasher.suspend()
+        // `HMAC` implements `Drop` (required by `Secret`), so move the hasher out via `mem::take`
+        // rather than a direct partial move.
+        core::mem::take(&mut self.hasher).suspend()
     }
 
     fn from_suspended(
         state: [u8; HASH_STATE_LEN],
         key: &Self::Key,
-    ) -> Result<Self, SerializedStateError> {
+    ) -> Result<Self, SuspendableError> {
         // Rebuild the inner hasher (version-compatibility is validated by the hash's impl).
         let hasher = HASH::from_suspended(state)?;
 

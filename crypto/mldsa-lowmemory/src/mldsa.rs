@@ -397,7 +397,7 @@ use crate::{
     MLDSA44PrivateKey, MLDSA44PublicKey, MLDSA65PrivateKey, MLDSA65PublicKey, MLDSA87PrivateKey,
     MLDSA87PublicKey,
 };
-use bouncycastle_core::errors::{RNGError, SerializedStateError, SignatureError};
+use bouncycastle_core::errors::{RNGError, SignatureError, SuspendableError};
 use bouncycastle_core::key_material::KeyMaterial;
 use bouncycastle_core::traits::{
     Algorithm, RNG, SecurityStrength, SignatureVerifier, Signer, Suspendable, XOF,
@@ -1953,7 +1953,7 @@ impl Suspendable<SUSPENDED_SHA3_STATE_LEN> for MuBuilder {
 
     fn from_suspended(
         serialized_state: [u8; SUSPENDED_SHA3_STATE_LEN],
-    ) -> Result<Self, SerializedStateError> {
+    ) -> Result<Self, SuspendableError> {
         Ok(MuBuilder { h: H::from_suspended(serialized_state)? })
     }
 }
