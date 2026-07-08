@@ -517,9 +517,7 @@ pub trait Suspendable<const SERIALIZED_STATE_LEN: usize>: Sized {
     /// (including rejecting serializations from a future version of the library).
     /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
     /// deserializer should reject serialized states from that version or older.
-    fn from_suspended(
-        state: [u8; SERIALIZED_STATE_LEN],
-    ) -> Result<Self, SerializedStateError>;
+    fn from_suspended(state: [u8; SERIALIZED_STATE_LEN]) -> Result<Self, SerializedStateError>;
 }
 
 /// Similar to [Suspendable] in that it allows a stateful object to suspend its operation by
