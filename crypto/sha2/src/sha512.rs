@@ -5,6 +5,9 @@ use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength, Suspendable};
 use bouncycastle_utils::{min, secret::Secret};
 use core::slice;
 
+#[cfg(feature = "alloc")]
+use alloc::{vec, vec::Vec};
+
 const SHA512_K: [u64; 80] = [
     0x428A2F98D728AE22, 0x7137449123EF65CD, 0xB5C0FBCFEC4D3B2F, 0xE9B5DBA58189DBBC,
     0x3956C25BF348B538, 0x59F111F1B605D019, 0x923F82A4AF194F9B, 0xAB1C5ED5DA6D8118,
@@ -158,7 +161,7 @@ impl<PARAMS: SHA2Params> Sha512State<PARAMS> {
 /// provided and NIST-approved parameters.
 #[derive(Clone)]
 pub struct SHA512Internal<PARAMS: SHA2Params> {
-    _params: std::marker::PhantomData<PARAMS>,
+    _params: core::marker::PhantomData<PARAMS>,
     state: Sha512State<PARAMS>,
     // NOTE The code currently only supports 2^67 bits, not the full 2^128
     byte_count: u64, 
@@ -170,7 +173,7 @@ impl<PARAMS: SHA2Params> SHA512Internal<PARAMS> {
     /// Creates a new SHA512 instance, ready for use.
     pub fn new() -> Self {
         Self {
-            _params: std::marker::PhantomData,
+            _params: core::marker::PhantomData,
             state: Sha512State::<PARAMS>::new(),
             byte_count: 0,
             x_buf: Secret::new(),
@@ -200,6 +203,7 @@ impl<PARAMS: SHA2Params> Hash for SHA512Internal<PARAMS> {
         PARAMS::OUTPUT_LEN
     }
 
+    #[cfg(feature = "alloc")]
     fn hash(self, data: &[u8]) -> Vec<u8> {
         let mut output = vec![0u8; self.output_len()];
         self.hash_out(data, &mut output);
@@ -245,6 +249,7 @@ impl<PARAMS: SHA2Params> Hash for SHA512Internal<PARAMS> {
         self.x_buf_off = remaining;
     }
 
+    #[cfg(feature = "alloc")]
     fn do_final(self) -> Vec<u8> {
         let mut output = vec![0u8; PARAMS::OUTPUT_LEN];
         self.do_final_out(&mut output);
@@ -289,6 +294,7 @@ impl<PARAMS: SHA2Params> Hash for SHA512Internal<PARAMS> {
     /// TODO: This is defined in FIPS 180-4 s. 5.1.2
     /// TODO: <https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html>
     /// TODO: It can be implemented if required
+    #[cfg(feature = "alloc")]
     #[allow(unused)]
     fn do_final_partial_bits(
         self,
