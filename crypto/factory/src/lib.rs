@@ -24,6 +24,11 @@
 //! get the either the default algorithm or the default algorithm at the 128-bit or 256-bit security level.
 //! It also exposes [AlgorithmFactory::new] which can be used to create an instance of the algorithm
 //! by string name according to the string constants associated with the respective factory type.
+//! 
+//! This crate compiles with STD; ie it is explicitly not tagged as `no_std` and it makes use of `Vec` and other
+//! dynamically-sized nice things.
+
+#![forbid(missing_docs)]
 
 use bouncycastle_core::errors::MACError;
 
@@ -34,13 +39,19 @@ pub mod rng_factory;
 pub mod xof_factory;
 
 /*** String constants ***/
+///
 pub const DEFAULT: &str = "Default";
+///
 pub const DEFAULT_128_BIT: &str = "Default128Bit";
+///
 pub const DEFAULT_256_BIT: &str = "Default256Bit";
 
+/// Top-level error type for Factories.
 #[derive(Debug)]
 pub enum FactoryError {
+    ///
     MACError(MACError),
+    ///
     UnsupportedAlgorithm(String),
 }
 
@@ -50,17 +61,14 @@ impl From<MACError> for FactoryError {
     }
 }
 
+///
 pub trait AlgorithmFactory: Sized + Default {
-    // Get the default configured algorithm.
-    // Not implemented because all factories MUST impl Default.
-    // fn default() -> Self;
-
     /// Get the default configured algorithm at the 128-bit security level.
     fn default_128_bit() -> Self;
 
     /// Get the default configured algorithm at the 256-bit security level.
     fn default_256_bit() -> Self;
 
-    /// Create an instance of the algorithm by name.
+    /// Get an instance of the algorithm by name.
     fn new(alg_name: &str) -> Result<Self, FactoryError>;
 }

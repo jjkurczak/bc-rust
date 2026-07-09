@@ -50,10 +50,12 @@ use bouncycastle_core::traits::{RNG, SecurityStrength};
 use bouncycastle_rng as rng;
 use bouncycastle_rng::{HASH_DRBG_SHA256_NAME, HASH_DRBG_SHA512_NAME};
 
-/// All members must impl RNG.
+/// Wrapper object for all algorithms that impl [RNG].
 pub enum RNGFactory {
+    ///
     #[allow(non_camel_case_types)]
     HashDRBG_SHA256(rng::HashDRBG_SHA256),
+    ///
     #[allow(non_camel_case_types)]
     HashDRBG_SHA512(rng::HashDRBG_SHA512),
 }

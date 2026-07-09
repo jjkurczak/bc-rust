@@ -58,17 +58,25 @@ use bouncycastle_sha3::{
     SHA3_224_NAME, SHA3_256_NAME, SHA3_384_NAME, SHA3_512_NAME, SHAKE128_NAME, SHAKE256_NAME,
 };
 
-// All members must impl KDF.
+/// Wrapper object for all algorithms that impl [KDF].
 pub enum KDFFactory {
+    ///
     #[allow(non_camel_case_types)]
     HKDF_SHA256(hkdf::HKDF_SHA256),
+    ///
     #[allow(non_camel_case_types)]
     HKDF_SHA512(hkdf::HKDF_SHA512),
+    ///
     SHA3_224(sha3::SHA3_224),
+    ///
     SHA3_256(sha3::SHA3_256),
+    ///
     SHA3_384(sha3::SHA3_384),
+    ///
     SHA3_512(sha3::SHA3_512),
+    ///
     SHAKE128(sha3::SHAKE128),
+    ///
     SHAKE256(sha3::SHAKE256),
 }
 
