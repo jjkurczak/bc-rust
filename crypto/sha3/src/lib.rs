@@ -139,7 +139,7 @@
 #![allow(private_bounds)]
 
 use crate::keccak::KeccakSize;
-use bouncycastle_core::traits::{Algorithm, HashAlgParams, SecurityStrength};
+use bouncycastle_core::traits::{Algorithm, AlgorithmOID, HashAlgParams, SecurityStrength};
 
 // imports needed for docs
 #[allow(unused_imports)]
@@ -203,6 +203,12 @@ impl SHA3Params for SHA3_224Params {
     const SIZE: KeccakSize = KeccakSize::_224;
     const STATE_TAG: u8 = 1;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-224 { hashAlgs 7 }
+impl AlgorithmOID for SHA3_224 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 7];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x07];
+}
 
 impl HashAlgParams for SHA3_256 {
     const OUTPUT_LEN: usize = 32;
@@ -223,6 +229,12 @@ impl HashAlgParams for SHA3_256Params {
 impl SHA3Params for SHA3_256Params {
     const SIZE: KeccakSize = KeccakSize::_256;
     const STATE_TAG: u8 = 2;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-256 { hashAlgs 8 }
+impl AlgorithmOID for SHA3_256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 8];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x08];
 }
 
 #[derive(Clone)]
@@ -245,6 +257,12 @@ impl SHA3Params for SHA3_384Params {
     const SIZE: KeccakSize = KeccakSize::_384;
     const STATE_TAG: u8 = 3;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-384 { hashAlgs 9 }
+impl AlgorithmOID for SHA3_384 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 9];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x09];
+}
 
 #[derive(Clone)]
 pub struct SHA3_512Params;
@@ -266,6 +284,12 @@ impl SHA3Params for SHA3_512Params {
     const SIZE: KeccakSize = KeccakSize::_512;
     const STATE_TAG: u8 = 4;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-512 { hashAlgs 10 }
+impl AlgorithmOID for SHA3_512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 10];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0a];
+}
 
 trait SHAKEParams: Algorithm {
     const SIZE: KeccakSize;
@@ -282,6 +306,12 @@ impl SHAKEParams for SHAKE128Params {
     const SIZE: KeccakSize = KeccakSize::_128;
     const STATE_TAG: u8 = 5;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-shake128 { hashAlgs 11 }
+impl AlgorithmOID for SHAKE128 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 11];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0b];
+}
 
 #[derive(Clone)]
 pub struct SHAKE256Params;
@@ -292,4 +322,10 @@ impl Algorithm for SHAKE256Params {
 impl SHAKEParams for SHAKE256Params {
     const SIZE: KeccakSize = KeccakSize::_256;
     const STATE_TAG: u8 = 6;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-shake256 { hashAlgs 12 }
+impl AlgorithmOID for SHAKE256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 12];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0c];
 }

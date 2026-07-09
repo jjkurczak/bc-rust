@@ -20,8 +20,8 @@ pub trait Algorithm {
 
 /// Some algorithms have an assigned OID.
 pub trait AlgorithmOID {
-    /// The OID in component form -- each u128 is one OID component.
-    const OID: &'static [u128];
+    /// The OID in component form -- each u32 is one OID component.
+    const OID: &'static [u32];
     /// The OID in its DER-encoded form.
     const OID_DER: &'static [u8];
 }

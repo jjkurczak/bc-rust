@@ -252,6 +252,12 @@ impl Algorithm for HashMLDSA44_with_SHA512 {
     const ALG_NAME: &'static str = HASH_ML_DSA_44_with_SHA512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hash-ml-dsa-44-with-sha512 { sigAlgs 32 }
+impl AlgorithmOID for HashMLDSA44_with_SHA512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 32];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x20];
+}
 
 /// The HashML-DSA-65_with_SHA512 signature algorithm.
 #[allow(non_camel_case_types)]
@@ -285,6 +291,12 @@ impl Algorithm for HashMLDSA65_with_SHA512 {
     const ALG_NAME: &'static str = HASH_ML_DSA_65_WITH_SHA512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hash-ml-dsa-65-with-sha512 { sigAlgs 33 }
+impl AlgorithmOID for HashMLDSA65_with_SHA512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 33];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x21];
+}
 
 /// The HashML-DSA-87_with_SHA512 signature algorithm.
 #[allow(non_camel_case_types)]
@@ -317,6 +329,12 @@ pub type HashMLDSA87_with_SHA512 = HashMLDSA<
 impl Algorithm for HashMLDSA87_with_SHA512 {
     const ALG_NAME: &'static str = HASH_ML_DSA_87_WITH_SHA512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-hash-ml-dsa-87-with-sha512 { sigAlgs 34 }
+impl AlgorithmOID for HashMLDSA87_with_SHA512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 34];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x22];
 }
 
 /// An instance of the HashML-DSA algorithm.

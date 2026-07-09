@@ -488,7 +488,7 @@ use crate::{
 use bouncycastle_core::errors::{RNGError, SignatureError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterial256, KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, RNG, SecurityStrength, SignatureVerifier, Signer, Suspendable, XOF,
+    Algorithm, AlgorithmOID, RNG, SecurityStrength, SignatureVerifier, Signer, Suspendable, XOF,
 };
 use bouncycastle_rng::HashDRBG_SHA512;
 use bouncycastle_sha3::{SHAKE128, SHAKE256, SUSPENDED_SHA3_STATE_LEN};
@@ -652,6 +652,12 @@ impl Algorithm for MLDSA44 {
     const ALG_NAME: &'static str = ML_DSA_44_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-ml-dsa-44 { sigAlgs 17 }
+impl AlgorithmOID for MLDSA44 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 17];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11];
+}
 
 /// The ML-DSA-65 algorithm.
 pub type MLDSA65 = MLDSA<
@@ -682,6 +688,12 @@ impl Algorithm for MLDSA65 {
     const ALG_NAME: &'static str = ML_DSA_65_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-ml-dsa-65 { sigAlgs 18 }
+impl AlgorithmOID for MLDSA65 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 18];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12];
+}
 
 /// The ML-DSA-87 algorithm.
 pub type MLDSA87 = MLDSA<
@@ -711,6 +723,12 @@ pub type MLDSA87 = MLDSA<
 impl Algorithm for MLDSA87 {
     const ALG_NAME: &'static str = ML_DSA_87_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-ml-dsa-87 { sigAlgs 19 }
+impl AlgorithmOID for MLDSA87 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 19];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x13];
 }
 
 /// The core internal implementation of the ML-DSA algorithm.

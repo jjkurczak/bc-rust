@@ -185,7 +185,7 @@
 use bouncycastle_core::errors::{KeyMaterialError, MACError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, Hash, MAC, Secret, SecurityStrength, Suspendable, SuspendableKeyed,
+    Algorithm, AlgorithmOID, Hash, MAC, Secret, SecurityStrength, Suspendable, SuspendableKeyed,
 };
 use bouncycastle_sha2::{
     SHA224, SHA256, SHA384, SHA512, SUSPENDED_SHA256_STATE_LEN, SUSPENDED_SHA512_STATE_LEN,
@@ -219,12 +219,22 @@ impl Algorithm for HMAC_SHA224 {
     const ALG_NAME: &'static str = HMAC_SHA224_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
 }
+/// Defined in RFC 4231: id-hmacWithSHA224 { digestAlgorithm 8 }
+impl AlgorithmOID for HMAC_SHA224 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 8];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x08];
+}
 
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA256 = HMAC<SHA256, 64>;
 impl Algorithm for HMAC_SHA256 {
     const ALG_NAME: &'static str = HMAC_SHA256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
+}
+/// Defined in RFC 4231: id-hmacWithSHA256 { digestAlgorithm 9 }
+impl AlgorithmOID for HMAC_SHA256 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 9];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x09];
 }
 
 #[allow(non_camel_case_types)]
@@ -233,12 +243,22 @@ impl Algorithm for HMAC_SHA384 {
     const ALG_NAME: &'static str = HMAC_SHA384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Defined in RFC 4231: id-hmacWithSHA384 { digestAlgorithm 10 }
+impl AlgorithmOID for HMAC_SHA384 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 10];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x0a];
+}
 
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA512 = HMAC<SHA512, 128>;
 impl Algorithm for HMAC_SHA512 {
     const ALG_NAME: &'static str = HMAC_SHA512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Defined in RFC 4231: id-hmacWithSHA512 { digestAlgorithm 11 }
+impl AlgorithmOID for HMAC_SHA512 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 11];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x0b];
 }
 
 #[allow(non_camel_case_types)]
@@ -247,12 +267,24 @@ impl Algorithm for HMAC_SHA3_224 {
     const ALG_NAME: &'static str = HMAC_SHA3_224_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-224 { hashAlgs 13 }
+impl AlgorithmOID for HMAC_SHA3_224 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 13];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0d];
+}
 
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_256 = HMAC<SHA3_256, 136>;
 impl Algorithm for HMAC_SHA3_256 {
     const ALG_NAME: &'static str = HMAC_SHA3_256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-256 { hashAlgs 14 }
+impl AlgorithmOID for HMAC_SHA3_256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 14];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0e];
 }
 
 #[allow(non_camel_case_types)]
@@ -261,12 +293,24 @@ impl Algorithm for HMAC_SHA3_384 {
     const ALG_NAME: &'static str = HMAC_SHA3_384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-384 { hashAlgs 15 }
+impl AlgorithmOID for HMAC_SHA3_384 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 15];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0f];
+}
 
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_512 = HMAC<SHA3_512, 72>;
 impl Algorithm for HMAC_SHA3_512 {
     const ALG_NAME: &'static str = HMAC_SHA3_512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-512 { hashAlgs 16 }
+impl AlgorithmOID for HMAC_SHA3_512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 16];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x10];
 }
 
 // The internal key buffer must be able to hold a key up to the *block length* of the underlying hash:

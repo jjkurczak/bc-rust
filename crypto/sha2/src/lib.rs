@@ -111,8 +111,9 @@ impl HashAlgParams for SHA224Params {
     const OUTPUT_LEN: usize = 28;
     const BLOCK_LEN: usize = 64;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-sha224 { hashAlgs 4 }
 impl AlgorithmOID for SHA224 {
-    const OID: &'static [u128] = &[2, 16, 840, 1, 101, 3, 4, 2, 4];
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 4];
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04];
 }
@@ -129,9 +130,9 @@ impl Algorithm for SHA256Params {
     const ALG_NAME: &'static str = SHA256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
-/// Assigned by NIST in the Computer Security Objects Register
+/// Assigned by NIST in the Computer Security Objects Register: id-sha256 { hashAlgs 1 }
 impl AlgorithmOID for SHA256 {
-    const OID: &'static [u128] = &[2, 16, 840, 1, 101, 3, 4, 2, 1];
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 1];
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01];
 }
@@ -152,9 +153,9 @@ impl Algorithm for SHA384Params {
     const ALG_NAME: &'static str = SHA384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
-/// Assigned by NIST in the Computer Security Objects Register
+/// Assigned by NIST in the Computer Security Objects Register: id-sha384 { hashAlgs 2 }
 impl AlgorithmOID for SHA384 {
-    const OID: &'static [u128] = &[2, 16, 840, 1, 101, 3, 4, 2, 2];
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 2];
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02];
 }
@@ -179,9 +180,9 @@ impl HashAlgParams for SHA512Params {
     const OUTPUT_LEN: usize = 64;
     const BLOCK_LEN: usize = 128;
 }
-/// Assigned by NIST in the Computer Security Objects Register
+/// Assigned by NIST in the Computer Security Objects Register: id-sha512 { hashAlgs 3 }
 impl AlgorithmOID for SHA512 {
-    const OID: &'static [u128] = &[2, 16, 840, 1, 101, 3, 4, 2, 3];
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 3];
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03];
 }
