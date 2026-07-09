@@ -1,5 +1,5 @@
 use bouncycastle_core::errors::SuspendableError;
-use bouncycastle_core::serializable_state::{LIB_VERSION, SemVer};
+use bouncycastle_core::suspendable_state::{LIB_VERSION, SemVer};
 use bouncycastle_core::traits::{Suspendable, SuspendableKeyed};
 
 pub struct TestFrameworkSuspendableState {}
@@ -45,9 +45,9 @@ impl TestFrameworkSuspendableState {
             }
         }
 
-        // All implementations MUST reject a serialized state from a future version.
+        // All implementations MUST reject a serialized state from a future MAJOR or MINOR version.
         let mut future_ver = LIB_VERSION;
-        future_ver.patch += 1;
+        future_ver.major += 1;
         let mut futurever_serialized_state = serialized_state.clone();
         futurever_serialized_state[..3]
             .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
@@ -57,6 +57,34 @@ impl TestFrameworkSuspendableState {
                 panic!("Expected IncompatibleVersion error")
             }
         }
+
+        let mut future_ver = LIB_VERSION;
+        future_ver.minor += 1;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        match S::from_suspended(futurever_serialized_state) {
+            Err(SuspendableError::IncompatibleVersion) => { /* good */ }
+            _ => {
+                panic!("Expected IncompatibleVersion error")
+            }
+        }
+
+        // but should accept anything on the same patch stream.
+        let mut future_ver = LIB_VERSION;
+        future_ver.patch += 1;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        let _deserialized_state = S::from_suspended(futurever_serialized_state).unwrap();
+
+        // ... even up to patch 255
+        let mut future_ver = LIB_VERSION;
+        future_ver.patch = 255;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        let _deserialized_state = S::from_suspended(futurever_serialized_state).unwrap();
     }
 }
 
@@ -107,9 +135,9 @@ impl TestFrameworkSuspendableKeyedState {
             }
         }
 
-        // All implementations MUST reject a serialized state from a future version.
+        // All implementations MUST reject a serialized state from a future MAJOR or MINOR version.
         let mut future_ver = LIB_VERSION;
-        future_ver.patch += 1;
+        future_ver.major += 1;
         let mut futurever_serialized_state = serialized_state.clone();
         futurever_serialized_state[..3]
             .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
@@ -119,5 +147,33 @@ impl TestFrameworkSuspendableKeyedState {
                 panic!("Expected IncompatibleVersion error")
             }
         }
+
+        let mut future_ver = LIB_VERSION;
+        future_ver.minor += 1;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        match S::from_suspended(futurever_serialized_state, key) {
+            Err(SuspendableError::IncompatibleVersion) => { /* good */ }
+            _ => {
+                panic!("Expected IncompatibleVersion error")
+            }
+        }
+
+        // but should accept anything on the same patch stream.
+        let mut future_ver = LIB_VERSION;
+        future_ver.patch += 1;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        let _deserialized_state = S::from_suspended(futurever_serialized_state, key).unwrap();
+
+        // ... even up to patch 255
+        let mut future_ver = LIB_VERSION;
+        future_ver.patch = 255;
+        let mut futurever_serialized_state = serialized_state.clone();
+        futurever_serialized_state[..3]
+            .copy_from_slice(&[future_ver.major, future_ver.minor, future_ver.patch]);
+        let _deserialized_state = S::from_suspended(futurever_serialized_state, key).unwrap();
     }
 }

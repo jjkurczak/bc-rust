@@ -78,9 +78,6 @@ pub enum SuspendableError {
     IncompatibleVersion,
     /// The serialized state is malformed or corrupt.
     InvalidData,
-    /// The key supplied to [crate::traits::SuspendableKeyed::from_suspended] does not
-    /// match the key the state was created with (it is bound to a different public-key hash `tr`).
-    IncorrectKey,
 }
 
 #[derive(Debug)]

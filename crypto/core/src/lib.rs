@@ -7,5 +7,5 @@
 
 pub mod errors;
 pub mod key_material;
-pub mod serializable_state;
+pub mod suspendable_state;
 pub mod traits;

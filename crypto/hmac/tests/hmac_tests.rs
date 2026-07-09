@@ -605,7 +605,7 @@ mod hmac_tests {
     #[test]
     fn suspendable_keyed_state() {
         use bouncycastle_core::errors::SuspendableError;
-        use bouncycastle_core::serializable_state::LIB_VERSION;
+        use bouncycastle_core::suspendable_state::LIB_VERSION;
         use bouncycastle_core::traits::SuspendableKeyed;
         use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableKeyedState;
 

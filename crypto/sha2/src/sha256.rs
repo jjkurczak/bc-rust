@@ -1,6 +1,6 @@
 use crate::SHA2Params;
 use bouncycastle_core::errors::{HashError, SuspendableError};
-use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
+use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength, Suspendable};
 use bouncycastle_utils::min;
 use core::slice;

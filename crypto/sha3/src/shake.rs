@@ -6,7 +6,7 @@ use crate::keccak::{
 use bouncycastle_core::errors::{HashError, KDFError, SuspendableError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
-use bouncycastle_core::serializable_state::{add_lib_ver, check_lib_ver};
+use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Algorithm, KDF, SecurityStrength, Suspendable, XOF};
 use bouncycastle_utils::{max, min};
 

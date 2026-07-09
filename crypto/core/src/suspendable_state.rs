@@ -42,8 +42,8 @@ const fn parse_version_component(s: &str) -> u8 {
     result
 }
 
-/// The current library version, taken from this crate's `Cargo.toml` at compile time (via Cargo's
-/// `CARGO_PKG_VERSION_*` env vars) so it can never drift from the published version.
+/// The current library version -- ie the version of the *bouncycastle-core* crate -- at compile time (via Cargo's
+/// `CARGO_PKG_VERSION_*` env vars).
 pub const LIB_VERSION: SemVer = SemVer {
     major: parse_version_component(env!("CARGO_PKG_VERSION_MAJOR")),
     minor: parse_version_component(env!("CARGO_PKG_VERSION_MINOR")),
@@ -78,8 +78,9 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]
 ///
 /// The state_out array must have length at least SERIALIZED_LEN - 3.
 ///
-/// Returns the number of bytes written to state_out, or a [SuspendableError::IncompatibleVersion] if the
-/// serialized state contains a version header earlier than the specified `not_before` version.
+/// Returns the number of bytes written to state_out, or a [SuspendableError::IncompatibleVersion] if
+/// the version of the serialized state is earlier than the specified `not_before` version, or
+/// is a future MAJOR or MINOR version (but future PATCH versions are ok).
 ///
 /// Note that for testability, this will always reject if the serialized state contains a version tag
 /// of `[0,0,0]`.
@@ -89,6 +90,10 @@ pub fn check_lib_ver<const SERIALIZED_LEN: usize>(
     state: &[u8; SERIALIZED_LEN],
     not_before: Option<[u8; 3]>,
 ) -> Result<&[u8], SuspendableError> {
+    // the .unwrap is infallible after the guard check
+    if state.len() < 3 {
+        return Err(SuspendableError::InvalidData);
+    }
     let ver_bytes: [u8; 3] = state[..3].try_into().unwrap();
     let ver = SemVer::from(ver_bytes);
 
@@ -102,8 +107,10 @@ pub fn check_lib_ver<const SERIALIZED_LEN: usize>(
         return Err(SuspendableError::IncompatibleVersion);
     };
 
-    // Also not compatible with future versions.
-    if ver > LIB_VERSION {
+    // Check if state was produced by a later MAJOR or MINOR version;
+    // a future version on the same patch stream is ok (if not, then we've broken the rules of semantic versioning);
+    let patch_stream = SemVer::from([LIB_VERSION.major, LIB_VERSION.minor, 255]);
+    if ver > patch_stream {
         return Err(SuspendableError::IncompatibleVersion);
     }
 
