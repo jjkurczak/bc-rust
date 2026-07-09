@@ -81,6 +81,9 @@
 //     /// "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_="
 //     URLSafe,
 
+#![forbid(unsafe_code)]
+#![forbid(missing_docs)]
+
 use bouncycastle_utils::ct::Condition;
 
 /// One-shot encode from bytes to a base64-encoded string using a constant-time implementation.
@@ -93,6 +96,7 @@ pub fn decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, Base64Error> {
     Base64Decoder::new(true).do_final(input)
 }
 
+/// Return type for errors relating to Base64 encoding and decoding.
 #[derive(Debug)]
 pub enum Base64Error {
     /// the do_update() method must not be called on a block that contains padding.
@@ -141,6 +145,8 @@ impl Base64Encoder {
         ret as u8
     }
 
+    /// Streaming API that performs Base64 encoding of the provided input, but does not apply
+    /// the final padding and will hold an incomplete block while waiting for more input.
     pub fn do_update<T: AsRef<[u8]>>(&mut self, input: T) -> String {
         let inref = input.as_ref();
         let mut out: Vec<u8> = Vec::with_capacity(inref.len() * 4 / 3 + 4);
@@ -245,6 +251,8 @@ impl Base64Decoder {
         ret as u8
     }
 
+    /// Streaming API that performs Base64 encoding of the provided input, but does not apply
+    /// the final padding and will hold an incomplete block while waiting for more input.
     pub fn do_update<T: AsRef<[u8]>>(&mut self, input: T) -> Result<Vec<u8>, Base64Error> {
         self.decode_internal(input, true)
     }

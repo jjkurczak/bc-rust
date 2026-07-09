@@ -1,56 +1,99 @@
+//! Core error types to be used in Result return types.
+//! Errors defined in this module are typically one-to-one with traits defined in [crate::traits].
+//!
+//! Most errors are self-explanatory, but additional description is available on some.
+
+///
 #[derive(Debug)]
 pub enum HashError {
+    ///
     GenericError(&'static str),
+    ///
     InvalidLength(&'static str),
+    ///
     InvalidState(&'static str),
+    ///
     InvalidInput(&'static str),
+    ///
     KeyMaterialError(KeyMaterialError),
 }
 
+///
 #[derive(Debug)]
 pub enum KeyMaterialError {
+    ///
     ActingOnZeroizedKey,
+    ///
     GenericError(&'static str),
+    ///
     HazardousOperationNotPermitted,
+    ///
     InputDataLongerThanKeyCapacity,
+    ///
     InvalidKeyType(&'static str),
+    ///
     InvalidLength,
+    ///
     SecurityStrength(&'static str),
 }
 
+///
 #[derive(Debug)]
 pub enum KDFError {
+    ///
     GenericError(&'static str),
+    ///
     HashError(HashError),
+    ///
     InvalidLength(&'static str),
+    ///
     KeyMaterialError(KeyMaterialError),
+    ///
     MACError(MACError),
 }
 
+///
 #[derive(Debug)]
 pub enum KEMError {
+    ///
     GenericError(&'static str),
+    ///
     ConsistencyCheckFailed(&'static str),
+    ///
     EncodingError(&'static str),
+    ///
     DecapsulationFailed,
+    ///
     DecodingError(&'static str),
+    ///
     KeyGenError(&'static str),
+    ///
     KeyMaterialError(KeyMaterialError),
+    ///
     LengthError(&'static str),
+    ///
     RNGError(RNGError),
 }
 
+///
 #[derive(Debug)]
 pub enum MACError {
+    ///
     GenericError(&'static str),
+    ///
     HashError(HashError),
+    ///
     InvalidLength(&'static str),
+    ///
     InvalidState(&'static str),
+    ///
     KeyMaterialError(KeyMaterialError),
 }
 
+///
 #[derive(Debug)]
 pub enum RNGError {
+    ///
     GenericError(&'static str),
 
     /// Attempting to extract output before the RNG has been seeded.
@@ -69,9 +112,11 @@ pub enum RNGError {
     /// than the algorithm requires.
     SecurityStrengthInsufficientForAlgorithm,
 
+    ///
     KeyMaterialError(KeyMaterialError),
 }
 
+///
 #[derive(Debug)]
 pub enum SuspendableError {
     /// The serialized state was produced by a library version incompatible with this one.
@@ -80,16 +125,26 @@ pub enum SuspendableError {
     InvalidData,
 }
 
+///
 #[derive(Debug)]
 pub enum SignatureError {
+    ///
     GenericError(&'static str),
+    ///
     ConsistencyCheckFailed(),
+    ///
     EncodingError(&'static str),
+    ///
     DecodingError(&'static str),
+    ///
     KeyGenError(&'static str),
+    ///
     KeyMaterialError(KeyMaterialError),
+    ///
     LengthError(&'static str),
+    ///
     SignatureVerificationFailed,
+    ///
     RNGError(RNGError),
 }
 

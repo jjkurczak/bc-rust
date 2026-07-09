@@ -6,13 +6,16 @@ use crate::errors::SuspendableError;
 ///
 /// The field declaration order matters: the derived [`Ord`]/[`PartialOrd`] compare fields
 /// lexicographically in declaration order, which is exactly semantic-version precedence.
+/// A semantic version can often also take a suffix, e.g. "alpha", "beta", "rc1", etc.
+/// We're not going to model that here because it's not useful for versioning serialized states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SemVer {
+    ///
     pub major: u8,
+    ///
     pub minor: u8,
+    ///
     pub patch: u8,
-    // A semantic version can often also take a suffix, e.g. "alpha", "beta", "rc1", etc.
-    // We're not going to model that here because it's not useful for versioning serialized states.
 }
 
 impl From<[u8; 3]> for SemVer {

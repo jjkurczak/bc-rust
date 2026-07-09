@@ -22,8 +22,6 @@
   appropriate.
 * Probably it makes sense to leave Hex and Base64 as requiring std; ... or maybe add a no_std version that uses
   fixed-sized blocks?
-* Make this build on the stable compiler. IE Remove the rust-toolchain.toml file that builds with nightly. Will require
-  some refactoring.
 * Create a cargo feature #[cfg(feature='rng')] and put it around things like keygen that takes an rng so that the build
   dependency on bouncycastle_rng is optional.
 * Factories ... Are they worth it? Michael Richardson says Very Yes. If we are keeping them, then we need a serious
@@ -31,8 +29,7 @@
   static one-shot APIs.
 * Deal with as many of the inline TODOs as possible
 * Close all open github issues and document them in this file.
-* After everything is merged, circle back to crucible, and make sure that the harness still works (and maybe remove the
-  nightly build toolchain)
+* After everything is merged, circle back to crucible, and make sure that the harness still works
 * Search for all the uses of .unwrap() in non-test code and replace each with either a comment or an expect with a
   meaningful error string.
 
@@ -59,6 +56,7 @@
   .drop_hazardous_operations(), it now uses a closure-based do_hazardous_operations(). Github issue #39.
 * Renamed KeyMaterial::KeyType's and deleted KeyMaterial::concatenate in order to give a better intuition and
   FIPS-alignment.
+* Removed the dependence on nightly / experimental compiler features; the library now buildds on stable.
 * Github issues resolved:
     * #6: https://github.com/bcgit/bc-rust/issues/6, thanks to Q. T. Felix (github: @Quant-TheodoreFelix)
     * #10: https://github.com/bcgit/bc-rust/issues/10, thanks to Nicola Tuveri (github: @romen)

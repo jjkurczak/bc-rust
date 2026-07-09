@@ -12,9 +12,13 @@ use crate::key_material::KeyMaterial;
 use crate::key_material::KeyType;
 // end of imports needed for docs
 
-/// All algorithms carry a name and a max security strength tha they can support.
+/// Metadata about a cryptographic algorithm.
 pub trait Algorithm {
+    /// String name for the algorithm, used consistently across the library.
     const ALG_NAME: &'static str;
+    /// Maximum security strength supported by the algorithm.
+    /// In other words, this algorithm can produce outputs up to this security strength,
+    /// but may produce outputs with lower security strength, for example, if asked to truncate.
     const MAX_SECURITY_STRENGTH: SecurityStrength;
 }
 
@@ -26,6 +30,12 @@ pub trait AlgorithmOID {
     const OID_DER: &'static [u8];
 }
 
+/// A hash function is a cryptographic primitive that takes an input of any length and produces a fixed-size output.
+/// Formally: `H: {0,1}^* -> {0,1}^n`.
+/// A cryptographic hash function will typically satisfy several security properties, including:
+/// * Collision resistance: finding two inputs that yield the same output is computationally difficult.
+/// * Preimage resistance: from a given output, finding an input that generates it is computationally difficult.
+/// * Second preimage resistance: given an input, finding another input that yields the same output is computationally difficult.
 pub trait Hash: Algorithm + Default {
     /// The size of the internal block in bits -- needed by functions such as HMAC to compute security parameters.
     fn block_bitlen(&self) -> usize;
@@ -89,8 +99,13 @@ pub trait Hash: Algorithm + Default {
     fn max_security_strength(&self) -> SecurityStrength;
 }
 
+/// Standard parameters for a hash function.
 pub trait HashAlgParams: Algorithm {
+    /// The fixed output length of the hash function.
     const OUTPUT_LEN: usize;
+    /// The internal block length of the hash function, which is often used as a meta-parameter for
+    /// determining the security strength of the hash function since this limits the internal
+    /// collision resistance of the hash function.
     const BLOCK_LEN: usize;
 }
 
@@ -372,6 +387,7 @@ pub trait MAC: Sized {
     /// do_update() is intended to be used as part of a streaming interface, and so may by called multiple times.
     fn do_update(&mut self, data: &[u8]);
 
+    /// Finish absorbing input and produce the MAC value.
     fn do_final(self) -> Vec<u8>;
 
     /// Depending on the underlying MAC implementation, NIST may require that the library enforce
@@ -395,15 +411,32 @@ pub trait MAC: Sized {
     fn max_security_strength(&self) -> SecurityStrength;
 }
 
-// The explicit `#[repr(u8)]` discriminants are the stable on-the-wire encoding used by
-// `SerializableState` implementations (see the `TryFrom<u8>` impl below).
+/// A general indicator used across the library for marking the security level of a cryptographic primitive,
+/// and for tracking the security level of the algorithms that interacted with a given piece of data.
+/// For example, if a KDF at the 128-bit security strength is used to produce a 512-bit key, that key
+/// will also be tagged as having a 128-bit security strength.
+///
+/// Some functions across the library may reject or behave differently based on the security strength
+/// of the inputs they are given. For example a `keygen_from_seed()` may reject a seed taged at a lower
+/// security strength than the one required by the algorithm, or it may proceed, but lower its own
+/// advertised security strength accordingly -- each cryptographic primitive may have additional detail.
+// Dev note: The explicit `#[repr(u8)]` discriminants are the stable on-the-wire encoding used by
+// `SerializableState` implementations (see the corresponding `TryFrom<u8>` impl below).
+// If additional strength levels are added in the future, they can be placed into the enum in
+// any order, but should use currently unassigned values (unless you're doing this on a MAJOR or MINOR
+// release as a breaking change).
 #[derive(Eq, PartialEq, PartialOrd, Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum SecurityStrength {
+    ///
     None = 0,
+    ///
     _112bit = 1,
+    ///
     _128bit = 2,
+    ///
     _192bit = 3,
+    ///
     _256bit = 4,
 }
 
@@ -440,10 +473,13 @@ impl SecurityStrength {
         }
     }
 
+    /// Rounds down to the closest supported security strength.
+    /// For example, 15 bytes (120-bits) is rounded down to 112-bit.
     pub fn from_bytes(bytes: usize) -> Self {
         Self::from_bits(bytes * 8)
     }
 
+    /// Outputs the security strength in bits for easier computation.
     pub fn as_int(&self) -> u32 {
         match self {
             Self::None => 0,
@@ -470,10 +506,14 @@ pub trait RNG {
     // TODO: add back once we figure out streaming interaction with entropy sources.
     // fn add_seed_bytes(&mut self, additional_seed: &[u8]) -> Result<(), RNGError>;
 
+    /// Provide additional key material to be mixed in to the existing RNG instance.
+    /// The exact behaviour will be implementation-specific, but this is intended for injecting
+    /// additional entropy, not as the primary method of seeding the RNG.
     fn add_seed_keymaterial(
         &mut self,
         additional_seed: &dyn KeyMaterialTrait,
     ) -> Result<(), RNGError>;
+    /// Returns the next random 32-bit integer.
     fn next_int(&mut self) -> Result<u32, RNGError>;
 
     /// Returns the number of requested bytes.
@@ -483,9 +523,12 @@ pub trait RNG {
     /// The entire output buffer is zeroized before the random bytes are written.
     fn next_bytes_out(&mut self, out: &mut [u8]) -> Result<usize, RNGError>;
 
+    /// Fill the provided [KeyMaterial] with random bytes.
     fn fill_keymaterial_out(&mut self, out: &mut dyn KeyMaterialTrait) -> Result<usize, RNGError>;
 
     /// Returns the Security Strength of this RNG.
+    // todo: we should do a refactor to make [Algorithm] be a `security_strength()` function instead of constant,
+    //      then have `RNG: Algorithm`, then delete this function.
     fn security_strength(&self) -> SecurityStrength;
 }
 
@@ -758,7 +801,7 @@ pub trait SignatureVerifier<
     /// On failure, returns Err([SignatureError::SignatureVerificationFailed]); may also return other types of [SignatureError] as appropriate (such as for invalid-length inputs).
     fn verify(pk: &PK, msg: &[u8], ctx: Option<&[u8]>, sig: &[u8]) -> Result<(), SignatureError>;
 
-    /* streaming verification API */
+    /// streaming verification API
     fn verify_init(pk: &PK, ctx: Option<&[u8]>) -> Result<Self, SignatureError>;
 
     // todo: make this a AsRef<[u8]> ?
@@ -798,6 +841,7 @@ pub trait XOF: Default {
     /// The entire output buffer is zeroized before the output is written.
     fn hash_xof_out(self, data: &[u8], output: &mut [u8]) -> usize;
 
+    /// Absorb some amount of input.
     fn absorb(&mut self, data: &[u8]);
 
     /// Switches to squeezing.
@@ -829,5 +873,7 @@ pub trait XOF: Default {
     ) -> Result<(), HashError>;
 
     /// Returns the maximum security strength that this KDF is capable of supporting, based on the underlying primitives.
+    // todo: we should do a refactor to make [Algorithm] be a `security_strength()` function instead of constant,
+    //      then have `RNG: Algorithm`, then delete this function.
     fn max_security_strength(&self) -> SecurityStrength;
 }
