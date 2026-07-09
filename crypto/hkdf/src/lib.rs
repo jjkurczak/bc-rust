@@ -197,6 +197,7 @@ use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{
     KeyMaterial, KeyMaterial0, KeyMaterial512, KeyMaterialTrait, KeyType,
 };
+use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{
     Hash, HashAlgParams, KDF, MAC, SecurityStrength, SuspendableKeyed,
 };
@@ -777,9 +778,9 @@ impl<H: Hash + HashAlgParams + Default> KDF for HKDF<H> {
 }
 
 /// Length in bytes of the serialized state of [HKDF_SHA256].
-pub const SUSPENDED_HKDF_SHA256_STATE_LEN: usize = SUSPENDED_HMAC_SHA256_STATE_LEN + 11;
+pub const SUSPENDED_HKDF_SHA256_STATE_LEN: usize = SUSPENDED_HMAC_SHA256_STATE_LEN + 14;
 /// Length in bytes of the serialized state of [HKDF_SHA512].
-pub const SUSPENDED_HKDF_SHA512_STATE_LEN: usize = SUSPENDED_HMAC_SHA512_STATE_LEN + 11;
+pub const SUSPENDED_HKDF_SHA512_STATE_LEN: usize = SUSPENDED_HMAC_SHA512_STATE_LEN + 14;
 
 /// HKDF is *keyed by its salt* -- the salt keys the extract-phase HMAC -- so it implements
 /// [SuspendableKeyed] (not [SerializableState]). An in-progress
@@ -789,19 +790,21 @@ pub const SUSPENDED_HKDF_SHA512_STATE_LEN: usize = SUSPENDED_HMAC_SHA512_STATE_L
 /// Only the extract phase carries resumable state (expand is a one-shot static operation). As with
 /// HMAC, resuming with the wrong salt cannot be detected and will silently produce a wrong PRK.
 ///
-/// Serialized layout: the 3-byte library version header comes first and is checked before anything
-/// else is parsed; then, using `B` = the inner HMAC blob length:
-///   [0 .. B)         the inner HMAC's SerializableKeyedState blob (salt excluded); zeroed when absent
-///   [B]              inner-HMAC present flag (0 = extract not yet initialized)
-///   [B + 1]          state-machine tag (see `HkdfStates`)
-///   [B + 2 .. B + 10)  entropy counter (usize serialized as u64, little-endian)
-///   [B + 10]         accumulated security strength (1-byte tag)
-/// The number of bytes produced by `SerializableKeyedState::serialize_state` for each HKDF variant:
-/// the 3-byte library version header + 11 bytes of HKDF bookkeeping (HMAC-present flag, state tag,
-/// entropy counter, security strength) + the inner HMAC's serialized-state blob.
+/// Serialized layout: HKDF writes its own 3-byte library version header first and checks it before
+/// parsing anything else. This matters because the inner HMAC blob (which carries its own header) is
+/// absent before extract is initialized -- without HKDF's own header, a pre-init state would have no
+/// version tag at all. Using `B` = the inner HMAC blob length:
+///   [0 .. 3)             HKDF library version header (checked on resume)
+///   [3]                  inner-HMAC present flag (0 = extract not yet initialized)
+///   [4 .. 4 + B)         the inner HMAC's SuspendableKeyed blob (salt excluded); zeroed when absent
+///   [4 + B]              state-machine tag (see `HkdfStates`)
+///   [5 + B .. 13 + B)    entropy counter (usize serialized as u64, little-endian)
+///   [13 + B]             accumulated security strength (1-byte tag)
+/// So the total per HKDF variant is the 3-byte version header + 11 bytes of HKDF bookkeeping
+/// (present flag, state tag, entropy counter, security strength) + the inner HMAC's blob = `B + 14`.
 macro_rules! impl_suspendable_keyed_state_for_hkdf {
-    // $hash: the concrete hash; $hmac_blob: the inner HMAC's serialized-state length for that hash;
-    // $total: the full HKDF serialized-state length (= 3 + 11 + $hmac_blob).
+    // $hash: the concrete hash; $serialized_hmac_len: the inner HMAC's serialized-state length for that
+    // hash; $serialized_hkdf_len: the full HKDF serialized-state length (= 3 + 11 + $serialized_hmac_len).
     ($hash:ty, $serialized_hmac_len:expr, $serialized_hkdf_len:expr) => {
         impl SuspendableKeyed<{ $serialized_hkdf_len }> for HKDF<$hash> {
             // HMAC accepts any key material, so the key type is the trait object `dyn KeyMaterialTrait`
@@ -810,19 +813,27 @@ macro_rules! impl_suspendable_keyed_state_for_hkdf {
             type Key = dyn KeyMaterialTrait;
 
             fn suspend(self) -> [u8; $serialized_hkdf_len] {
-                debug_assert_eq!($serialized_hkdf_len, $serialized_hmac_len + 11);
+                debug_assert_eq!($serialized_hkdf_len, $serialized_hmac_len + 14);
                 let mut state = [0u8; $serialized_hkdf_len];
 
-                // The inner HMAC blob goes first, which carries a lib version header.
-                if let Some(hmac) = self.hmac {
-                    state[..$serialized_hmac_len].copy_from_slice(&hmac.suspend());
-                    state[$serialized_hmac_len] = 1; // present flag
-                }
+                // HKDF's own library version header comes first: the inner HMAC blob is absent before
+                // extract is initialized, so we can't rely on its header being present.
+                add_lib_ver(&mut state);
 
-                state[$serialized_hmac_len + 1] = self.state as u8;
-                state[$serialized_hmac_len + 2..$serialized_hmac_len + 10]
+                // The present flag, then (when present) the inner salt-keyed HMAC blob right after it.
+                if let Some(hmac) = self.hmac {
+                    state[3] = 1; // present flag
+                    state[4..4 + $serialized_hmac_len].copy_from_slice(&hmac.suspend());
+                }
+                // else None:
+                //  the presence flag = 0
+                //  the content = [u8; 0]
+                // which is how it already is, so nothing to do.
+
+                state[4 + $serialized_hmac_len] = self.state as u8;
+                state[5 + $serialized_hmac_len..13 + $serialized_hmac_len]
                     .copy_from_slice(&(self.entropy.entropy as u64).to_le_bytes());
-                state[$serialized_hmac_len + 10] = self.entropy.security_strength as u8;
+                state[13 + $serialized_hmac_len] = self.entropy.security_strength as u8;
 
                 state
             }
@@ -831,22 +842,20 @@ macro_rules! impl_suspendable_keyed_state_for_hkdf {
                 state: [u8; $serialized_hkdf_len],
                 salt: &Self::Key,
             ) -> Result<Self, SuspendableError> {
-                // Rebuild the salt-keyed HMAC (first in the payload) by re-supplying the salt.
+                // Check HKDF's own version header before parsing anything else.
+                check_lib_ver(&state, None)?;
 
-                // This double-dips on HMAC checking the version tag before going any further.
-                // If ever we need to version-reject HKDF separately from HMAC, then we'll need to add
-                // an explicit version check here, and change "None" to the oldest accepted version.
-                // _ = check_lib_ver(&serialized_state, None)?;
-                let hmac = match state[$serialized_hmac_len] {
+                // Rebuild the salt-keyed HMAC (when present) by re-supplying the salt.
+                let hmac = match state[3] {
                     0 => None,
                     1 => Some(HMAC::<$hash>::from_suspended(
-                        state[..$serialized_hmac_len].try_into().unwrap(),
+                        state[4..4 + $serialized_hmac_len].try_into().unwrap(),
                         salt,
                     )?),
                     _ => return Err(SuspendableError::InvalidData),
                 };
 
-                let hkdf_state = HkdfStates::try_from(state[$serialized_hmac_len + 1])?;
+                let hkdf_state = HkdfStates::try_from(state[4 + $serialized_hmac_len])?;
 
                 // check that the hkdf_state aligns with the presence of an hmac
                 if
@@ -859,10 +868,10 @@ macro_rules! impl_suspendable_keyed_state_for_hkdf {
                 }
 
                 let entropy = u64::from_le_bytes(
-                    state[$serialized_hmac_len + 2..$serialized_hmac_len + 10].try_into().unwrap(),
+                    state[5 + $serialized_hmac_len..13 + $serialized_hmac_len].try_into().unwrap(),
                 ) as usize;
                 let security_strength =
-                    SecurityStrength::try_from(state[$serialized_hmac_len + 10])?;
+                    SecurityStrength::try_from(state[13 + $serialized_hmac_len])?;
 
                 Ok(HKDF {
                     hmac,

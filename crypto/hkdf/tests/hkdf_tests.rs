@@ -796,7 +796,8 @@ mod hkdf_tests {
 
         const UNINITIALIZED: u8 = 0; // HkdfStates::Uninitialized
         const INITIALIZED: u8 = 1; // HkdfStates::Initialized
-        let present_idx = SUSPENDED_HKDF_SHA256_STATE_LEN - 11;
+        // Layout: [version(3) | present flag | hmac blob | state | entropy(8) | strength].
+        let present_idx = 3;
         let state_idx = SUSPENDED_HKDF_SHA256_STATE_LEN - 10;
 
         // Case 1: no HMAC present but state claims Initialized -> reject.
