@@ -12,9 +12,18 @@ use crate::key_material::KeyMaterial;
 use crate::key_material::KeyType;
 // end of imports needed for docs
 
+/// All algorithms carry a name and a max security strength tha they can support.
 pub trait Algorithm {
     const ALG_NAME: &'static str;
     const MAX_SECURITY_STRENGTH: SecurityStrength;
+}
+
+/// Some algorithms have an assigned OID.
+pub trait AlgorithmOID {
+    /// The OID in component form -- each u128 is one OID component.
+    const OID: &'static [u128];
+    /// The OID in its DER-encoded form.
+    const OID_DER: &'static [u8];
 }
 
 pub trait Hash: Algorithm + Default {

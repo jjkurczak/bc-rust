@@ -181,8 +181,6 @@
 //! ```
 
 #![forbid(unsafe_code)]
-#![allow(incomplete_features)] // because at time of writing, generic_const_exprs is not a stable feature
-#![feature(generic_const_exprs)]
 
 use bouncycastle_core::errors::{KeyMaterialError, MACError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};

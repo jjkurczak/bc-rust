@@ -225,9 +225,7 @@
 #![no_std]
 #![forbid(missing_docs)]
 #![forbid(unsafe_code)]
-#![allow(incomplete_features)] // needed because currently generic_const_exprs is experimental
-#![feature(generic_const_exprs)]
-#![feature(adt_const_params)]
+
 // These are because I'm matching variable names exactly against FIPS 204, for example both 'K' and 'k',
 // or 'A' and 'a' are used and have specific meanings.
 // But need to tell the rust linter to not care.

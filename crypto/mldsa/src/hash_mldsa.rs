@@ -93,19 +93,16 @@ use crate::{
 use bouncycastle_core::errors::SignatureError;
 use bouncycastle_core::key_material::KeyMaterial;
 use bouncycastle_core::traits::{
-    Algorithm, Hash, PHSignatureVerifier, PHSigner, RNG, SecurityStrength, SignatureVerifier,
-    Signer, XOF,
+    Algorithm, AlgorithmOID, Hash, PHSignatureVerifier, PHSigner, RNG, SecurityStrength,
+    SignatureVerifier, Signer, XOF,
 };
 use bouncycastle_rng::HashDRBG_SHA512;
-use bouncycastle_sha2::{SHA256, SHA256_NAME, SHA512, SHA512_NAME};
+use bouncycastle_sha2::{SHA256, SHA512};
 use core::marker::PhantomData;
 
 // Imports needed only for docs
 #[allow(unused_imports)]
 use crate::mldsa::MuBuilder;
-
-const SHA256_OID: &[u8] = &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01];
-const SHA512_OID: &[u8] = &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03];
 
 /*** Constants ***/
 
@@ -329,7 +326,7 @@ impl Algorithm for HashMLDSA87_with_SHA512 {
 /// by specifying the hash function to use (in the verifier), and specifying the bytes of the OID to
 /// to use as its domain separator in constructing the message representative M'.
 pub struct HashMLDSA<
-    HASH: Hash + Algorithm + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const HASH_LEN: usize,
     const PK_LEN: usize,
     const SK_LEN: usize,
@@ -377,7 +374,7 @@ pub struct HashMLDSA<
 }
 
 impl<
-    HASH: Hash + Algorithm + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const PH_LEN: usize,
     const PK_LEN: usize,
     const SK_LEN: usize,
@@ -600,20 +597,7 @@ impl<
             h.absorb(&[1u8]);
             h.absorb(&[ctx.len() as u8]);
             h.absorb(ctx);
-
-            // this is all statics, so the branch should compile out.
-            // Really, this should be a generic param of HashMLDSA, but unsized_const_params is currently
-            // a nightly-only feature.
-            match HASH::ALG_NAME {
-                SHA256_NAME => h.absorb(SHA256_OID),
-                SHA512_NAME => h.absorb(SHA512_OID),
-                _ => {
-                    return Err(SignatureError::GenericError(
-                        "Unsupported hash algorithm; you need to add it to the switch",
-                    ));
-                }
-            };
-
+            h.absorb(HASH::OID_DER);
             h.absorb(ph);
             let mut mu = [0u8; MLDSA_MU_LEN];
             let bytes_written = h.squeeze_out(&mut mu);
@@ -736,18 +720,7 @@ impl<
             h.absorb(&[1u8]);
             h.absorb(&[ctx.len() as u8]);
             h.absorb(ctx);
-            // this is all statics, so the branch should compile out.
-            // Really, this should be a generic param of HashMLDSA, but unsized_const_params is currently
-            // a nightly-only feature.
-            match HASH::ALG_NAME {
-                SHA256_NAME => h.absorb(SHA256_OID),
-                SHA512_NAME => h.absorb(SHA512_OID),
-                _ => {
-                    return Err(SignatureError::GenericError(
-                        "Unsupported hash algorithm; you need to add it to the switch",
-                    ));
-                }
-            };
+            h.absorb(HASH::OID_DER);
             h.absorb(ph);
             let mut mu = [0u8; MLDSA_MU_LEN];
             _ = h.squeeze_out(&mut mu);
@@ -807,7 +780,7 @@ impl<
 }
 
 impl<
-    HASH: Hash + Algorithm + Default,
+    HASH: Hash + AlgorithmOID + Default,
     PK: MLDSAPublicKeyTrait<k, l, PK_LEN> + MLDSAPublicKeyInternalTrait<k, PK_LEN>,
     SK: MLDSAPrivateKeyTrait<k, l, ETA, SK_LEN, PK_LEN>
         + MLDSAPrivateKeyInternalTrait<k, l, ETA, SK_LEN, PK_LEN>,
@@ -954,7 +927,7 @@ impl<
 }
 
 impl<
-    HASH: Hash + Algorithm + Default,
+    HASH: Hash + AlgorithmOID + Default,
     PK: MLDSAPublicKeyTrait<k, l, PK_LEN> + MLDSAPublicKeyInternalTrait<k, PK_LEN>,
     SK: MLDSAPrivateKeyTrait<k, l, ETA, SK_LEN, PK_LEN>
         + MLDSAPrivateKeyInternalTrait<k, l, ETA, SK_LEN, PK_LEN>,
@@ -1041,7 +1014,7 @@ impl<
 }
 
 impl<
-    HASH: Hash + Algorithm + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const PH_LEN: usize,
     const PK_LEN: usize,
     const SK_LEN: usize,
@@ -1122,7 +1095,7 @@ impl<
 }
 
 impl<
-    HASH: Hash + Algorithm + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const PH_LEN: usize,
     const PK_LEN: usize,
     const SK_LEN: usize,

@@ -202,9 +202,6 @@
 #![no_std]
 #![forbid(missing_docs)]
 #![forbid(unsafe_code)]
-#![allow(incomplete_features)] // needed because currently generic_const_exprs is experimental
-#![feature(generic_const_exprs)]
-#![feature(adt_const_params)]
 // These are because I'm matching variable names exactly against FIPS 204, for example both 'K' and 'k',
 // or 'A' and 'a' are used and have specific meanings.
 // But need to tell the rust linter to not care.
@@ -213,8 +210,6 @@
 // so I can use private traits to hide internal stuff that needs to be generic within the
 // MLDSA implementation, but I don't want accessed from outside, such as FIPS-internal functions.
 #![allow(private_bounds)]
-// Used in HashMLDSA
-#![feature(unsized_const_params)]
 
 // imports needed just for docs
 #[allow(unused_imports)]

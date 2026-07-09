@@ -96,8 +96,8 @@ use crate::{
 use bouncycastle_core::errors::SignatureError;
 use bouncycastle_core::key_material::KeyMaterial;
 use bouncycastle_core::traits::{
-    Algorithm, Hash, PHSignatureVerifier, PHSigner, RNG, SecurityStrength, SignatureVerifier,
-    Signer, XOF,
+    Algorithm, AlgorithmOID, Hash, PHSignatureVerifier, PHSigner, RNG, SecurityStrength,
+    SignatureVerifier, Signer, XOF,
 };
 use bouncycastle_rng::HashDRBG_SHA512;
 use bouncycastle_sha2::{SHA256, SHA512};
@@ -106,9 +106,6 @@ use core::marker::PhantomData;
 // Imports needed only for docs
 #[allow(unused_imports)]
 use crate::mldsa::MuBuilder;
-
-const SHA256_OID: &[u8] = &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01];
-const SHA512_OID: &[u8] = &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03];
 
 /*** Constants ***/
 
@@ -132,7 +129,6 @@ pub const HASH_ML_DSA_87_WITH_SHA512_NAME: &str = "HashML-DSA-87_with_SHA512";
 pub type HashMLDSA44_with_SHA256 = HashMLDSA<
     SHA256,
     32,
-    SHA256_OID,
     MLDSA44_PK_LEN,
     MLDSA44_SK_LEN,
     MLDSA44_FULL_SK_LEN,
@@ -170,7 +166,6 @@ impl Algorithm for HashMLDSA44_with_SHA256 {
 pub type HashMLDSA65_with_SHA256 = HashMLDSA<
     SHA256,
     32,
-    SHA256_OID,
     MLDSA65_PK_LEN,
     MLDSA65_SK_LEN,
     MLDSA65_FULL_SK_LEN,
@@ -208,7 +203,6 @@ impl Algorithm for HashMLDSA65_with_SHA256 {
 pub type HashMLDSA87_with_SHA256 = HashMLDSA<
     SHA256,
     32,
-    SHA256_OID,
     MLDSA87_PK_LEN,
     MLDSA87_SK_LEN,
     MLDSA87_FULL_SK_LEN,
@@ -246,7 +240,6 @@ impl Algorithm for HashMLDSA87_with_SHA256 {
 pub type HashMLDSA44_with_SHA512 = HashMLDSA<
     SHA512,
     64,
-    SHA512_OID,
     MLDSA44_PK_LEN,
     MLDSA44_SK_LEN,
     MLDSA44_FULL_SK_LEN,
@@ -284,7 +277,6 @@ impl Algorithm for HashMLDSA44_with_SHA512 {
 pub type HashMLDSA65_with_SHA512 = HashMLDSA<
     SHA512,
     64,
-    SHA512_OID,
     MLDSA65_PK_LEN,
     MLDSA65_SK_LEN,
     MLDSA65_FULL_SK_LEN,
@@ -322,7 +314,6 @@ impl Algorithm for HashMLDSA65_with_SHA512 {
 pub type HashMLDSA87_with_SHA512 = HashMLDSA<
     SHA512,
     64,
-    SHA512_OID,
     MLDSA87_PK_LEN,
     MLDSA87_SK_LEN,
     MLDSA87_FULL_SK_LEN,
@@ -362,9 +353,8 @@ impl Algorithm for HashMLDSA87_with_SHA512 {
 /// by specifying the hash function to use (in the verifier), and specifying the bytes of the OID to
 /// to use as its domain separator in constructing the message representative M'.
 pub struct HashMLDSA<
-    HASH: Hash + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const HASH_LEN: usize,
-    const oid: &'static [u8],
     const PK_LEN: usize,
     const SK_LEN: usize,
     const FULL_SK_LEN: usize,
@@ -434,9 +424,8 @@ pub struct HashMLDSA<
 }
 
 impl<
-    HASH: Hash + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const PH_LEN: usize,
-    const oid: &'static [u8],
     const PK_LEN: usize,
     const SK_LEN: usize,
     const FULL_SK_LEN: usize,
@@ -486,7 +475,6 @@ impl<
     HashMLDSA<
         HASH,
         PH_LEN,
-        oid,
         PK_LEN,
         SK_LEN,
         FULL_SK_LEN,
@@ -645,7 +633,7 @@ impl<
         h.absorb(&[1u8]);
         h.absorb(&[ctx.len() as u8]);
         h.absorb(ctx);
-        h.absorb(oid);
+        h.absorb(HASH::OID_DER);
         h.absorb(ph);
         let mut mu = [0u8; MLDSA_MU_LEN];
         let bytes_written = h.squeeze_out(&mut mu);
@@ -727,7 +715,7 @@ impl<
 }
 
 impl<
-    HASH: Hash + Default,
+    HASH: Hash + AlgorithmOID + Default,
     PK: MLDSAPublicKeyTrait<k, T1_PACKED_LEN, PK_LEN>
         + MLDSAPublicKeyInternalTrait<k, T1_PACKED_LEN, PK_LEN>,
     SK: MLDSAPrivateKeyTrait<
@@ -751,7 +739,6 @@ impl<
             SK_LEN,
         >,
     const PH_LEN: usize,
-    const oid: &'static [u8],
     const PK_LEN: usize,
     const SK_LEN: usize,
     const FULL_SK_LEN: usize,
@@ -779,7 +766,6 @@ impl<
     for HashMLDSA<
         HASH,
         PH_LEN,
-        oid,
         PK_LEN,
         SK_LEN,
         FULL_SK_LEN,
@@ -895,7 +881,7 @@ impl<
 }
 
 impl<
-    HASH: Hash + Default,
+    HASH: Hash + AlgorithmOID + Default,
     PK: MLDSAPublicKeyTrait<k, T1_PACKED_LEN, PK_LEN>
         + MLDSAPublicKeyInternalTrait<k, T1_PACKED_LEN, PK_LEN>,
     SK: MLDSAPrivateKeyTrait<
@@ -919,7 +905,6 @@ impl<
             SK_LEN,
         >,
     const PH_LEN: usize,
-    const oid: &'static [u8],
     const PK_LEN: usize,
     const SK_LEN: usize,
     const FULL_SK_LEN: usize,
@@ -947,7 +932,6 @@ impl<
     for HashMLDSA<
         HASH,
         PH_LEN,
-        oid,
         PK_LEN,
         SK_LEN,
         FULL_SK_LEN,
@@ -1011,9 +995,8 @@ impl<
 }
 
 impl<
-    HASH: Hash + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const PH_LEN: usize,
-    const oid: &'static [u8],
     const PK_LEN: usize,
     const SK_LEN: usize,
     const FULL_SK_LEN: usize,
@@ -1063,7 +1046,6 @@ impl<
     for HashMLDSA<
         HASH,
         PH_LEN,
-        oid,
         PK_LEN,
         SK_LEN,
         FULL_SK_LEN,
@@ -1121,9 +1103,8 @@ impl<
 }
 
 impl<
-    HASH: Hash + Default,
+    HASH: Hash + AlgorithmOID + Default,
     const PH_LEN: usize,
-    const oid: &'static [u8],
     const PK_LEN: usize,
     const SK_LEN: usize,
     const FULL_SK_LEN: usize,
@@ -1173,7 +1154,6 @@ impl<
     for HashMLDSA<
         HASH,
         PH_LEN,
-        oid,
         PK_LEN,
         SK_LEN,
         FULL_SK_LEN,
@@ -1231,7 +1211,7 @@ impl<
         h.absorb(&[1u8]);
         h.absorb(&[ctx.len() as u8]);
         h.absorb(ctx);
-        h.absorb(oid);
+        h.absorb(HASH::OID_DER);
         h.absorb(ph);
         let mut mu = [0u8; MLDSA_MU_LEN];
         _ = h.squeeze_out(&mut mu);
