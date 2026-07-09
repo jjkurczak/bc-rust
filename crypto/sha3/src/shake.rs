@@ -1,14 +1,22 @@
 use crate::SHAKEParams;
 use crate::keccak::{
-    KeccakInternal, KeccakSize, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN,
+    KeccakInternal, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN,
     deserialize_sha3_family_state, serialize_sha3_family_state,
 };
 use bouncycastle_core::errors::{HashError, KDFError, SuspendableError};
 use bouncycastle_core::key_material;
-use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
+use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
+// `KeyMaterial` and `KeccakSize` are only used by the alloc-gated `derive_key_final_internal`.
+#[cfg(feature = "alloc")]
+use crate::keccak::KeccakSize;
+#[cfg(feature = "alloc")]
+use bouncycastle_core::key_material::KeyMaterial;
 use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Algorithm, KDF, SecurityStrength, Suspendable, XOF};
 use bouncycastle_utils::{max, min};
+
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, vec, vec::Vec};
 
 /// Internal struct for SHAKE.
 /// This uses a private bound so that you cannot instantiate it directly and have to use the
@@ -54,6 +62,7 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
     }
 
     /// Swallows errors and simply returns an empty Vec<u8> if the hashes fails for whatever reason.
+    #[cfg(feature = "alloc")]
     fn hash_internal(mut self, data: &[u8], result_len: usize) -> Vec<u8> {
         // The absorb fails if this object has already begun squeezing, which the caller is free to
         // have done: these one-shot APIs take `self`, they do not require a fresh object.
@@ -99,6 +108,7 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
         Ok(self.absorb(key.ref_to_bytes())?)
     }
 
+    #[cfg(feature = "alloc")]
     fn derive_key_final_internal(
         mut self,
         additional_input: &[u8],
@@ -210,6 +220,7 @@ impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
     /// To produce shorter keys, either use [`KDF::derive_key_out`], truncate this result in place with
     /// [`KeyMaterial::set_key_len`], or copy it into a smaller [`KeyMaterial`] with
     /// [`KeyMaterialTrait::truncate`].
+    #[cfg(feature = "alloc")]
     fn derive_key(
         mut self,
         key: &impl KeyMaterialTrait,
@@ -240,6 +251,7 @@ impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
     /// To produce shorter keys, either use [`KDF::derive_key_out`], truncate this result in place with
     /// [`KeyMaterial::set_key_len`], or copy it into a smaller [`KeyMaterial`] with
     /// [`KeyMaterialTrait::truncate`].
+    #[cfg(feature = "alloc")]
     fn derive_key_from_multiple(
         mut self,
         keys: &[&impl KeyMaterialTrait],
@@ -275,6 +287,7 @@ impl<PARAMS: SHAKEParams> Default for SHAKEInternal<PARAMS> {
 }
 
 impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
+    #[cfg(feature = "alloc")]
     fn hash_xof(self, data: &[u8], result_len: usize) -> Vec<u8> {
         self.hash_internal(data, result_len)
     }
@@ -336,6 +349,7 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
         Ok(())
     }
 
+    #[cfg(feature = "alloc")]
     fn squeeze(&mut self, num_bytes: usize) -> Vec<u8> {
         let mut out: Vec<u8> = vec![0u8; num_bytes];
         self.squeeze_out(&mut out);

@@ -5,10 +5,16 @@ use crate::keccak::{
 };
 use bouncycastle_core::errors::{HashError, KDFError, SuspendableError};
 use bouncycastle_core::key_material;
-use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
+use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
+// `KeyMaterial` (the concrete type) is only used by the alloc-gated `derive_key_final_internal`.
+#[cfg(feature = "alloc")]
+use bouncycastle_core::key_material::KeyMaterial;
 use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Algorithm, Hash, KDF, SecurityStrength, Suspendable};
 use bouncycastle_utils::{max, min};
+
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, vec, vec::Vec};
 
 /// Internal struct for SHA3.
 /// This uses a private bound so that you cannot instantiate it directly and have to use the
@@ -105,6 +111,7 @@ impl<PARAMS: SHA3Params> SHA3Internal<PARAMS> {
         self.do_update(key.ref_to_bytes())
     }
 
+    #[cfg(feature = "alloc")]
     fn derive_key_final_internal(
         self,
         additional_input: &[u8],
@@ -187,6 +194,7 @@ impl<PARAMS: SHA3Params> Hash for SHA3Internal<PARAMS> {
         PARAMS::OUTPUT_LEN
     }
 
+    #[cfg(feature = "alloc")]
     fn hash(self, data: &[u8]) -> Vec<u8> {
         let mut output: Vec<u8> = vec![0u8; PARAMS::OUTPUT_LEN];
         _ = self.hash_internal(data, &mut output[..]);
@@ -201,6 +209,7 @@ impl<PARAMS: SHA3Params> Hash for SHA3Internal<PARAMS> {
         self.keccak.absorb(data)
     }
 
+    #[cfg(feature = "alloc")]
     fn do_final(self) -> Vec<u8> {
         let dbg_rslt_len = self.output_len();
         let mut output: Vec<u8> = vec![0u8; self.output_len()];
@@ -217,6 +226,7 @@ impl<PARAMS: SHA3Params> Hash for SHA3Internal<PARAMS> {
         self.do_final_bits_out(0, 0, output)
     }
 
+    #[cfg(feature = "alloc")]
     fn do_final_partial_bits(
         self,
         partial_byte: u8,
@@ -251,6 +261,7 @@ impl<PARAMS: SHA3Params> KDF for SHA3Internal<PARAMS> {
     /// Returns a [`KeyMaterial`].
     /// For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
     /// it requires full-entropy input that is at least the bit size (ie 256 bits for SHA3-256, etc).
+    #[cfg(feature = "alloc")]
     fn derive_key(
         mut self,
         key: &impl KeyMaterialTrait,
@@ -271,6 +282,7 @@ impl<PARAMS: SHA3Params> KDF for SHA3Internal<PARAMS> {
         self.derive_key_out_final_internal(additional_input, output_key)
     }
 
+    #[cfg(feature = "alloc")]
     fn derive_key_from_multiple(
         mut self,
         keys: &[&impl KeyMaterialTrait],
