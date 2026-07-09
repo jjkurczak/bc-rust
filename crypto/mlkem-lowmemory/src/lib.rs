@@ -225,7 +225,6 @@
 #![no_std]
 #![forbid(missing_docs)]
 #![forbid(unsafe_code)]
-
 // These are because I'm matching variable names exactly against FIPS 204, for example both 'K' and 'k',
 // or 'A' and 'a' are used and have specific meanings.
 // But need to tell the rust linter to not care.
