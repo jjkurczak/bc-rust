@@ -172,7 +172,7 @@ impl<PARAMS: SHAKEParams> KDF for SHAKE<PARAMS> {
     /// This can be truncated down with [KeyMaterial::set_key_len].
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
     /// To produce longer keys, use [KDF::derive_key_out].
-    /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with 
+    /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with
     /// [KeyMaterial::set_key_len].
     fn derive_key_from_multiple(
         mut self,
