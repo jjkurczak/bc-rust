@@ -609,8 +609,7 @@ mod hmac_tests {
         use bouncycastle_core::traits::SuspendableKeyed;
         use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableKeyedState;
 
-        let key =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::MACKey).unwrap();
+        let key = KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::MACKey).unwrap();
         let msg = b"Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one HMAC variant. HMAC is keyed, so the
@@ -662,8 +661,7 @@ mod hmac_tests {
 
         // test suspend / resume with a key larger than block size
         let long_key =
-            KeyMaterial::<200>::from_bytes_as_type(&DUMMY_SEED[..200], KeyType::MACKey)
-                .unwrap();
+            KeyMaterial::<200>::from_bytes_as_type(&DUMMY_SEED[..200], KeyType::MACKey).unwrap();
         round_trip(HMAC_SHA256::new(&long_key).unwrap(), &long_key, msg);
     }
 

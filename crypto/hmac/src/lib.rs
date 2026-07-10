@@ -633,7 +633,7 @@ impl<
 macro_rules! impl_hmac_keygen {
     ($hash:ty, $block_len:literal, $n:literal, $drbg:ty) => {
         impl HMAC<$hash, $block_len> {
-        /// Generate a key of the appropriate length for the given HMAC
+            /// Generate a key of the appropriate length for the given HMAC
             pub fn keygen() -> Result<KeyMaterial<$n>, RNGError> {
                 let mut key = KeyMaterial::<$n>::new();
                 let mut os_rng = <$drbg>::new_from_os();

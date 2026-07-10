@@ -24,7 +24,7 @@
 //! get the either the default algorithm or the default algorithm at the 128-bit or 256-bit security level.
 //! It also exposes [AlgorithmFactory::new] which can be used to create an instance of the algorithm
 //! by string name according to the string constants associated with the respective factory type.
-//! 
+//!
 //! This crate compiles with STD; ie it is explicitly not tagged as `no_std` and it makes use of `Vec` and other
 //! dynamically-sized nice things.
 

@@ -267,7 +267,6 @@ pub trait StreamCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>:
     ) -> Result<usize, SymmetricCipherError>;
 }
 
-
 /// A hash function is a cryptographic primitive that takes an input of any length and produces a fixed-size output.
 /// Formally: `H: {0,1}^* -> {0,1}^n`.
 /// A cryptographic hash function will typically satisfy several security properties, including:

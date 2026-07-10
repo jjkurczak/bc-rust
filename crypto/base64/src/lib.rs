@@ -102,7 +102,7 @@ pub enum Base64Error {
     /// The [Base64Decoder::do_update] method must not be called on a block that contains padding.
     /// If this error is returned, then the provided input has not been processed and the caller must instead
     /// pass the same input to [Base64Decoder::do_final]. Note that do_final() is tolerant of incomplete padding blocks,
-    /// so even if an additional padding character is contained in the next chunk of input, do_final() 
+    /// so even if an additional padding character is contained in the next chunk of input, do_final()
     /// will still produce the correct output -- ie any additional chunks held by the caller can be discarded.
     PaddingEnconteredDuringDoUpdate,
 

@@ -2,7 +2,7 @@
 //!
 //! The functions contained here are not really intended to be used by end users, but you
 //! are welcome to do so if you wish.
-//! 
+//!
 //! That said, beware that this crate is not necessarily documented to the same standard as other crates.
 //! Since many of the contained helpers are security-critical (such as the constant time module),
 //! we will prioritize fixing security bugs over maintaining a stable API for this crate.
