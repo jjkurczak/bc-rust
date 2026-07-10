@@ -1,4 +1,3 @@
-hex_literal_case = "Upper"
 max_width = 100
 short_array_element_width_threshold = 24
 use_small_heuristics = "Max"
