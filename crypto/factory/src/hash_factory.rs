@@ -91,7 +91,10 @@ impl AlgorithmFactory for HashFactory {
     }
 }
 
-// TODO -- this does't work. Perhaps Algorithm needs to be re-worked so that these are functions instead?
+// TODO -- this is broken.
+//      The designed behaviour here is that the Factory object pass these through to the underlying algorithm
+//      that it's wrapping, but that can't be done with consts, so I think the Algorithm trait needs
+//      a rework to be functions instead of consts.
 impl Algorithm for HashFactory {
     const ALG_NAME: &'static str = "TODO";
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::None;

@@ -198,7 +198,7 @@ impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
     /// To produce longer keys, use [KDF::derive_key_out].
     /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with
-    /// [KeyMaterial::truncate].
+    /// [KeyMaterial::set_key_len].
     fn derive_key(
         mut self,
         key: &impl KeyMaterialTrait,
@@ -222,10 +222,11 @@ impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
 
     /// Always returns a full [KeyMaterial]; ie that fills the internal buffer of the
     /// appropriately-sized key material for the underlying cryptographic hash function.
-    /// This can be truncated down with [KeyMaterial::truncate].
+    /// This can be truncated down with [KeyMaterial::set_key_len].
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
     /// To produce longer keys, use [KDF::derive_key_out].
-    /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with [KeyMaterial::truncate].
+    /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with
+    /// [KeyMaterial::set_key_len].
     fn derive_key_from_multiple(
         mut self,
         keys: &[&impl KeyMaterialTrait],

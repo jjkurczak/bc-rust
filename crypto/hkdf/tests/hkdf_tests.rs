@@ -732,7 +732,8 @@ mod hkdf_tests {
         use bouncycastle_hkdf::{SUSPENDED_HKDF_SHA256_STATE_LEN, SUSPENDED_HKDF_SHA512_STATE_LEN};
 
         // HKDF is keyed by its salt: the salt is NOT serialized and is re-supplied on resume.
-        let salt = KeyMaterial128::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::MACKey).unwrap();
+        let salt =
+            KeyMaterial128::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::MACKey).unwrap();
         let ikm = &DUMMY_SEED[16..64];
         let (part1, part2) = ikm.split_at(20);
 

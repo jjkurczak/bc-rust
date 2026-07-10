@@ -2277,7 +2277,7 @@ impl MuBuilder {
 }
 
 /// The length, in bytes, of a serialized state of a [MuBuilder] object.
-pub const MU_BUILDER_SERIALIZED_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+pub const SUSPENDED_MU_BUILDER_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
 
 /// If you are processing a large input message into ML-DSA and want to pause the operation
 /// -- maybe while waiting for slow network IO), you'll need to use [Suspendable].

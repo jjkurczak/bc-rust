@@ -172,6 +172,7 @@ pub use sha3::SHA3Internal;
 pub use shake::SHAKEInternal;
 
 pub use keccak::SUSPENDED_SHA3_STATE_LEN;
+
 /// Public type for SHA3_224.
 pub type SHA3_224 = SHA3Internal<SHA3_224Params>;
 /// Public type for SHA3_256.
