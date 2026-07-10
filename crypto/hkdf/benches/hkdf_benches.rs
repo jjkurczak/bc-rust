@@ -9,7 +9,7 @@ use std::hint::black_box;
 
 fn bench_hkdf_sha256(c: &mut Criterion) {
     let mut data_block = [0_u8; 1024];
-    let mut output = KeyMaterial256::new();
+    let mut output = KeyMaterial512::new();
     rng::DefaultRNG::default().next_bytes_out(&mut data_block).unwrap();
 
     let key = KeyMaterial256::from_bytes_as_type(&data_block[..32], KeyType::MACKey).unwrap();

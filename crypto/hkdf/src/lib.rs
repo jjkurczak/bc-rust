@@ -212,10 +212,16 @@ use bouncycastle_core::traits::XOF;
 // end doc-only imports
 
 /*** Constants ***/
-// Slightly hacky, but set this to accommodate the underlying hash primitive with the largest output size.
-// Would be better to somehow pull that at compile time from H, but I'm not sure how to do that.
-// todo can I delete this?
-const HMAC_BLOCK_LEN: usize = 64;
+/// The size of the output key material from the HKDF-Extract phase `prk`, in bytes.
+/// This has been sized so that the output KeyMaterial has enough capacity to accommodate the
+/// underlying hash primitive with the largest output size.
+/// If the given hash function has a smaller output size, then the output KeyMaterial will be
+/// under-full (ie have a key_len that does not use its full capacity).
+/// TODO: This is a dirty dirty hack because correctly sizing the output key
+///       really requires the generic_const_exprs feature, which is currently only available on
+///       nightly Rust, and not on stable. Once they merge that feature, we will be able to get rid of this
+///       and declare `prk: &mut KeyMaterial<H::OUTPUT_LEN>` instead of this hack.
+pub const MAX_HMAC_OUTPUT_LEN: usize = 64;
 
 /*** String constants ***/
 
@@ -382,7 +388,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         salt: &impl KeyMaterialTrait,
         ikm: &impl KeyMaterialTrait,
     ) -> Result<impl KeyMaterialTrait, MACError> {
-        let mut prk = KeyMaterial::<HMAC_BLOCK_LEN>::new();
+        let mut prk = KeyMaterial::<MAX_HMAC_OUTPUT_LEN>::new();
         Self::extract_out(salt, ikm, &mut prk)?;
         Ok(prk)
     }
@@ -392,7 +398,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
     pub fn extract_out(
         salt: &impl KeyMaterialTrait,
         ikm: &impl KeyMaterialTrait,
-        prk: &mut KeyMaterial<H::OUTPUT_LEN>,
+        prk: &mut KeyMaterial<MAX_HMAC_OUTPUT_LEN>,
     ) -> Result<usize, MACError> {
         // PRK = HMAC-Hash(salt, IKM)
 
@@ -474,12 +480,15 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
 
         // Could potentially speed this up by unrolling T(0) and T(1)
 
-        // We're gonna have to kludge the prk key type to MACKey to make HMAC happy, but we'll set it back to the original value afterwards.
-        let prk_as_mac_key =
-            KeyMaterial::<HMAC_BLOCK_LEN>::from_bytes_as_type(prk.ref_to_bytes(), KeyType::MACKey)?;
+        // We're gonna have to kludge the prk key type to MACKey to make HMAC happy,
+        // but we'll set it back to the original value afterwards.
+        let prk_as_mac_key = KeyMaterial::<MAX_HMAC_OUTPUT_LEN>::from_bytes_as_type(
+            prk.ref_to_bytes(),
+            KeyType::MACKey,
+        )?;
 
         #[allow(non_snake_case)]
-        let mut T = [0u8; HMAC_BLOCK_LEN];
+        let mut T = [0u8; MAX_HMAC_OUTPUT_LEN];
         let mut t_len: usize = 0;
         let mut i = 1u8;
 
@@ -637,10 +646,10 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
 
     /// Finish the HKDF-Extract phase and produce the output `prk`.
     #[allow(non_snake_case)]
-    pub fn do_extract_final(self) -> Result<KeyMaterial<HMAC_BLOCK_LEN>, MACError> {
-        let mut okm = KeyMaterial::<HMAC_BLOCK_LEN>::new();
-        self.do_extract_final_out(&mut okm)?;
-        Ok(okm)
+    pub fn do_extract_final(self) -> Result<KeyMaterial<MAX_HMAC_OUTPUT_LEN>, MACError> {
+        let mut prk = KeyMaterial::<MAX_HMAC_OUTPUT_LEN>::new();
+        self.do_extract_final_out(&mut prk)?;
+        Ok(prk)
     }
 
     /// Finish the HKDF-Extract phase and fill the provided `prk`.
@@ -648,7 +657,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
     #[allow(non_snake_case)]
     pub fn do_extract_final_out(
         self,
-        okm: &mut KeyMaterial<HMAC_BLOCK_LEN>,
+        prk: &mut KeyMaterial<MAX_HMAC_OUTPUT_LEN>,
     ) -> Result<usize, MACError> {
         if self.state == HkdfStates::Uninitialized {
             return Err(MACError::InvalidState(
@@ -660,7 +669,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         let output_key_type = self.entropy.get_output_key_type(); // need to do this above self.hmac.do_final_out, which will consume self.
 
         let mut bytes_written = 0;
-        key_material::do_hazardous_operations(okm, |okm| {
+        key_material::do_hazardous_operations(prk, |okm| {
             bytes_written = self
                 .hmac
                 .unwrap()
@@ -680,6 +689,9 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
                 )
             }
         })?;
+        // By RFC5869, the output size of prk is HashLen denotes the length of the
+        //                hash function output in octets
+        debug_assert_eq!(prk.key_len(), H::OUTPUT_LEN);
         Ok(bytes_written)
     }
 }
@@ -769,7 +781,7 @@ impl<H: Hash + HashAlgParams + Default> KDF for HKDF<H> {
                 entropy.credit_entropy(*key);
             }
         }
-        let mut prk = KeyMaterial::<HMAC_BLOCK_LEN>::new();
+        let mut prk = KeyMaterial::<MAX_HMAC_OUTPUT_LEN>::new();
         _ = hkdf.do_extract_final_out(&mut prk)?;
         let bytes_written =
             HKDF::<H>::expand_out(&prk, additional_input, output_key.capacity(), output_key)?;
