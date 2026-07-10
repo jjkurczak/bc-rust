@@ -99,11 +99,11 @@ pub fn decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, Base64Error> {
 /// Return type for errors relating to Base64 encoding and decoding.
 #[derive(Debug)]
 pub enum Base64Error {
-    /// the do_update() method must not be called on a block that contains padding.
+    /// The [Base64Decoder::do_update] method must not be called on a block that contains padding.
     /// If this error is returned, then the provided input has not been processed and the caller must instead
-    /// pass the same input to do_final(). Note that do_final() is tolerant of incomplete padding blocks,
-    /// so even if an additional padding character is contained in the next chunk of input, do_final() will still produce
-    /// the correct output -- ie any additional chunks held by the caller can be discarded.
+    /// pass the same input to [Base64Decoder::do_final]. Note that do_final() is tolerant of incomplete padding blocks,
+    /// so even if an additional padding character is contained in the next chunk of input, do_final() 
+    /// will still produce the correct output -- ie any additional chunks held by the caller can be discarded.
     PaddingEnconteredDuringDoUpdate,
 
     /// Input contained a character that was not in the base64 alphabet. The index of the illegal character is included in the output.

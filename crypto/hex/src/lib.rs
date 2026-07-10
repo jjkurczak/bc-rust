@@ -21,13 +21,18 @@
 //! The decoder ignores whitespace and "\x".
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 
 use bouncycastle_utils::ct::Condition;
 
+/// Return type for errors relating to Hex encoding and decoding.
 #[derive(Debug)]
 pub enum HexError {
+    /// Invalid hex character encountered at the given index.
     InvalidHexCharacter(usize),
+    /// Since hex encodes each byte as two characters, the input must have an even length.
     OddLengthInput,
+    ///
     InsufficientOutputBufferSize,
 }
 

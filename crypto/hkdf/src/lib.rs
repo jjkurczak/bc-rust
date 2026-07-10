@@ -191,6 +191,7 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 
 use bouncycastle_core::errors::{KDFError, KeyMaterialError, MACError, SuspendableError};
 use bouncycastle_core::key_material;
@@ -213,19 +214,26 @@ use bouncycastle_core::traits::XOF;
 /*** Constants ***/
 // Slightly hacky, but set this to accommodate the underlying hash primitive with the largest output size.
 // Would be better to somehow pull that at compile time from H, but I'm not sure how to do that.
+// todo can I delete this?
 const HMAC_BLOCK_LEN: usize = 64;
 
 /*** String constants ***/
 
+///
 pub const HKDF_SHA256_NAME: &str = "HKDF-SHA256";
+///
 pub const HKDF_SHA512_NAME: &str = "HKDF-SHA512";
 
 /*** Types ***/
+/// Public type for HKDF using SHA256.
 #[allow(non_camel_case_types)]
 pub type HKDF_SHA256 = HKDF<SHA256>;
+/// Public type for HKDF using SHA512.
 #[allow(non_camel_case_types)]
 pub type HKDF_SHA512 = HKDF<SHA512>;
 
+/// Internal struct for HKDF.
+/// Can, in theory, be instantiated with hash functions other than the ones provided by this crate (even custom ones).
 #[derive(Clone)]
 pub struct HKDF<H: Hash + HashAlgParams + Default> {
     // Optional because we can't construct an HMAC until they give us a key
@@ -336,6 +344,7 @@ impl<H: Hash + HashAlgParams + Default> Default for HKDF<H> {
 }
 
 impl<H: Hash + HashAlgParams + Default> HKDF<H> {
+    /// Creates a new, uninstantiated HKDF object.
     pub fn new() -> Self {
         Self { hmac: None, entropy: HkdfEntropyTracker::new(), state: HkdfStates::Uninitialized }
     }
@@ -379,10 +388,11 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
     }
 
     /// Same as [HKDF::extract], but writes the output to a provided KeyMaterial buffer.
+    /// Note that the provided KeyMaterial must be correctly sized to the hash function output length.
     pub fn extract_out(
         salt: &impl KeyMaterialTrait,
         ikm: &impl KeyMaterialTrait,
-        prk: &mut impl KeyMaterialTrait,
+        prk: &mut KeyMaterial<H::OUTPUT_LEN>,
     ) -> Result<usize, MACError> {
         // PRK = HMAC-Hash(salt, IKM)
 
@@ -625,18 +635,24 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         Ok(0)
     }
 
+    /// Finish the HKDF-Extract phase and produce the output `prk`.
     #[allow(non_snake_case)]
-    pub fn do_extract_final(self) -> Result<impl KeyMaterialTrait, MACError> {
+    pub fn do_extract_final(self) -> Result<KeyMaterial<HMAC_BLOCK_LEN>, MACError> {
         let mut okm = KeyMaterial::<HMAC_BLOCK_LEN>::new();
         self.do_extract_final_out(&mut okm)?;
         Ok(okm)
     }
 
+    /// Finish the HKDF-Extract phase and fill the provided `prk`.
+    /// Note that the provided KeyMaterial must be correctly sized to the HMAC block length.
     #[allow(non_snake_case)]
-    pub fn do_extract_final_out(self, okm: &mut impl KeyMaterialTrait) -> Result<usize, MACError> {
+    pub fn do_extract_final_out(
+        self,
+        okm: &mut KeyMaterial<HMAC_BLOCK_LEN>,
+    ) -> Result<usize, MACError> {
         if self.state == HkdfStates::Uninitialized {
             return Err(MACError::InvalidState(
-                "Must call do_extract_init() before calling do_extract_complete().",
+                "Must call do_extract_init() before calling do_extract_final().",
             ));
         };
         debug_assert!(self.hmac.is_some());
