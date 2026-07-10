@@ -181,6 +181,7 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 
 use bouncycastle_core::errors::{KeyMaterialError, MACError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
@@ -213,6 +214,7 @@ pub const HMAC_SHA3_384_NAME: &str = "HMAC-SHA3-384";
 pub const HMAC_SHA3_512_NAME: &str = "HMAC-SHA3-512";
 
 /*** Type aliases ***/
+/// Public type for HMAC using SHA224.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA224 = HMAC<SHA224, 64>;
 impl Algorithm for HMAC_SHA224 {
@@ -225,6 +227,7 @@ impl AlgorithmOID for HMAC_SHA224 {
     const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x08];
 }
 
+/// Public type for HKDF using SHA256.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA256 = HMAC<SHA256, 64>;
 impl Algorithm for HMAC_SHA256 {
@@ -237,6 +240,7 @@ impl AlgorithmOID for HMAC_SHA256 {
     const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x09];
 }
 
+/// Public type for HKDF using SHA384.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA384 = HMAC<SHA384, 128>;
 impl Algorithm for HMAC_SHA384 {
@@ -249,6 +253,7 @@ impl AlgorithmOID for HMAC_SHA384 {
     const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x0a];
 }
 
+/// Public type for HKDF using SHA512.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA512 = HMAC<SHA512, 128>;
 impl Algorithm for HMAC_SHA512 {
@@ -261,6 +266,7 @@ impl AlgorithmOID for HMAC_SHA512 {
     const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x0b];
 }
 
+/// Public type for HKDF using SHA3_224.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_224 = HMAC<SHA3_224, 144>;
 impl Algorithm for HMAC_SHA3_224 {
@@ -274,6 +280,7 @@ impl AlgorithmOID for HMAC_SHA3_224 {
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0d];
 }
 
+/// Public type for HKDF using SHA3_256.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_256 = HMAC<SHA3_256, 136>;
 impl Algorithm for HMAC_SHA3_256 {
@@ -287,6 +294,7 @@ impl AlgorithmOID for HMAC_SHA3_256 {
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0e];
 }
 
+/// Public type for HKDF using SHA3_384.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_384 = HMAC<SHA3_384, 104>;
 impl Algorithm for HMAC_SHA3_384 {
@@ -300,6 +308,7 @@ impl AlgorithmOID for HMAC_SHA3_384 {
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0f];
 }
 
+/// Public type for HKDF using SHA3_512.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_512 = HMAC<SHA3_512, 72>;
 impl Algorithm for HMAC_SHA3_512 {
@@ -323,7 +332,9 @@ impl AlgorithmOID for HMAC_SHA3_512 {
 // largest block length across all supported hashes, so it is always large enough.
 const LARGEST_HASHER_BLOCK_LEN: usize = 144;
 
-// HMAC implements RFC 2104.
+/// Internal struct for HKDF.
+/// HMAC implements RFC 2104.
+/// Can, in theory, be instantiated with hash functions other than the ones provided by this crate (even custom ones).
 #[derive(Clone)]
 pub struct HMAC<HASH: Hash + Default, const KEY_BUF_LEN: usize = LARGEST_HASHER_BLOCK_LEN> {
     hasher: HASH,
@@ -357,16 +368,17 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Display for HMAC<HASH, KEY_
 const IPAD_BYTE: u8 = 0x36;
 const OPAD_BYTE: u8 = 0x5C;
 
-// Per FIPS 140-2 IG A.8 Use of a truncated HMAC (matching NIST SP 800-107-r1
-// Section 5.3.3. Truncation of HMAC), says that the minimum truncation of a
-// HMAC for tagging should be 32 bits; this exceeds the lower bound set by
-// IETF RFC 2104 Section 5 Truncated output, which sets the lower bound to be
-// half of the hash's length and no fewer than 80 bits.
-//
-// However, as we feel there should be a minimum limit (and have an author
-// work around this via explicit truncation manually afterwards), but not
-// be too strict about it,
-pub const MIN_FIPS_DIGEST_LEN: usize = 4; // 32 / 8;
+/// Per FIPS 140-2 IG A.8 Use of a truncated HMAC (matching NIST SP 800-107-r1
+/// Section 5.3.3. Truncation of HMAC), says that the minimum truncation of a
+/// HMAC for tagging should be 32 bits; this exceeds the lower bound set by
+/// IETF RFC 2104 Section 5 Truncated output, which sets the lower bound to be
+/// half of the hash's length and no fewer than 80 bits.
+///
+/// However, as we feel there should be a minimum limit (and have an author
+/// work around this via explicit truncation manually afterwards), but not
+/// be too strict about it,
+/// = 32 bits / 8 = 4 bytes;
+pub const MIN_FIPS_DIGEST_LEN: usize = 4;
 
 impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
     fn pad_key_into_hasher(&mut self, padding: u8) {
