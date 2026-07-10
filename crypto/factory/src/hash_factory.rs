@@ -29,7 +29,7 @@
 use crate::{AlgorithmFactory, FactoryError};
 use crate::{DEFAULT, DEFAULT_128_BIT, DEFAULT_256_BIT};
 use bouncycastle_core::errors::HashError;
-use bouncycastle_core::traits::{Hash, SecurityStrength};
+use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength};
 use bouncycastle_sha2 as sha2;
 use bouncycastle_sha2::{SHA224_NAME, SHA256_NAME, SHA384_NAME, SHA512_NAME};
 use bouncycastle_sha3 as sha3;
@@ -81,6 +81,15 @@ impl AlgorithmFactory for HashFactory {
             ))),
         }
     }
+}
+
+// TODO -- this is broken.
+//      The designed behaviour here is that the Factory object pass these through to the underlying algorithm
+//      that it's wrapping, but that can't be done with consts, so I think the Algorithm trait needs
+//      a rework to be functions instead of consts.
+impl Algorithm for HashFactory {
+    const ALG_NAME: &'static str = "TODO";
+    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::None;
 }
 
 impl Hash for HashFactory {

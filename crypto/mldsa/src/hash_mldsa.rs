@@ -756,66 +756,52 @@ impl<
         };
 
         match A_hat {
-            Some(A_hat) => {
-                if MLDSA::<
-                    PK_LEN,
-                    SK_LEN,
-                    SIG_LEN,
-                    PK,
-                    SK,
-                    TAU,
-                    LAMBDA,
-                    GAMMA1,
-                    GAMMA2,
-                    k,
-                    l,
-                    ETA,
-                    BETA,
-                    OMEGA,
-                    C_TILDE,
-                    POLY_Z_PACKED_LEN,
-                    POLY_W1_PACKED_LEN,
-                    LAMBDA_over_4,
-                    GAMMA1_MINUS_BETA,
-                    GAMMA2_MINUS_BETA,
-                    GAMMA1_MASK_LEN,
-                >::verify_mu_internal(pk, A_hat, &mu, sig_sized)
-                {
-                    Ok(())
-                } else {
-                    Err(SignatureError::SignatureVerificationFailed)
-                }
-            }
-            None => {
-                if MLDSA::<
-                    PK_LEN,
-                    SK_LEN,
-                    SIG_LEN,
-                    PK,
-                    SK,
-                    TAU,
-                    LAMBDA,
-                    GAMMA1,
-                    GAMMA2,
-                    k,
-                    l,
-                    ETA,
-                    BETA,
-                    OMEGA,
-                    C_TILDE,
-                    POLY_Z_PACKED_LEN,
-                    POLY_W1_PACKED_LEN,
-                    LAMBDA_over_4,
-                    GAMMA1_MINUS_BETA,
-                    GAMMA2_MINUS_BETA,
-                    GAMMA1_MASK_LEN,
-                >::verify_mu_internal(pk, &pk.A_hat(), &mu, sig_sized)
-                {
-                    Ok(())
-                } else {
-                    Err(SignatureError::SignatureVerificationFailed)
-                }
-            }
+            Some(A_hat) => MLDSA::<
+                PK_LEN,
+                SK_LEN,
+                SIG_LEN,
+                PK,
+                SK,
+                TAU,
+                LAMBDA,
+                GAMMA1,
+                GAMMA2,
+                k,
+                l,
+                ETA,
+                BETA,
+                OMEGA,
+                C_TILDE,
+                POLY_Z_PACKED_LEN,
+                POLY_W1_PACKED_LEN,
+                LAMBDA_over_4,
+                GAMMA1_MINUS_BETA,
+                GAMMA2_MINUS_BETA,
+                GAMMA1_MASK_LEN,
+            >::verify_mu(pk, Some(A_hat), &mu, sig_sized),
+            None => MLDSA::<
+                PK_LEN,
+                SK_LEN,
+                SIG_LEN,
+                PK,
+                SK,
+                TAU,
+                LAMBDA,
+                GAMMA1,
+                GAMMA2,
+                k,
+                l,
+                ETA,
+                BETA,
+                OMEGA,
+                C_TILDE,
+                POLY_Z_PACKED_LEN,
+                POLY_W1_PACKED_LEN,
+                LAMBDA_over_4,
+                GAMMA1_MINUS_BETA,
+                GAMMA2_MINUS_BETA,
+                GAMMA1_MASK_LEN,
+            >::verify_mu(pk, Some(&pk.A_hat()), &mu, sig_sized),
         }
     }
 }

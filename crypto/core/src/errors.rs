@@ -73,6 +73,14 @@ pub enum RNGError {
 }
 
 #[derive(Debug)]
+pub enum SuspendableError {
+    /// The serialized state was produced by a library version incompatible with this one.
+    IncompatibleVersion,
+    /// The serialized state is malformed or corrupt.
+    InvalidData,
+}
+
+#[derive(Debug)]
 pub enum SignatureError {
     GenericError(&'static str),
     ConsistencyCheckFailed(),

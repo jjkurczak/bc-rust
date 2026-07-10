@@ -258,5 +258,7 @@ pub use mldsa::{MLDSA44_PK_LEN, MLDSA44_SIG_LEN, MLDSA44_SK_LEN};
 pub use mldsa::{MLDSA65_PK_LEN, MLDSA65_SIG_LEN, MLDSA65_SK_LEN};
 pub use mldsa::{MLDSA87_PK_LEN, MLDSA87_SIG_LEN, MLDSA87_SK_LEN};
 
+pub use mldsa::MU_BUILDER_SERIALIZED_STATE_LEN;
+
 // re-export just so it's visible to unit tests
 pub use polynomial::Polynomial;

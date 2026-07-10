@@ -1,6 +1,7 @@
 use crate::SHA2Params;
-use bouncycastle_core::errors::HashError;
-use bouncycastle_core::traits::{Hash, SecurityStrength};
+use bouncycastle_core::errors::{HashError, SuspendableError};
+use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
+use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength, Suspendable};
 use bouncycastle_utils::min;
 use core::slice;
 
@@ -160,7 +161,7 @@ impl<PARAMS: SHA2Params> Sha512State<PARAMS> {
 // todo -- cleanup
 // #[derive(Clone, Copy)]
 #[derive(Clone)]
-pub struct Sha512Internal<PARAMS: SHA2Params> {
+pub struct SHA512Internal<PARAMS: SHA2Params> {
     _params: std::marker::PhantomData<PARAMS>,
     state: Sha512State<PARAMS>,
     byte_count: u64, // NOTE We only support 2^67 bits, not the full 2^128
@@ -168,13 +169,13 @@ pub struct Sha512Internal<PARAMS: SHA2Params> {
     x_buf_off: usize,
 }
 
-impl<PARAMS: SHA2Params> Drop for Sha512Internal<PARAMS> {
+impl<PARAMS: SHA2Params> Drop for SHA512Internal<PARAMS> {
     fn drop(&mut self) {
         self.x_buf.fill(0);
     }
 }
 
-impl<PARAMS: SHA2Params> Sha512Internal<PARAMS> {
+impl<PARAMS: SHA2Params> SHA512Internal<PARAMS> {
     pub fn new() -> Self {
         Self {
             _params: std::marker::PhantomData,
@@ -186,13 +187,18 @@ impl<PARAMS: SHA2Params> Sha512Internal<PARAMS> {
     }
 }
 
-impl<PARAMS: SHA2Params> Default for Sha512Internal<PARAMS> {
+impl<PARAMS: SHA2Params> Default for SHA512Internal<PARAMS> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<PARAMS: SHA2Params> Hash for Sha512Internal<PARAMS> {
+impl<PARAMS: SHA2Params> Algorithm for SHA512Internal<PARAMS> {
+    const ALG_NAME: &'static str = PARAMS::ALG_NAME;
+    const MAX_SECURITY_STRENGTH: SecurityStrength = PARAMS::MAX_SECURITY_STRENGTH;
+}
+
+impl<PARAMS: SHA2Params> Hash for SHA512Internal<PARAMS> {
     /// As per FIPS 180-4 Figure 1
     fn block_bitlen(&self) -> usize {
         1024
@@ -315,5 +321,78 @@ impl<PARAMS: SHA2Params> Hash for Sha512Internal<PARAMS> {
 
     fn max_security_strength(&self) -> SecurityStrength {
         SecurityStrength::from_bytes(PARAMS::OUTPUT_LEN / 2)
+    }
+}
+
+/// Length in bytes of the serialized state of SHA384 and SHA512.
+pub const SUSPENDED_SHA512_STATE_LEN: usize = 204;
+
+impl<PARAMS: SHA2Params> Suspendable<SUSPENDED_SHA512_STATE_LEN> for SHA512Internal<PARAMS> {
+    fn suspend(self) -> [u8; SUSPENDED_SHA512_STATE_LEN] {
+        debug_assert_eq!(SUSPENDED_SHA512_STATE_LEN, 204);
+
+        let mut out_to_return = [0u8; SUSPENDED_SHA512_STATE_LEN];
+
+        // insert the version tag
+        // infallible: add_lib_ver returns a slice of exactly SUSPENDED_SHA512_STATE_LEN - 3 = 201 bytes.
+        let out: &mut [u8; 201] = add_lib_ver(&mut out_to_return).try_into().unwrap();
+
+        // state.h: [u64; 8]
+        // 8 * 8 = 64
+        for i in 0..8 {
+            out[i * 8..(i * 8) + 8].copy_from_slice(&self.state.h[i].to_le_bytes());
+        }
+
+        // byte_count: u64
+        out[64..72].copy_from_slice(&self.byte_count.to_le_bytes());
+
+        // x_buf: [u8; 128]
+        out[72..200].copy_from_slice(&self.x_buf);
+
+        // x_buf_off: usize
+        // in general, a usize should be serialized into a u64, but in this case, it can't ever be larger than 128
+        debug_assert!(self.x_buf_off < 128);
+        out[200] = self.x_buf_off as u8;
+
+        out_to_return
+    }
+
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA512_STATE_LEN],
+    ) -> Result<Self, SuspendableError> {
+        // check the version tag
+        // At the moment, we have no not_before version to specify.
+        // infallible: check_lib_ver returns a slice of exactly SUSPENDED_SHA512_STATE_LEN - 3 = 201 bytes.
+        let input: &[u8; 201] = check_lib_ver(&serialized_state, None)?.try_into().unwrap();
+
+        // state.h: [u64; 8]
+        // 8 * 8 = 64
+        let mut h = [0u64; 8];
+        for i in 0..8 {
+            h[i] = u64::from_le_bytes(input[i * 8..(i * 8) + 8].try_into().unwrap());
+        }
+
+        // byte_count: u64
+        let byte_count: u64 = u64::from_le_bytes(input[64..72].try_into().unwrap());
+
+        // x_buf: [u8; 128]
+        let x_buf: [u8; 128] = input[72..200].try_into().unwrap();
+
+        // x_buf_off: usize
+        // in general, a usize should be serialized into a u64, but in this case, it can't ever be larger than 128
+        let x_buf_off: usize = input[200] as usize;
+        if x_buf_off >= 128 {
+            return Err(SuspendableError::InvalidData);
+        }
+
+        // Construct the object
+        let state = Sha512State { _params: core::marker::PhantomData, h };
+        Ok(SHA512Internal {
+            _params: core::marker::PhantomData,
+            state,
+            byte_count,
+            x_buf,
+            x_buf_off,
+        })
     }
 }
