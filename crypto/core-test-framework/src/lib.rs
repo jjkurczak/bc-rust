@@ -14,6 +14,7 @@ pub mod kdf;
 pub mod kem;
 pub mod mac;
 pub mod signature;
+pub mod symmetric_ciphers;
 
 mod fixed_seed_rng;
 pub use fixed_seed_rng::FixedSeedRNG;
