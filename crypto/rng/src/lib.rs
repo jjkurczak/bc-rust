@@ -28,6 +28,7 @@
 //! cryptographic application.
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 
 use crate::hash_drbg80090a::{
     HashDRBG80090A, HashDRBG80090AParams_SHA256, HashDRBG80090AParams_SHA512,
@@ -44,18 +45,25 @@ use bouncycastle_core::key_material::KeyType;
 pub mod hash_drbg80090a;
 
 /*** String constants ***/
+///
 pub const HASH_DRBG_SHA256_NAME: &str = "HashDRBG-SHA256";
+///
 pub const HASH_DRBG_SHA512_NAME: &str = "HashDRBG-SHA512";
 
 /*** pub types ***/
+/// Public type for HashDRBG using SHA256.
 #[allow(non_camel_case_types)]
 pub type HashDRBG_SHA256 = HashDRBG80090A<HashDRBG80090AParams_SHA256>;
+/// Public type for HashDRBG using SHA512.
 #[allow(non_camel_case_types)]
 pub type HashDRBG_SHA512 = HashDRBG80090A<HashDRBG80090AParams_SHA512>;
 
 /*** Defaults ***/
+/// The library's default RNG.
 pub type DefaultRNG = HashDRBG_SHA512;
+/// The library's default RNG at the 128-bit security level.
 pub type Default128BitRNG = HashDRBG_SHA256;
+/// The library's default RNG at the 256-bit security level.
 pub type Default256BitRNG = HashDRBG_SHA512;
 
 /// Implements the five functions specified in SP 800-90A section 7.4 are instantate, generate, reseed, uninstantiate, and health_test.

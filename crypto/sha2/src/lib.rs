@@ -66,6 +66,7 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 #![allow(private_bounds)]
 
 mod sha256;
@@ -80,19 +81,27 @@ use bouncycastle_core::traits::{Algorithm, AlgorithmOID, HashAlgParams, Security
 use bouncycastle_core::traits::Suspendable;
 
 /*** String constants ***/
+///
 pub const SHA224_NAME: &str = "SHA224";
+///
 pub const SHA256_NAME: &str = "SHA256";
+///
 pub const SHA384_NAME: &str = "SHA384";
+///
 pub const SHA512_NAME: &str = "SHA512";
 
 /*** pub types ***/
+/// Public type for SHA224.
 pub type SHA224 = SHA256Internal<SHA224Params>;
+/// Public type for SHA256.
 pub type SHA256 = SHA256Internal<SHA256Params>;
+/// Public type for SHA384.
 pub type SHA384 = SHA512Internal<SHA384Params>;
+/// Public type for SHA512.
 pub type SHA512 = SHA512Internal<SHA512Params>;
 
 /*** Param traits ***/
-
+/// Private trait on purpose so that only the NIST-approved params can be used.
 trait SHA2Params: HashAlgParams {}
 
 /*** SHA224 ***/
@@ -100,7 +109,7 @@ impl HashAlgParams for SHA224 {
     const OUTPUT_LEN: usize = 28;
     const BLOCK_LEN: usize = 64;
 }
-/// Assigned by NIST in the Computer Security Objects Register
+/// The parameters for SHA224.
 #[derive(Clone)]
 pub struct SHA224Params;
 impl Algorithm for SHA224Params {
@@ -124,6 +133,7 @@ impl HashAlgParams for SHA256 {
     const OUTPUT_LEN: usize = 32;
     const BLOCK_LEN: usize = 64;
 }
+/// The parameters for SHA256.
 #[derive(Clone)]
 pub struct SHA256Params;
 impl Algorithm for SHA256Params {
@@ -147,6 +157,7 @@ impl HashAlgParams for SHA384 {
     const OUTPUT_LEN: usize = 48;
     const BLOCK_LEN: usize = 128;
 }
+/// The parameters for SHA384.
 #[derive(Clone)]
 pub struct SHA384Params;
 impl Algorithm for SHA384Params {
@@ -166,6 +177,7 @@ impl HashAlgParams for SHA384Params {
 impl SHA2Params for SHA384Params {}
 
 /*** SHA512 ***/
+/// The parameters for SHA512.
 #[derive(Clone)]
 pub struct SHA512Params;
 impl HashAlgParams for SHA512 {

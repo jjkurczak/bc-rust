@@ -350,7 +350,7 @@ impl<H: Hash + HashAlgParams + Default> Default for HKDF<H> {
 }
 
 impl<H: Hash + HashAlgParams + Default> HKDF<H> {
-    /// Creates a new, uninstantiated HKDF object.
+    /// Get a new, uninstantiated HKDF object.
     pub fn new() -> Self {
         Self { hmac: None, entropy: HkdfEntropyTracker::new(), state: HkdfStates::Uninitialized }
     }

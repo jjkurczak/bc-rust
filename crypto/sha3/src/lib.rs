@@ -98,7 +98,7 @@
 //! let output_key = sha3::SHA3_256::new().derive_key(&input_key, b"Additional input").unwrap();
 //!```
 //! In the previous example, since [KeyMaterial::from_bytes] cannot know the amount of entropy in the input data,
-//! it automatically tags it as [KeyType::Unknown], and thus [SHA3::derive_key] produces an output key
+//! it automatically tags it as [KeyType::Unknown], and thus [SHA3Internal::derive_key] produces an output key
 //! which also has type [KeyType::Unknown].
 //! This would also be the case even if the input had type
 //! [KeyType::CryptographicRandom] since the input [KeyMaterial] is 16 bytes but [SHA3_256] needs at least 32 bytes of
@@ -136,6 +136,7 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 #![allow(private_bounds)]
 
 use crate::keccak::KeccakSize;
@@ -153,24 +154,36 @@ mod sha3;
 mod shake;
 
 /*** String constants ***/
+///
 pub const SHA3_224_NAME: &str = "SHA3-224";
+///
 pub const SHA3_256_NAME: &str = "SHA3-256";
+///
 pub const SHA3_384_NAME: &str = "SHA3-384";
+///
 pub const SHA3_512_NAME: &str = "SHA3-512";
+///
 pub const SHAKE128_NAME: &str = "SHAKE128";
+///
 pub const SHAKE256_NAME: &str = "SHAKE256";
 
 /*** pub types ***/
-pub use sha3::SHA3;
-pub use shake::SHAKE;
+pub use sha3::SHA3Internal;
+pub use shake::SHAKEInternal;
 
 pub use keccak::SUSPENDED_SHA3_STATE_LEN;
-pub type SHA3_224 = SHA3<SHA3_224Params>;
-pub type SHA3_256 = SHA3<SHA3_256Params>;
-pub type SHA3_384 = SHA3<SHA3_384Params>;
-pub type SHA3_512 = SHA3<SHA3_512Params>;
-pub type SHAKE128 = SHAKE<SHAKE128Params>;
-pub type SHAKE256 = SHAKE<SHAKE256Params>;
+/// Public type for SHA3_224.
+pub type SHA3_224 = SHA3Internal<SHA3_224Params>;
+/// Public type for SHA3_256.
+pub type SHA3_256 = SHA3Internal<SHA3_256Params>;
+/// Public type for SHA3_384.
+pub type SHA3_384 = SHA3Internal<SHA3_384Params>;
+/// Public type for SHA3_512.
+pub type SHA3_512 = SHA3Internal<SHA3_512Params>;
+/// Public type for SHAKE128.
+pub type SHAKE128 = SHAKEInternal<SHAKE128Params>;
+/// Public type for SHAKE256.
+pub type SHAKE256 = SHAKEInternal<SHAKE256Params>;
 
 /*** Param traits ***/
 
@@ -188,6 +201,7 @@ impl HashAlgParams for SHA3_224 {
     // const BLOCK_LEN: usize = 64;
     const BLOCK_LEN: usize = 144; // FIPS 202 Table 3
 }
+/// The parameters for SHA3_224.
 #[derive(Clone)]
 pub struct SHA3_224Params;
 impl Algorithm for SHA3_224Params {
@@ -215,6 +229,7 @@ impl HashAlgParams for SHA3_256 {
     // const BLOCK_LEN: usize = 64;
     const BLOCK_LEN: usize = 136; // FIPS 202 Table 3
 }
+/// The parameters for SHA3_256.
 #[derive(Clone)]
 pub struct SHA3_256Params;
 impl Algorithm for SHA3_256Params {
@@ -236,7 +251,7 @@ impl AlgorithmOID for SHA3_256 {
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x08];
 }
-
+/// The parameters for SHA3_384.
 #[derive(Clone)]
 pub struct SHA3_384Params;
 impl HashAlgParams for SHA3_384 {
@@ -263,7 +278,7 @@ impl AlgorithmOID for SHA3_384 {
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x09];
 }
-
+/// The parameters for SHA3_512.
 #[derive(Clone)]
 pub struct SHA3_512Params;
 impl HashAlgParams for SHA3_512 {
@@ -296,6 +311,7 @@ trait SHAKEParams: Algorithm {
     /// See [SHA3Params::STATE_TAG]. Must be distinct from every SHA3 *and* SHAKE variant's tag.
     const STATE_TAG: u8;
 }
+/// The parameters for SHAKE128.
 #[derive(Clone)]
 pub struct SHAKE128Params;
 impl Algorithm for SHAKE128Params {
@@ -312,7 +328,7 @@ impl AlgorithmOID for SHAKE128 {
     const OID_DER: &'static [u8] =
         &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0b];
 }
-
+/// The parameters for SHAKE256.
 #[derive(Clone)]
 pub struct SHAKE256Params;
 impl Algorithm for SHAKE256Params {

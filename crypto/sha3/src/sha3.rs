@@ -10,8 +10,11 @@ use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Algorithm, Hash, KDF, SecurityStrength, Suspendable};
 use bouncycastle_utils::{max, min};
 
+/// Internal struct for SHA3.
+/// This uses a private bound so that you cannot instantiate it directly and have to use the
+/// provided and NIST-approved parameters.
 #[derive(Clone)]
-pub struct SHA3<PARAMS: SHA3Params> {
+pub struct SHA3Internal<PARAMS: SHA3Params> {
     _params: std::marker::PhantomData<PARAMS>,
     keccak: KeccakDigest,
     kdf_key_type: KeyType,
@@ -21,7 +24,8 @@ pub struct SHA3<PARAMS: SHA3Params> {
 
 // Note: don't need a zeroizing Drop here because all the sensitive info is in KeccakDigest, which has one.
 
-impl<PARAMS: SHA3Params> SHA3<PARAMS> {
+impl<PARAMS: SHA3Params> SHA3Internal<PARAMS> {
+    /// Get a new SHA3 instance, ready for use.
     pub fn new() -> Self {
         Self {
             _params: std::marker::PhantomData,
@@ -118,18 +122,18 @@ impl<PARAMS: SHA3Params> SHA3<PARAMS> {
     }
 }
 
-impl<PARAMS: SHA3Params> Default for SHA3<PARAMS> {
+impl<PARAMS: SHA3Params> Default for SHA3Internal<PARAMS> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<PARAMS: SHA3Params> Algorithm for SHA3<PARAMS> {
+impl<PARAMS: SHA3Params> Algorithm for SHA3Internal<PARAMS> {
     const ALG_NAME: &'static str = PARAMS::ALG_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = PARAMS::MAX_SECURITY_STRENGTH;
 }
 
-impl<PARAMS: SHA3Params> Hash for SHA3<PARAMS> {
+impl<PARAMS: SHA3Params> Hash for SHA3Internal<PARAMS> {
     /// As per FIPS 202 Table 3.
     /// Required, for example, to compute the pad lengths in HMAC.
     fn block_bitlen(&self) -> usize {
@@ -227,7 +231,7 @@ impl<PARAMS: SHA3Params> Hash for SHA3<PARAMS> {
 }
 
 /// SHA3 is allowed to be used as a KDF in the form HASH(X) as per NIST SP 800-56C.
-impl<PARAMS: SHA3Params> KDF for SHA3<PARAMS> {
+impl<PARAMS: SHA3Params> KDF for SHA3Internal<PARAMS> {
     /// Returns a [KeyMaterial].
     /// For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
     /// it requires full-entropy input that is at least the bit size (ie 256 bits for SHA3-256, etc).
@@ -280,7 +284,7 @@ impl<PARAMS: SHA3Params> KDF for SHA3<PARAMS> {
     }
 }
 
-impl<PARAMS: SHA3Params> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHA3<PARAMS> {
+impl<PARAMS: SHA3Params> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHA3Internal<PARAMS> {
     fn suspend(self) -> [u8; SUSPENDED_SHA3_STATE_LEN] {
         let mut out_to_return = [0u8; SUSPENDED_SHA3_STATE_LEN];
 
@@ -313,7 +317,7 @@ impl<PARAMS: SHA3Params> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHA3<PARAMS> 
         let (keccak, kdf_key_type, kdf_security_strength, kdf_entropy) =
             deserialize_sha3_family_state(input, PARAMS::STATE_TAG, rate)?;
 
-        Ok(SHA3 {
+        Ok(SHA3Internal {
             _params: std::marker::PhantomData,
             keccak,
             kdf_key_type,

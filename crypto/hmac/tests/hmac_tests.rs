@@ -6,7 +6,7 @@ mod hmac_tests {
         KeyMaterial, KeyMaterial256, KeyMaterial512, KeyMaterialTrait, KeyType,
     };
     use bouncycastle_core::traits::{Algorithm, Hash, MAC, SecurityStrength};
-    use bouncycastle_core_test_framework::DUMMY_SEED_512;
+    use bouncycastle_core_test_framework::DUMMY_SEED;
     use bouncycastle_core_test_framework::mac::TestFrameworkMAC;
     use bouncycastle_hex as hex;
     use bouncycastle_hmac::*;
@@ -184,7 +184,7 @@ mod hmac_tests {
 
         // init
         let mut key =
-            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED_512[..64], KeyType::MACKey).unwrap();
+            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED[..64], KeyType::MACKey).unwrap();
         assert_eq!(key.security_strength(), SecurityStrength::_256bit);
         key.set_security_strength(SecurityStrength::_128bit).unwrap();
         // complains at first
@@ -609,8 +609,7 @@ mod hmac_tests {
         use bouncycastle_core::traits::SuspendableKeyed;
         use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableKeyedState;
 
-        let key =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::MACKey).unwrap();
+        let key = KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::MACKey).unwrap();
         let msg = b"Colorless green ideas sleep furiously";
 
         // A helper that exercises the full round-trip for one HMAC variant. HMAC is keyed, so the
@@ -662,8 +661,7 @@ mod hmac_tests {
 
         // test suspend / resume with a key larger than block size
         let long_key =
-            KeyMaterial::<200>::from_bytes_as_type(&DUMMY_SEED_512[..200], KeyType::MACKey)
-                .unwrap();
+            KeyMaterial::<200>::from_bytes_as_type(&DUMMY_SEED[..200], KeyType::MACKey).unwrap();
         round_trip(HMAC_SHA256::new(&long_key).unwrap(), &long_key, msg);
     }
 

@@ -144,6 +144,9 @@ impl<PARAMS: SHA2Params> Sha256State<PARAMS> {
     }
 }
 
+/// Internal struct for SHA256.
+/// This uses a private bound so that you cannot instantiate it directly and have to use the
+/// provided and NIST-approved parameters.
 #[derive(Clone)]
 pub struct SHA256Internal<PARAMS: SHA2Params> {
     _params: core::marker::PhantomData<PARAMS>,
@@ -161,6 +164,7 @@ impl<PARAMS: SHA2Params> Drop for SHA256Internal<PARAMS> {
 }
 
 impl<PARAMS: SHA2Params> SHA256Internal<PARAMS> {
+    /// Creates a new SHA256 instance, ready for use.
     pub fn new() -> Self {
         Self {
             _params: core::marker::PhantomData,

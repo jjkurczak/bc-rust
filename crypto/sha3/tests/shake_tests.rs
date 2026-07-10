@@ -7,7 +7,7 @@ mod shake_tests {
         KeyMaterial, KeyMaterial256, KeyMaterial512, KeyMaterialTrait, KeyType,
     };
     use bouncycastle_core::traits::{KDF, SecurityStrength, XOF};
-    use bouncycastle_core_test_framework::DUMMY_SEED_512;
+    use bouncycastle_core_test_framework::DUMMY_SEED;
     use bouncycastle_core_test_framework::kdf::TestFrameworkKDF;
     use bouncycastle_sha3::{SHA3_256, SHAKE128, SHAKE256};
 
@@ -81,7 +81,7 @@ mod shake_tests {
     fn test_kdf() {
         let testframework = TestFrameworkKDF::new();
 
-        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED_512[..32]).unwrap();
+        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
         // println!("{:x?}", &DUMMY_SEED[..32]);
 
         // Without additional input -- SHAKE128
@@ -128,7 +128,7 @@ mod shake_tests {
 
     #[test]
     fn test_kdf_undersized_and_oversized() {
-        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED_512[..32]).unwrap();
+        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
 
         // at size
         let mut derived_key = KeyMaterial::<32>::new();
@@ -161,7 +161,7 @@ mod shake_tests {
     fn kdf_input_entropy() {
         // Exact entropy
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         let expected_key = KeyMaterial256::from_bytes(b"\x06\x6a\x36\x1d\xc6\x75\xf8\x56\xce\xcd\xc0\x2b\x25\x21\x8a\x10\xce\xc0\xce\xcf\x79\x85\x9e\xc0\xfe\xc3\xd4\x09\xe5\x84\x7a\x92").unwrap();
@@ -170,14 +170,14 @@ mod shake_tests {
 
         // more entropy than needed -- single input key
         let key_material =
-            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED_512[..64], KeyType::CryptographicRandom)
+            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED[..64], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::CryptographicRandom);
 
         // // more entropy than needed -- multiple input keys
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::CryptographicRandom)
                 .unwrap();
         let keys = [&key_material, &key_material];
         let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
@@ -186,9 +186,9 @@ mod shake_tests {
         // more entropy than needed -- multiple input keys of different full-entropy types;
         // should get the type of the first one
         let key_material1 =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::MACKey).unwrap();
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::MACKey).unwrap();
         let key_material2 =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::SymmetricCipherKey)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::SymmetricCipherKey)
                 .unwrap();
         let keys = [&key_material1, &key_material2];
         let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
@@ -197,28 +197,28 @@ mod shake_tests {
         // // less entropy than needed -- various permutations, but not exhaustive
 
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..31], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..31], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::Unknown);
 
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::CryptographicRandom)
                 .unwrap();
         let keys = [&key_material, &key_material];
         let derived_key = SHAKE256::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::Unknown);
 
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..8], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..8], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::Unknown);
 
         let key_low_entropy =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::Unknown).unwrap();
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::Unknown).unwrap();
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::CryptographicRandom)
                 .unwrap();
         let keys = [&key_material, &key_low_entropy];
         let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();

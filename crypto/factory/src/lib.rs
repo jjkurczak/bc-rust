@@ -28,6 +28,7 @@
 //! This crate compiles with STD; ie it is explicitly not tagged as `no_std` and it makes use of `Vec` and other
 //! dynamically-sized nice things.
 
+#![forbid(unsafe_code)]
 #![forbid(missing_docs)]
 
 use bouncycastle_core::errors::MACError;

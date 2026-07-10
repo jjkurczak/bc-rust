@@ -158,8 +158,9 @@ impl<PARAMS: SHA2Params> Sha512State<PARAMS> {
     }
 }
 
-// todo -- cleanup
-// #[derive(Clone, Copy)]
+/// Internal struct for SHA512.
+/// This uses a private bound so that you cannot instantiate it directly and have to use the
+/// provided and NIST-approved parameters.
 #[derive(Clone)]
 pub struct SHA512Internal<PARAMS: SHA2Params> {
     _params: std::marker::PhantomData<PARAMS>,
@@ -176,6 +177,7 @@ impl<PARAMS: SHA2Params> Drop for SHA512Internal<PARAMS> {
 }
 
 impl<PARAMS: SHA2Params> SHA512Internal<PARAMS> {
+    /// Creates a new SHA512 instance, ready for use.
     pub fn new() -> Self {
         Self {
             _params: std::marker::PhantomData,

@@ -34,14 +34,13 @@ trait HashDRBG80090AParams {
     const RESEED_INTERVAL: u64;
 }
 
+/// The parameters for HashDRBG with SHA256.
 #[allow(non_camel_case_types)]
 pub struct HashDRBG80090AParams_SHA256 {}
 
 impl HashDRBG80090AParams for HashDRBG80090AParams_SHA256 {
     const HASH: SupportedHash = SupportedHash::SHA256;
-    // const OUT_LEN: usize = 64;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
-    // const SEED_LEN: usize = 440 / 8;
     const MAX_LENGTH: u64 = (1u64 << 35) / 8; // 2^35 bits
     const MAX_PERSONALIZATION_STRING_LENGTH: u64 = (1u64 << 35) / 8; // 2^35 bits
     const MAX_ADDITIONAL_INPUT_LENGTH: u64 = (1u64 << 35) / 8; // 2^35 bits
@@ -49,13 +48,12 @@ impl HashDRBG80090AParams for HashDRBG80090AParams_SHA256 {
     const RESEED_INTERVAL: u64 = 1u64 << 48; // 2^48 requests
 }
 
+/// The parameters for HashDRBG with SHA256.
 #[allow(non_camel_case_types)]
 pub struct HashDRBG80090AParams_SHA512 {}
 impl HashDRBG80090AParams for HashDRBG80090AParams_SHA512 {
     const HASH: SupportedHash = SupportedHash::SHA512;
-    // const OUT_LEN: usize = 64;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
-    // const SEED_LEN: usize = 888 / 8;
     const MAX_LENGTH: u64 = (1u64 << 35) / 8; // 2^35 bits
     const MAX_PERSONALIZATION_STRING_LENGTH: u64 = (1u64 << 35) / 8; // 2^35 bits
     const MAX_ADDITIONAL_INPUT_LENGTH: u64 = (1u64 << 35) / 8; // 2^35 bits
@@ -63,14 +61,14 @@ impl HashDRBG80090AParams for HashDRBG80090AParams_SHA512 {
     const RESEED_INTERVAL: u64 = 1u64 << 48; // 2^48 requests
 }
 
-// TODO: is there a rustacious way to extract this from HASH?
+// TODO: replace this once the generic_const_exprs feature lands in the stable rust compiler.
 const LARGEST_HASHER_OUTPUT_LEN: usize = 64;
 
 #[allow(private_bounds)]
 /// Implementation of the Hash_DRBG algorithm as specified in NIST SP 800-90Ar1.
 pub struct HashDRBG80090A<H: HashDRBG80090AParams> {
     _phantom: core::marker::PhantomData<H>,
-    // Rust is stupid. What's the point of having a generic parameter if we can't use constants inside it?
+    // TODO: replace this once the generic_const_exprs feature lands in the stable rust compiler.
     // state: WorkingState<H::SEED_LEN>,
     state: WorkingState<LARGEST_HASHER_OUTPUT_LEN>,
     admin_info: AdministrativeInfo,

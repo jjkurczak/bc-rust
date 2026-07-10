@@ -10,7 +10,7 @@ mod mldsa_tests {
         RNG, SecurityStrength, SignaturePrivateKey, SignaturePublicKey, SignatureVerifier, Signer,
         Suspendable,
     };
-    use bouncycastle_core_test_framework::DUMMY_SEED_1024;
+    use bouncycastle_core_test_framework::DUMMY_SEED;
     use bouncycastle_core_test_framework::FixedSeedRNG;
     use bouncycastle_core_test_framework::signature::*;
     use bouncycastle_hex as hex;
@@ -388,11 +388,11 @@ mod mldsa_tests {
         // Then with the message broken into chunks
         let mut s = MLDSA44::sign_init(&sk, Some(b"streaming API chunked")).unwrap();
         s.set_signer_rnd(rnd);
-        for msg_chunk in DUMMY_SEED_1024.chunks(100) {
+        for msg_chunk in DUMMY_SEED.chunks(100) {
             s.sign_update(msg_chunk);
         }
         let sig_val = s.sign_final().unwrap();
-        MLDSA44::verify(&sk.derive_pk(), DUMMY_SEED_1024, Some(b"streaming API chunked"), &sig_val)
+        MLDSA44::verify(&sk.derive_pk(), DUMMY_SEED, Some(b"streaming API chunked"), &sig_val)
             .unwrap();
 
         // ML-DSA-65
