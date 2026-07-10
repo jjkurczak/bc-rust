@@ -1,6 +1,7 @@
 use crate::SHA2Params;
-use bouncycastle_core::errors::HashError;
-use bouncycastle_core::traits::{Hash, SecurityStrength};
+use bouncycastle_core::errors::{HashError, SuspendableError};
+use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
+use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength, Suspendable};
 use bouncycastle_utils::min;
 use core::slice;
 
@@ -45,11 +46,9 @@ fn theta1(x: u32) -> u32 {
     x.rotate_right(17) ^ x.rotate_right(19) ^ (x >> 10)
 }
 
-// todo -- cleanup
-// #[derive(Clone, Copy)]
 #[derive(Clone)]
 pub(crate) struct Sha256State<PARAMS: SHA2Params> {
-    _params: std::marker::PhantomData<PARAMS>,
+    _params: core::marker::PhantomData<PARAMS>,
     h: [u32; 8],
 }
 
@@ -63,7 +62,7 @@ impl<PARAMS: SHA2Params> Sha256State<PARAMS> {
     pub(crate) fn new() -> Self {
         match PARAMS::OUTPUT_LEN * 8 {
             224 => Self {
-                _params: std::marker::PhantomData,
+                _params: core::marker::PhantomData,
                 h: [
                     0xC1059ED8, 0x367CD507, 0x3070DD17, 0xF70E5939, 0xFFC00B31, 0x68581511,
                     0x64F98FA7, 0xBEFA4FA4,
@@ -145,11 +144,9 @@ impl<PARAMS: SHA2Params> Sha256State<PARAMS> {
     }
 }
 
-// todo -- cleanup
-// #[derive(Clone, Copy)]
 #[derive(Clone)]
 pub struct SHA256Internal<PARAMS: SHA2Params> {
-    _params: std::marker::PhantomData<PARAMS>,
+    _params: core::marker::PhantomData<PARAMS>,
     state: Sha256State<PARAMS>,
     byte_count: u64,
     x_buf: [u8; 64],
@@ -166,7 +163,7 @@ impl<PARAMS: SHA2Params> Drop for SHA256Internal<PARAMS> {
 impl<PARAMS: SHA2Params> SHA256Internal<PARAMS> {
     pub fn new() -> Self {
         Self {
-            _params: std::marker::PhantomData,
+            _params: core::marker::PhantomData,
             state: Sha256State::<PARAMS>::new(),
             byte_count: 0,
             x_buf: [0; 64],
@@ -179,6 +176,11 @@ impl<PARAMS: SHA2Params> Default for SHA256Internal<PARAMS> {
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl<PARAMS: SHA2Params> Algorithm for SHA256Internal<PARAMS> {
+    const ALG_NAME: &'static str = PARAMS::ALG_NAME;
+    const MAX_SECURITY_STRENGTH: SecurityStrength = PARAMS::MAX_SECURITY_STRENGTH;
 }
 
 impl<PARAMS: SHA2Params> Hash for SHA256Internal<PARAMS> {
@@ -304,5 +306,80 @@ impl<PARAMS: SHA2Params> Hash for SHA256Internal<PARAMS> {
 
     fn max_security_strength(&self) -> SecurityStrength {
         SecurityStrength::from_bytes(PARAMS::OUTPUT_LEN / 2)
+    }
+}
+
+/// Length in bytes of the serialized state of SHA224 and SHA256.
+pub const SUSPENDED_SHA256_STATE_LEN: usize = 108;
+
+impl<PARAMS: SHA2Params> Suspendable<SUSPENDED_SHA256_STATE_LEN> for SHA256Internal<PARAMS> {
+    fn suspend(self) -> [u8; SUSPENDED_SHA256_STATE_LEN] {
+        debug_assert_eq!(SUSPENDED_SHA256_STATE_LEN, 108);
+
+        let mut out_to_return = [0u8; SUSPENDED_SHA256_STATE_LEN];
+
+        // insert the version tag
+        // infallible: add_lib_ver returns a slice of exactly SUSPENDED_SHA256_STATE_LEN - 3 = 105 bytes.
+        let out: &mut [u8; 105] = add_lib_ver(&mut out_to_return).try_into().unwrap();
+
+        // state.h: [u32; 8]
+        // 4 * 8 = 32
+        for i in 0..8 {
+            out[i * 4..(i * 4) + 4].copy_from_slice(&self.state.h[i].to_le_bytes());
+        }
+
+        // byte_count: u64
+        out[32..40].copy_from_slice(&self.byte_count.to_le_bytes());
+
+        // x_buf: [u8; 64]
+        out[40..104].copy_from_slice(&self.x_buf);
+
+        // x_buf_off: usize
+        // in general, a usize should be serialized into a u64, but in this case, it can't ever be larger than 64
+        debug_assert!(self.x_buf_off < 64);
+        out[104] = self.x_buf_off as u8;
+
+        out_to_return
+    }
+
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA256_STATE_LEN],
+    ) -> Result<Self, SuspendableError> {
+        debug_assert_eq!(SUSPENDED_SHA256_STATE_LEN, 108);
+
+        // check the version tag
+        // At the moment, we have no not_before version to specify.
+        // infallible: check_lib_ver returns a slice of exactly SUSPENDED_SHA256_STATE_LEN - 3 = 105 bytes.
+        let input: &[u8; 105] = check_lib_ver(&serialized_state, None)?.try_into().unwrap();
+
+        // state.h: [u32; 8]
+        // 4 * 8 = 32
+        let mut h = [0u32; 8];
+        for i in 0..8 {
+            h[i] = u32::from_le_bytes(input[i * 4..(i * 4) + 4].try_into().unwrap());
+        }
+
+        // byte_count: u64
+        let byte_count: u64 = u64::from_le_bytes(input[32..40].try_into().unwrap());
+
+        // x_buf: [u8; 64]
+        let x_buf: [u8; 64] = input[40..104].try_into().unwrap();
+
+        // x_buf_off: usize
+        // in general, a usize should be serialized into a u64, but in this case, it can't ever be larger than 64
+        let x_buf_off: usize = input[104] as usize;
+        if x_buf_off >= 64 {
+            return Err(SuspendableError::InvalidData);
+        }
+
+        // Construct the object
+        let state = Sha256State { _params: core::marker::PhantomData, h };
+        Ok(SHA256Internal {
+            _params: core::marker::PhantomData,
+            state,
+            byte_count,
+            x_buf,
+            x_buf_off,
+        })
     }
 }

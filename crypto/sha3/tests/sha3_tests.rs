@@ -9,7 +9,9 @@ mod sha3_tests {
     use bouncycastle_core_test_framework::DUMMY_SEED_512;
     use bouncycastle_core_test_framework::hash::TestFrameworkHash;
     use bouncycastle_core_test_framework::kdf::TestFrameworkKDF;
-    use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512};
+    use bouncycastle_sha3::{
+        SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE256, SUSPENDED_SHA3_STATE_LEN,
+    };
 
     #[test]
     fn test_constants() {
@@ -392,6 +394,63 @@ mod sha3_tests {
     #[test]
     fn run_kats() {
         run_test_vectors(read_test_vectors("tests/data/SHA3TestVectors.txt"));
+    }
+
+    #[test]
+    fn serializable_state() {
+        use bouncycastle_core::errors::SuspendableError;
+        use bouncycastle_core::traits::Suspendable;
+        use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
+
+        let str = "Colorless green ideas sleep furiously";
+
+        // A helper that exercises the full round-trip for one SHA3 variant.
+        fn round_trip<const N: usize, H: Hash + Suspendable<N> + Clone>(mut hash: H, input: &[u8]) {
+            hash.do_update(input);
+
+            // do the default trait-conformance tests
+            TestFrameworkSuspendableState::new().test(&hash);
+
+            // serialize the in-progress state, then finish the original
+            let serialized_state = hash.clone().suspend();
+            assert_eq!(serialized_state.len(), SUSPENDED_SHA3_STATE_LEN);
+
+            let expected = hash.do_final();
+
+            // rebuild from the serialized state and confirm it produces the same digest
+            let from_state = H::from_suspended(serialized_state).unwrap();
+            assert_eq!(expected, from_state.do_final());
+
+            // a corrupt `squeezing` byte (last byte of the keccak state) must be rejected.
+            // Layout: 3 version bytes + variant tag(1) + [u64;25](200) + data_queue(192)
+            //         + bits_in_queue(8) + squeezing(1)
+            let mut busted = serialized_state;
+            busted[3 + 1 + 400] = 42;
+            match H::from_suspended(busted) {
+                Err(SuspendableError::InvalidData) => { /* good */ }
+                _ => panic!("Expected an error for a corrupt squeezing byte"),
+            }
+        }
+
+        round_trip(SHA3_224::new(), str.as_bytes());
+        round_trip(SHA3_256::new(), str.as_bytes());
+        round_trip(SHA3_384::new(), str.as_bytes());
+        round_trip(SHA3_512::new(), str.as_bytes());
+
+        // A state serialized by one variant must be rejected by a different variant (mismatched
+        // variant tag). SHA3-256 and SHAKE256 share the same rate (1088), so this cross-family case
+        // is only caught by the tag, not the rate -- it is the exact bug the tag exists to prevent.
+        let mut sha3_256 = SHA3_256::new();
+        sha3_256.do_update(str.as_bytes());
+        let serialized_256 = sha3_256.suspend();
+        match SHA3_512::from_suspended(serialized_256) {
+            Err(SuspendableError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHA3-256 state into SHA3-512"),
+        }
+        match SHAKE256::from_suspended(serialized_256) {
+            Err(SuspendableError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHA3-256 state into SHAKE256"),
+        }
     }
 
     fn run_test_vectors(test_vectors: Vec<TestCase>) {

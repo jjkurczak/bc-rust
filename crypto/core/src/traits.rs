@@ -1,8 +1,6 @@
 //! Provides simplified abstracted APIs over classes of cryptigraphic primitives, such as Hash, KDF, etc.
 
-use crate::errors::{
-    HashError, KDFError, KEMError, MACError, RNGError, SignatureError, SymmetricCipherError,
-};
+use crate::errors::*;
 use crate::key_material::KeyMaterialTrait;
 use core::fmt::{Debug, Display};
 use core::marker::Sized;
@@ -256,7 +254,7 @@ pub trait StreamCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>:
     ) -> Result<usize, SymmetricCipherError>;
 }
 
-pub trait Hash: Default {
+pub trait Hash: Algorithm + Default {
     /// The size of the internal block in bits -- needed by functions such as HMAC to compute security parameters.
     fn block_bitlen(&self) -> usize;
 
@@ -624,13 +622,32 @@ pub trait MAC: Sized {
     fn max_security_strength(&self) -> SecurityStrength;
 }
 
-#[derive(Eq, PartialEq, PartialOrd, Clone, Debug)]
+// The explicit `#[repr(u8)]` discriminants are the stable on-the-wire encoding used by
+// `SerializableState` implementations (see the `TryFrom<u8>` impl below).
+#[derive(Eq, PartialEq, PartialOrd, Clone, Copy, Debug)]
+#[repr(u8)]
 pub enum SecurityStrength {
-    None,
-    _112bit,
-    _128bit,
-    _192bit,
-    _256bit,
+    None = 0,
+    _112bit = 1,
+    _128bit = 2,
+    _192bit = 3,
+    _256bit = 4,
+}
+
+impl TryFrom<u8> for SecurityStrength {
+    type Error = SuspendableError;
+
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SuspendableError::InvalidData].
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::None,
+            1 => Self::_112bit,
+            2 => Self::_128bit,
+            3 => Self::_192bit,
+            4 => Self::_256bit,
+            _ => return Err(SuspendableError::InvalidData),
+        })
+    }
 }
 
 impl SecurityStrength {
@@ -706,6 +723,69 @@ pub trait RNG {
 // So I'm turning off this lint.
 #[allow(drop_bounds)]
 pub trait Secret: Drop + Debug + Display {}
+
+/// Allows a stateful object to suspend its operation by serializing its state into a byte array
+///so that it can be resumed later, potentially from a different host.
+///
+/// This is intended for situations where an object is being used through its streaming API
+/// (do_update, do_final) and the operation wants to be paused to a cache, for example while waiting
+/// for network IO.
+///
+/// This is not intended as a mechanism to clone the state of an object since in most cases `.clone()`
+/// will be more straightforward.
+///
+/// The serialized state MAY contain short-term sensitive values such as nonces or IVs,
+/// but it MUST NOT include a serialized private key.
+/// Keyed algorithms MUST instead impl
+/// [SuspendableKeyed] which requires the key to be supplied independently at the time of deserialization.
+pub trait Suspendable<const SERIALIZED_STATE_LEN: usize>: Sized {
+    /// Suspend operation by serializing out the state of the object.
+    ///
+    /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
+    /// If you want to do this intentionally, then you will need to clone the object before serializing it.
+    ///
+    /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
+    fn suspend(self) -> [u8; SERIALIZED_STATE_LEN];
+
+    /// Resume operation from a serialized state.
+    ///
+    /// Deserializers SHOULD check the version and reject serialized states from incompatible versions
+    /// (including rejecting serializations from a future version of the library).
+    /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
+    /// deserializer should reject serialized states from that version or older.
+    fn from_suspended(state: [u8; SERIALIZED_STATE_LEN]) -> Result<Self, SuspendableError>;
+}
+
+/// Similar to [Suspendable] in that it allows a stateful object to suspend its operation by
+/// serializing its state into a byte array so that it can be resumed later, potentially from a different host.
+///
+/// The difference is that this trait is for keyed algorithms -- MACs, symmetric ciphers, signatures, etc --
+/// which require a private key in order to resume successfully.
+/// For security reasons, the private key is not included in the serialized state
+/// and must be provided separately as part of the deserialization process.
+pub trait SuspendableKeyed<const SERIALIZED_STATE_LEN: usize>: Sized {
+    /// The type of key that must be re-supplied to resume this object.
+    type Key: ?Sized;
+
+    /// Suspend operation by serializing out the state of the object.
+    ///
+    /// Note that this consumes `self` to prevent accidentally continuing to use the object after serialization.
+    /// If you want to do this intentionally, then you will need to clone the object before serializing it.
+    ///
+    /// The serialized state MUST include a prefix indicating the version of the library that serialized it.
+    fn suspend(self) -> [u8; SERIALIZED_STATE_LEN];
+
+    /// Resume operation from a serialized state and the key.
+    ///
+    /// Deserializers SHOULD check the version and reject serialized states from incompatible versions
+    /// (including rejecting serializations from a future version of the library).
+    /// For example, if a given object made a breaking change to its serialization in version 1.2.3, then its
+    /// deserializer should reject serialized states from that version or older.
+    fn from_suspended(
+        state: [u8; SERIALIZED_STATE_LEN],
+        key: &Self::Key,
+    ) -> Result<Self, SuspendableError>;
+}
 
 /// Pre-Hashed Signer is an extension to [Signer] that adds functionality specific to signature
 /// primatives that can operate on a pre-hashed message instead of the full message.

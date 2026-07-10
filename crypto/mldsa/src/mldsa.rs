@@ -398,6 +398,81 @@
 //!     Err(e) => panic!("Something else went wrong: {:?}", e),
 //! }
 //! ```
+//!
+//! # Suspending and resuming execution via SerializableState
+//!
+//! When signing or verifying a large message, it can be advantageous to be able to suspend the operation
+//! to a cache and resume it later; for example if waiting for the message to stream over a slow network
+//! connection.
+//!
+//! This can bo accomplished for both the ML-DSA signer and verifier through the [MuBuilder] object.
+//!
+//! Suspending an in-progress sign operation:
+//!
+//! ```rust
+//! use bouncycastle_mldsa::{MLDSA65, MuBuilder, MLDSATrait, MLDSAPublicKeyTrait};
+//! use bouncycastle_core::traits::{Signer, Suspendable};
+//!
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let (pk, sk) = MLDSA65::keygen().unwrap();
+//!
+//! let mut mb = MuBuilder::do_init(&pk.compute_tr(), None).unwrap();
+//! mb.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = mb.suspend();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! let mut mb_resumed = MuBuilder::from_suspended(serialized_state).unwrap();
+//! mb_resumed.do_update(msg_part2);
+//! let mu: [u8; 64] = mb_resumed.do_final();
+//!
+//! // Now we'll do the actual sign_mu operation
+//! let sig = MLDSA65::sign_mu(&sk, None, &mu).unwrap();
+//! ```
+//!
+//! Suspending an in-progress verify operation behaves exactly the same way:
+//!
+//! ```rust
+//! use bouncycastle_mldsa::{MLDSA65, MuBuilder, MLDSATrait, MLDSAPublicKeyTrait};
+//! use bouncycastle_core::traits::{Signer, Suspendable};
+//! use bouncycastle_core::errors::SignatureError;
+//!
+//! let (pk, sk) = MLDSA65::keygen().unwrap();
+//!
+//! // first, let's generate a signature to verify
+//! let sig = MLDSA65::sign(&sk, b"The quick brown fox jumped over the lazy dog", None).unwrap();
+//!
+//! // Now we'll verify it with a suspension in the middle
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let mut mb = MuBuilder::do_init(&pk.compute_tr(), None).unwrap();
+//! mb.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = mb.suspend();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! let mut mb_resumed = MuBuilder::from_suspended(serialized_state).unwrap();
+//! mb_resumed.do_update(msg_part2);
+//! let mu: [u8; 64] = mb_resumed.do_final();
+//!
+//! // Now we'll do the actual verify_mu operation
+//! match MLDSA65::verify_mu(&pk, Some(&pk.A_hat()), &mu, &sig) {
+//!     Ok(()) => println!("Signature is valid!"),
+//!     Err(SignatureError::SignatureVerificationFailed) => println!("Signature is invalid!"),
+//!     Err(e) => panic!("Something else went wrong: {:?}", e),
+//! }
+//! ```
 
 use crate::aux_functions::{
     expand_mask, expandA, expandS, make_hint_vecs, power_2_round_vec, sample_in_ball, sig_decode,
@@ -410,11 +485,13 @@ use crate::{
     MLDSA44PrivateKey, MLDSA44PublicKey, MLDSA65PrivateKey, MLDSA65PublicKey, MLDSA87PrivateKey,
     MLDSA87PublicKey, MLDSAPrivateKeyExpanded, MLDSAPublicKeyExpanded,
 };
-use bouncycastle_core::errors::{RNGError, SignatureError};
+use bouncycastle_core::errors::{RNGError, SignatureError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterial256, KeyMaterialTrait, KeyType};
-use bouncycastle_core::traits::{Algorithm, RNG, SecurityStrength, SignatureVerifier, Signer, XOF};
+use bouncycastle_core::traits::{
+    Algorithm, RNG, SecurityStrength, SignatureVerifier, Signer, Suspendable, XOF,
+};
 use bouncycastle_rng::HashDRBG_SHA512;
-use bouncycastle_sha3::{SHAKE128, SHAKE256};
+use bouncycastle_sha3::{SHAKE128, SHAKE256, SUSPENDED_SHA3_STATE_LEN};
 use core::marker::PhantomData;
 
 // imports needed just for docs
@@ -1017,6 +1094,99 @@ impl<
 
         Ok(bytes_written)
     }
+
+    /// Algorithm 8 ML-DSA.Verify_internal(𝑝𝑘, 𝑀′, 𝜎)
+    /// Internal function to verify a signature 𝜎 for a formatted message 𝑀′ .
+    /// Input: Public key 𝑝𝑘 ∈ 𝔹32+32𝑘(bitlen (𝑞−1)−𝑑) and message 𝑀′ ∈ {0, 1}∗ .
+    /// Input: Signature 𝜎 ∈ 𝔹𝜆/4+ℓ⋅32⋅(1+bitlen (𝛾1−1))+𝜔+𝑘.
+    fn verify_internal(
+        pk: &PK,
+        A_hat: &Matrix<k, l>,
+        mu: &[u8; 64],
+        sig: &[u8; SIG_LEN],
+    ) -> Result<(), SignatureError> {
+        // 1: (𝜌, 𝐭1) ← pkDecode(𝑝𝑘)
+        // Already done -- the pk struct is already decoded
+
+        // 2: (𝑐_tilde, 𝐳, 𝐡) ← sigDecode(𝜎)
+        //  ▷ signer’s commitment hash c_tilde, response 𝐳, and hint 𝐡
+        // 3: if 𝐡 = ⊥ then return false
+        let (c_tilde, z, h) =
+            sig_decode::<GAMMA1, k, l, LAMBDA_over_4, OMEGA, POLY_Z_PACKED_LEN, SIG_LEN>(&sig)
+                .map_err(|_| SignatureError::SignatureVerificationFailed)?;
+
+        // 13 (first half) return [[ ||𝐳||∞ < 𝛾1 − 𝛽]]
+        if z.check_norm::<GAMMA1_MINUS_BETA>() {
+            return Err(SignatureError::SignatureVerificationFailed);
+        }
+
+        // 5: 𝐀 ← ExpandA(𝜌)
+        //   ▷ 𝐀 is generated and stored in NTT representation as 𝐀
+        // We're doing an optimization where the user can pre-expand A_hat within the
+        // public key object for faster repeated encapsulations against this public key.
+
+        // 6: 𝑡𝑟 ← H(𝑝𝑘, 64)
+        // 7: 𝜇 ← (H(BytesToBits(𝑡𝑟)||𝑀 ′, 64))
+        //   ▷ message representative that may optionally be
+        //     computed in a different cryptographic module
+        // skip because this function is being handed mu
+
+        // 8: 𝑐 ∈ 𝑅𝑞 ← SampleInBall(c_tilde)
+        let c_hat = {
+            let mut c = sample_in_ball::<LAMBDA_over_4, TAU>(&c_tilde);
+            c.ntt();
+
+            c
+        };
+
+        // 9: 𝐰′_approx ← NTT−1(𝐀_hat ∘ NTT(𝐳) − NTT(𝑐) ∘ NTT(𝐭1 ⋅ 2^𝑑))
+        //   broken out for clarity:
+        //   NTT−1(
+        //      𝐀_hat ∘ NTT(𝐳) −
+        //                  NTT(𝑐) ∘ NTT(𝐭1 ⋅ 2^𝑑)
+        //   )
+        // ▷ 𝐰'_approx = 𝐀𝐳 − 𝑐𝐭1 ⋅ 2^𝑑
+        // weird nested scoping is to reduce peak stack memory usage
+        let w1p = {
+            let Az = {
+                let mut z_hat = z.clone();
+                z_hat.ntt();
+                A_hat.matrix_vector_ntt(&z_hat)
+            };
+            let ct1 = {
+                // potential optimization -- pre-compute this on key load?
+                let mut t1_shift_hat = pk.t1().shift_left::<d>();
+                t1_shift_hat.ntt();
+                t1_shift_hat.scalar_vector_ntt(&c_hat)
+            };
+            let mut wp_approx = Az.sub_vector(&ct1);
+            wp_approx.inv_ntt();
+            wp_approx.conditional_add_q();
+
+            // 10: 𝐰1′ ← UseHint(𝐡, 𝐰'_approx)
+            // ▷ reconstruction of signer’s commitment
+            use_hint_vecs::<k, GAMMA2>(&h, &wp_approx)
+        };
+        // 12: 𝑐_tilde_p ← H(𝜇||w1Encode(𝐰1'), 𝜆/4)
+        // ▷ hash it; this should match 𝑐_tilde
+        let c_tilde_p = {
+            let mut c_tilde_p = [0u8; LAMBDA_over_4];
+            let mut hash = H::new();
+            hash.absorb(mu);
+            w1p.w1_encode_and_hash::<POLY_W1_PACKED_LEN>(&mut hash);
+            hash.squeeze_out(&mut c_tilde_p);
+
+            c_tilde_p
+        };
+
+        // verification probably doesn't technically need to be constant-time, but why not?
+        // 13 (second half): return [[ ||𝐳||∞ < 𝛾1 − 𝛽]] and [[𝑐 ̃ = 𝑐′ ]]
+        if bouncycastle_utils::ct::ct_eq_bytes(&c_tilde, &c_tilde_p) {
+            Ok(())
+        } else {
+            Err(SignatureError::SignatureVerificationFailed)
+        }
+    }
 }
 
 impl<
@@ -1524,108 +1694,19 @@ impl<
         let sig: &[u8; SIG_LEN] = sig.try_into().map_err(|_| {
             SignatureError::LengthError("Signature value is not the correct length.")
         })?;
-        Self::verify_mu_internal(&pk.pk, &pk.A_hat(), &mu, sig)
-            .then_some(())
-            .ok_or(SignatureError::SignatureVerificationFailed)
+        Self::verify_mu(&pk.pk, Some(&pk.A_hat()), &mu, sig)
     }
 
-    /// Algorithm 8 ML-DSA.Verify_internal(𝑝𝑘, 𝑀′, 𝜎)
-    /// Internal function to verify a signature 𝜎 for a formatted message 𝑀′ .
-    /// Input: Public key 𝑝𝑘 ∈ 𝔹32+32𝑘(bitlen (𝑞−1)−𝑑) and message 𝑀′ ∈ {0, 1}∗ .
-    /// Input: Signature 𝜎 ∈ 𝔹𝜆/4+ℓ⋅32⋅(1+bitlen (𝛾1−1))+𝜔+𝑘.
-    fn verify_mu_internal(
+    fn verify_mu(
         pk: &PK,
-        A_hat: &Matrix<k, l>,
+        A_hat: Option<&Matrix<k, l>>,
         mu: &[u8; 64],
         sig: &[u8; SIG_LEN],
-    ) -> bool {
-        // 1: (𝜌, 𝐭1) ← pkDecode(𝑝𝑘)
-        // Already done -- the pk struct is already decoded
-
-        // 2: (𝑐_tilde, 𝐳, 𝐡) ← sigDecode(𝜎)
-        //  ▷ signer’s commitment hash c_tilde, response 𝐳, and hint 𝐡
-        // 3: if 𝐡 = ⊥ then return false
-        let (c_tilde, z, h) = match sig_decode::<
-            GAMMA1,
-            k,
-            l,
-            LAMBDA_over_4,
-            OMEGA,
-            POLY_Z_PACKED_LEN,
-            SIG_LEN,
-        >(&sig)
-        {
-            Ok((c_tilde, z, h)) => (c_tilde, z, h),
-            Err(_) => return false,
-        };
-
-        // 13 (first half) return [[ ||𝐳||∞ < 𝛾1 − 𝛽]]
-        if z.check_norm::<GAMMA1_MINUS_BETA>() {
-            return false;
+    ) -> Result<(), SignatureError> {
+        match A_hat {
+            Some(A_hat) => Self::verify_internal(pk, A_hat, mu, sig),
+            None => Self::verify_internal(pk, &pk.A_hat(), mu, sig),
         }
-
-        // 5: 𝐀 ← ExpandA(𝜌)
-        //   ▷ 𝐀 is generated and stored in NTT representation as 𝐀
-        // We're doing an optimization where the user can pre-expand A_hat within the
-        // public key object for faster repeated encapsulations against this public key.
-
-        // 6: 𝑡𝑟 ← H(𝑝𝑘, 64)
-        // 7: 𝜇 ← (H(BytesToBits(𝑡𝑟)||𝑀 ′, 64))
-        //   ▷ message representative that may optionally be
-        //     computed in a different cryptographic module
-        // skip because this function is being handed mu
-
-        // 8: 𝑐 ∈ 𝑅𝑞 ← SampleInBall(c_tilde)
-        let c_hat = {
-            let mut c = sample_in_ball::<LAMBDA_over_4, TAU>(&c_tilde);
-            c.ntt();
-
-            c
-        };
-
-        // 9: 𝐰′_approx ← NTT−1(𝐀_hat ∘ NTT(𝐳) − NTT(𝑐) ∘ NTT(𝐭1 ⋅ 2^𝑑))
-        //   broken out for clarity:
-        //   NTT−1(
-        //      𝐀_hat ∘ NTT(𝐳) −
-        //                  NTT(𝑐) ∘ NTT(𝐭1 ⋅ 2^𝑑)
-        //   )
-        // ▷ 𝐰'_approx = 𝐀𝐳 − 𝑐𝐭1 ⋅ 2^𝑑
-        // weird nested scoping is to reduce peak stack memory usage
-        let w1p = {
-            let Az = {
-                let mut z_hat = z.clone();
-                z_hat.ntt();
-                A_hat.matrix_vector_ntt(&z_hat)
-            };
-            let ct1 = {
-                // potential optimization -- pre-compute this on key load?
-                let mut t1_shift_hat = pk.t1().shift_left::<d>();
-                t1_shift_hat.ntt();
-                t1_shift_hat.scalar_vector_ntt(&c_hat)
-            };
-            let mut wp_approx = Az.sub_vector(&ct1);
-            wp_approx.inv_ntt();
-            wp_approx.conditional_add_q();
-
-            // 10: 𝐰1′ ← UseHint(𝐡, 𝐰'_approx)
-            // ▷ reconstruction of signer’s commitment
-            use_hint_vecs::<k, GAMMA2>(&h, &wp_approx)
-        };
-        // 12: 𝑐_tilde_p ← H(𝜇||w1Encode(𝐰1'), 𝜆/4)
-        // ▷ hash it; this should match 𝑐_tilde
-        let c_tilde_p = {
-            let mut c_tilde_p = [0u8; LAMBDA_over_4];
-            let mut hash = H::new();
-            hash.absorb(mu);
-            w1p.w1_encode_and_hash::<POLY_W1_PACKED_LEN>(&mut hash);
-            hash.squeeze_out(&mut c_tilde_p);
-
-            c_tilde_p
-        };
-
-        // verification probably doesn't technically need to be constant-time, but why not?
-        // 13 (second half): return [[ ||𝐳||∞ < 𝛾1 − 𝛽]] and [[𝑐 ̃ = 𝑐′ ]]
-        bouncycastle_utils::ct::ct_eq_bytes(&c_tilde, &c_tilde_p)
     }
 }
 
@@ -1750,6 +1831,8 @@ pub trait MLDSATrait<
     /// This implements FIPS 204 Algorithm 7 with line 6 removed; a modification that is allowed by both
     /// FIPS 204 itself, as well as subsequent FAQ documents.
     /// This mode uses randomized signing (called "hedged mode" in FIPS 204) using an internal RNG.
+    ///
+    /// Optionally, takes a pre-expanded public matrix `A_hat`.
     fn sign_mu(
         sk: &SK,
         A_hat: Option<&Matrix<k, l>>,
@@ -1874,16 +1957,16 @@ pub trait MLDSATrait<
         ctx: Option<&[u8]>,
         sig: &[u8],
     ) -> Result<(), SignatureError>;
-    /// Algorithm 8 ML-DSA.Verify_internal(𝑝𝑘, 𝑀′, 𝜎)
-    /// Internal function to verify a signature 𝜎 for a formatted message 𝑀′ .
-    /// Input: Public key 𝑝𝑘 ∈ 𝔹32+32𝑘(bitlen (𝑞−1)−𝑑) and message 𝑀′ ∈ {0, 1}∗ .
-    /// Input: Signature 𝜎 ∈ 𝔹𝜆/4+ℓ⋅32⋅(1+bitlen (𝛾1−1))+𝜔+𝑘.
-    fn verify_mu_internal(
+    /// Performs an ML-DSA signature verification using the provided external message representative `mu`.
+    /// This implements FIPS 204 Algorithm 8 with line 7 removed; a modification that is allowed by both
+    /// FIPS 204 itself, as well as subsequent FAQ documents.
+    /// Optionally, takes a pre-expanded public matrix `A_hat`.
+    fn verify_mu(
         pk: &PK,
-        A_hat: &Matrix<k, l>,
+        A_hat: Option<&Matrix<k, l>>,
         mu: &[u8; 64],
         sig: &[u8; SIG_LEN],
-    ) -> bool;
+    ) -> Result<(), SignatureError>;
 }
 
 impl<
@@ -2067,9 +2150,7 @@ impl<
         let sig: &[u8; SIG_LEN] = sig.try_into().map_err(|_| {
             SignatureError::LengthError("Signature value is not the correct length.")
         })?;
-        Self::verify_mu_internal(pk, &pk.A_hat(), &mu, sig)
-            .then_some(())
-            .ok_or(SignatureError::SignatureVerificationFailed)
+        Self::verify_mu(pk, Some(&pk.A_hat()), &mu, sig)
     }
 
     fn verify_init(pk: &PK, ctx: Option<&[u8]>) -> Result<Self, SignatureError> {
@@ -2097,9 +2178,7 @@ impl<
         let sig: &[u8; SIG_LEN] = sig.try_into().map_err(|_| {
             SignatureError::LengthError("Signature value is not the correct length.")
         })?;
-        Self::verify_mu_internal(pk, &pk.A_hat(), &mu, sig)
-            .then_some(())
-            .ok_or(SignatureError::SignatureVerificationFailed)
+        Self::verify_mu(pk, Some(&pk.A_hat()), &mu, sig)
     }
 }
 
@@ -2112,6 +2191,7 @@ impl<
 /// does not benefit from allowing external construction of the message representative mu.
 /// You can get the same behaviour by computing the pre-hash `ph` with the appropriate hash function
 /// and providing that to HashMLDSA via [PHSigner::sign_ph].
+#[derive(Clone)]
 pub struct MuBuilder {
     h: H,
 }
@@ -2175,5 +2255,27 @@ impl MuBuilder {
         self.h.squeeze_out(&mut mu);
 
         mu
+    }
+}
+
+/// The length, in bytes, of a serialized state of a [MuBuilder] object.
+pub const MU_BUILDER_SERIALIZED_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+
+/// If you are processing a large input message into ML-DSA and want to pause the operation
+/// -- maybe while waiting for slow network IO), you'll need to use [Suspendable].
+/// Serialization of the state of an in-progress ML-DSA instance is really just serialization
+/// of the construction of the message representative mu, since no other part of the ML-DSA algorithm
+/// has a pausable state.
+// A [MuBuilder]'s (and by virtue, an ML-DSA instance's) entire mutable state is its inner SHAKE256 sponge,
+// so serialization delegates directly to [SHAKE256]'s [SerializableState] impl.
+impl Suspendable<SUSPENDED_SHA3_STATE_LEN> for MuBuilder {
+    fn suspend(self) -> [u8; SUSPENDED_SHA3_STATE_LEN] {
+        self.h.suspend()
+    }
+
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA3_STATE_LEN],
+    ) -> Result<Self, SuspendableError> {
+        Ok(MuBuilder { h: H::from_suspended(serialized_state)? })
     }
 }
