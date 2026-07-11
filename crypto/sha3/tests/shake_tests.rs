@@ -7,9 +7,9 @@ mod shake_tests {
         KeyMaterial, KeyMaterial256, KeyMaterial512, KeyMaterialTrait, KeyType,
     };
     use bouncycastle_core::traits::{KDF, SecurityStrength, XOF};
-    use bouncycastle_core_test_framework::DUMMY_SEED_512;
+    use bouncycastle_core_test_framework::DUMMY_SEED;
     use bouncycastle_core_test_framework::kdf::TestFrameworkKDF;
-    use bouncycastle_sha3::{SHAKE128, SHAKE256};
+    use bouncycastle_sha3::{SHA3_256, SHAKE128, SHAKE256};
 
     #[test]
     fn test_xof_partial_bit_output() {
@@ -81,7 +81,7 @@ mod shake_tests {
     fn test_kdf() {
         let testframework = TestFrameworkKDF::new();
 
-        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED_512[..32]).unwrap();
+        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
         // println!("{:x?}", &DUMMY_SEED[..32]);
 
         // Without additional input -- SHAKE128
@@ -128,7 +128,7 @@ mod shake_tests {
 
     #[test]
     fn test_kdf_undersized_and_oversized() {
-        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED_512[..32]).unwrap();
+        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
 
         // at size
         let mut derived_key = KeyMaterial::<32>::new();
@@ -161,7 +161,7 @@ mod shake_tests {
     fn kdf_input_entropy() {
         // Exact entropy
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         let expected_key = KeyMaterial256::from_bytes(b"\x06\x6a\x36\x1d\xc6\x75\xf8\x56\xce\xcd\xc0\x2b\x25\x21\x8a\x10\xce\xc0\xce\xcf\x79\x85\x9e\xc0\xfe\xc3\xd4\x09\xe5\x84\x7a\x92").unwrap();
@@ -170,14 +170,14 @@ mod shake_tests {
 
         // more entropy than needed -- single input key
         let key_material =
-            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED_512[..64], KeyType::CryptographicRandom)
+            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED[..64], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::CryptographicRandom);
 
         // // more entropy than needed -- multiple input keys
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::CryptographicRandom)
                 .unwrap();
         let keys = [&key_material, &key_material];
         let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
@@ -186,9 +186,9 @@ mod shake_tests {
         // more entropy than needed -- multiple input keys of different full-entropy types;
         // should get the type of the first one
         let key_material1 =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::MACKey).unwrap();
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::MACKey).unwrap();
         let key_material2 =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::SymmetricCipherKey)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::SymmetricCipherKey)
                 .unwrap();
         let keys = [&key_material1, &key_material2];
         let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
@@ -197,28 +197,28 @@ mod shake_tests {
         // // less entropy than needed -- various permutations, but not exhaustive
 
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..31], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..31], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::Unknown);
 
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::CryptographicRandom)
                 .unwrap();
         let keys = [&key_material, &key_material];
         let derived_key = SHAKE256::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::Unknown);
 
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..8], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..8], KeyType::CryptographicRandom)
                 .unwrap();
         let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
         assert_eq!(derived_key.key_type(), KeyType::Unknown);
 
         let key_low_entropy =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::Unknown).unwrap();
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::Unknown).unwrap();
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..16], KeyType::CryptographicRandom)
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..16], KeyType::CryptographicRandom)
                 .unwrap();
         let keys = [&key_material, &key_low_entropy];
         let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
@@ -226,7 +226,7 @@ mod shake_tests {
     }
 
     #[test]
-    fn test_security_strength() {
+    fn security_strength() {
         assert_eq!(KDF::max_security_strength(&SHAKE128::default()), SecurityStrength::_128bit);
         assert_eq!(XOF::max_security_strength(&SHAKE128::default()), SecurityStrength::_128bit);
         assert_eq!(KDF::max_security_strength(&SHAKE256::default()), SecurityStrength::_256bit);
@@ -236,6 +236,73 @@ mod shake_tests {
     #[test]
     fn run_kats() {
         run_test_vectors(read_test_vectors("tests/data/SHAKETestVectors.txt"));
+    }
+
+    #[test]
+    fn suspendable_state() {
+        use bouncycastle_core::errors::SuspendableError;
+        use bouncycastle_core::traits::Suspendable;
+        use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
+
+        let str = "Colorless green ideas sleep furiously";
+
+        // A helper that exercises the full round-trip for one SHAKE variant.
+        fn round_trip<const N: usize, X: XOF + Suspendable<N> + Clone>(mut shake: X, input: &[u8]) {
+            shake.absorb(input);
+
+            // do the default trait-conformance tests
+            TestFrameworkSuspendableState::new().test(&shake);
+
+            // Test #1
+            // serialize the in-progress (absorbing) state, then squeeze from the original and compare
+            let serialized_state = shake.clone().suspend();
+            let expected = shake.squeeze(64);
+
+            // rebuild from the serialized state and confirm it produces the same output
+            let mut from_state = X::from_suspended(serialized_state).unwrap();
+            assert_eq!(expected, from_state.squeeze(64));
+
+            // Test #2
+            // serialize the in-progress (squeezing) state, then squeeze more from the original and compare
+            let serialized_state = shake.clone().suspend();
+            let expected = shake.squeeze(64);
+
+            // rebuild from the serialized state and confirm it produces the same output
+            let mut from_state = X::from_suspended(serialized_state).unwrap();
+            assert_eq!(expected, from_state.squeeze(64));
+
+            // a corrupt `squeezing` byte (last byte of the keccak state) must be rejected.
+            // Layout: 3 version bytes + variant tag(1) + [u64;25](200) + data_queue(192)
+            //         + bits_in_queue(8) + squeezing(1)
+            let mut busted = serialized_state;
+            busted[3 + 1 + 400] = 42;
+            match X::from_suspended(busted) {
+                Err(SuspendableError::InvalidData) => { /* good */ }
+                _ => panic!("Expected an error for a corrupt squeezing byte"),
+            }
+        }
+
+        round_trip(SHAKE128::new(), str.as_bytes());
+        round_trip(SHAKE256::new(), str.as_bytes());
+
+        // A state serialized by one variant must be rejected by a different variant (mismatched
+        // variant tag). The SHAKE256 -> SHA3-256 case is the important one: they share the same rate
+        // (1088), so only the variant tag distinguishes them.
+        let mut shake128 = SHAKE128::new();
+        shake128.absorb(str.as_bytes());
+        let serialized_128 = shake128.suspend();
+        match SHAKE256::from_suspended(serialized_128) {
+            Err(SuspendableError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHAKE128 state into SHAKE256"),
+        }
+
+        let mut shake256 = SHAKE256::new();
+        shake256.absorb(str.as_bytes());
+        let serialized_256 = shake256.suspend();
+        match SHA3_256::from_suspended(serialized_256) {
+            Err(SuspendableError::InvalidData) => { /* good */ }
+            _ => panic!("Expected an error when loading a SHAKE256 state into SHA3-256"),
+        }
     }
 
     fn run_test_vectors(test_vectors: Vec<TestCase>) {

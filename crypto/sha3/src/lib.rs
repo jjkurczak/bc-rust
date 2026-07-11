@@ -98,23 +98,55 @@
 //! let output_key = sha3::SHA3_256::new().derive_key(&input_key, b"Additional input").unwrap();
 //!```
 //! In the previous example, since [KeyMaterial::from_bytes] cannot know the amount of entropy in the input data,
-//! it automatically tags it as [KeyType::Unknown], and thus [SHA3::derive_key] produces an output key
+//! it automatically tags it as [KeyType::Unknown], and thus [SHA3Internal::derive_key] produces an output key
 //! which also has type [KeyType::Unknown].
 //! This would also be the case even if the input had type
 //! [KeyType::CryptographicRandom] since the input [KeyMaterial] is 16 bytes but [SHA3_256] needs at least 32 bytes of
 //! full-entropy input key material in order to be able to produce full entropy output key material.
+//!
+//! # Suspending and resuming execution
+//!
+//! When hashing a large message, it can be advantageous to be able to suspend the operation
+//! to a cache and resume it later; for example if waiting for the message to stream over a slow network
+//! connection.
+//!
+//! For this reason, all SHA3 algorithms impl [Suspendable].
+//!
+//!```rust
+//! use bouncycastle_sha3 as sha3;
+//! use bouncycastle_core::traits::{Hash, Suspendable};
+//!
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let mut sha3 = sha3::SHA3_256::new();
+//! sha3.do_update(msg_part1);
+//!
+//! // suspend the in-progress extract while "waiting" for the second part of the message.
+//! let serialized_state = sha3.suspend();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! // ... later, possibly on another host: resume from the serialized state.
+//! let mut sha3_resumed = sha3::SHA3_256::from_suspended(serialized_state).unwrap();
+//! sha3_resumed.do_update(msg_part2);
+//! let h: Vec<u8> = sha3_resumed.do_final();
+//! ```
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 #![allow(private_bounds)]
 
 use crate::keccak::KeccakSize;
-use bouncycastle_core::traits::{Algorithm, HashAlgParams, SecurityStrength};
+use bouncycastle_core::traits::{Algorithm, AlgorithmOID, HashAlgParams, SecurityStrength};
 
 // imports needed for docs
 #[allow(unused_imports)]
 use bouncycastle_core::key_material::{KeyMaterial, KeyType};
 #[allow(unused_imports)]
-use bouncycastle_core::traits::{Hash, KDF, XOF};
+use bouncycastle_core::traits::{Hash, KDF, Suspendable, XOF};
 // end of doc-only imports
 
 mod keccak;
@@ -122,40 +154,56 @@ mod sha3;
 mod shake;
 
 /*** String constants ***/
+///
 pub const SHA3_224_NAME: &str = "SHA3-224";
+///
 pub const SHA3_256_NAME: &str = "SHA3-256";
+///
 pub const SHA3_384_NAME: &str = "SHA3-384";
+///
 pub const SHA3_512_NAME: &str = "SHA3-512";
+///
 pub const SHAKE128_NAME: &str = "SHAKE128";
+///
 pub const SHAKE256_NAME: &str = "SHAKE256";
 
 /*** pub types ***/
-pub use sha3::SHA3;
-pub use shake::SHAKE;
-pub type SHA3_224 = SHA3<SHA3_224Params>;
-pub type SHA3_256 = SHA3<SHA3_256Params>;
-pub type SHA3_384 = SHA3<SHA3_384Params>;
-pub type SHA3_512 = SHA3<SHA3_512Params>;
-pub type SHAKE128 = SHAKE<SHAKE128Params>;
-pub type SHAKE256 = SHAKE<SHAKE256Params>;
+pub use sha3::SHA3Internal;
+pub use shake::SHAKEInternal;
+
+pub use keccak::SUSPENDED_SHA3_STATE_LEN;
+
+/// Public type for SHA3_224.
+pub type SHA3_224 = SHA3Internal<SHA3_224Params>;
+/// Public type for SHA3_256.
+pub type SHA3_256 = SHA3Internal<SHA3_256Params>;
+/// Public type for SHA3_384.
+pub type SHA3_384 = SHA3Internal<SHA3_384Params>;
+/// Public type for SHA3_512.
+pub type SHA3_512 = SHA3Internal<SHA3_512Params>;
+/// Public type for SHAKE128.
+pub type SHAKE128 = SHAKEInternal<SHAKE128Params>;
+/// Public type for SHAKE256.
+pub type SHAKE256 = SHAKEInternal<SHAKE256Params>;
 
 /*** Param traits ***/
 
 /// Private trait on purpose so that only the NIST-approved params can be used.
 trait SHA3Params: HashAlgParams {
     const SIZE: KeccakSize;
+    /// A tag, unique across all SHA3 *and* SHAKE variants, identifying which variant produced a
+    /// serialized state. Distinguishing same-rate variants (e.g. SHA3-256 vs SHAKE256) requires
+    /// this to be distinct from every value used by [SHAKEParams::STATE_TAG]. Never reuse a value.
+    const STATE_TAG: u8;
 }
 
-// TODO: more elegant to macro this?
-impl Algorithm for SHA3_224 {
-    const ALG_NAME: &'static str = SHA3_224_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
-}
 impl HashAlgParams for SHA3_224 {
     const OUTPUT_LEN: usize = 28;
     // const BLOCK_LEN: usize = 64;
     const BLOCK_LEN: usize = 144; // FIPS 202 Table 3
 }
+/// The parameters for SHA3_224.
+#[derive(Clone)]
 pub struct SHA3_224Params;
 impl Algorithm for SHA3_224Params {
     const ALG_NAME: &'static str = SHA3_224_NAME;
@@ -168,17 +216,22 @@ impl HashAlgParams for SHA3_224Params {
 }
 impl SHA3Params for SHA3_224Params {
     const SIZE: KeccakSize = KeccakSize::_224;
+    const STATE_TAG: u8 = 1;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-224 { hashAlgs 7 }
+impl AlgorithmOID for SHA3_224 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 7];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x07];
 }
 
-impl Algorithm for SHA3_256 {
-    const ALG_NAME: &'static str = SHA3_256_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
-}
 impl HashAlgParams for SHA3_256 {
     const OUTPUT_LEN: usize = 32;
     // const BLOCK_LEN: usize = 64;
     const BLOCK_LEN: usize = 136; // FIPS 202 Table 3
 }
+/// The parameters for SHA3_256.
+#[derive(Clone)]
 pub struct SHA3_256Params;
 impl Algorithm for SHA3_256Params {
     const ALG_NAME: &'static str = SHA3_256_NAME;
@@ -191,13 +244,17 @@ impl HashAlgParams for SHA3_256Params {
 }
 impl SHA3Params for SHA3_256Params {
     const SIZE: KeccakSize = KeccakSize::_256;
+    const STATE_TAG: u8 = 2;
 }
-
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-256 { hashAlgs 8 }
+impl AlgorithmOID for SHA3_256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 8];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x08];
+}
+/// The parameters for SHA3_384.
+#[derive(Clone)]
 pub struct SHA3_384Params;
-impl Algorithm for SHA3_384 {
-    const ALG_NAME: &'static str = SHA3_384_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
-}
 impl HashAlgParams for SHA3_384 {
     const OUTPUT_LEN: usize = 48;
     // const BLOCK_LEN: usize = 128;
@@ -214,13 +271,17 @@ impl HashAlgParams for SHA3_384Params {
 }
 impl SHA3Params for SHA3_384Params {
     const SIZE: KeccakSize = KeccakSize::_384;
+    const STATE_TAG: u8 = 3;
 }
-
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-384 { hashAlgs 9 }
+impl AlgorithmOID for SHA3_384 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 9];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x09];
+}
+/// The parameters for SHA3_512.
+#[derive(Clone)]
 pub struct SHA3_512Params;
-impl Algorithm for SHA3_512 {
-    const ALG_NAME: &'static str = SHA3_512_NAME;
-    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
-}
 impl HashAlgParams for SHA3_512 {
     const OUTPUT_LEN: usize = 64;
     // const BLOCK_LEN: usize = 128;
@@ -237,11 +298,22 @@ impl HashAlgParams for SHA3_512Params {
 }
 impl SHA3Params for SHA3_512Params {
     const SIZE: KeccakSize = KeccakSize::_512;
+    const STATE_TAG: u8 = 4;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-sha3-512 { hashAlgs 10 }
+impl AlgorithmOID for SHA3_512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 10];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0a];
 }
 
 trait SHAKEParams: Algorithm {
     const SIZE: KeccakSize;
+    /// See [SHA3Params::STATE_TAG]. Must be distinct from every SHA3 *and* SHAKE variant's tag.
+    const STATE_TAG: u8;
 }
+/// The parameters for SHAKE128.
+#[derive(Clone)]
 pub struct SHAKE128Params;
 impl Algorithm for SHAKE128Params {
     const ALG_NAME: &'static str = SHAKE128_NAME;
@@ -249,8 +321,16 @@ impl Algorithm for SHAKE128Params {
 }
 impl SHAKEParams for SHAKE128Params {
     const SIZE: KeccakSize = KeccakSize::_128;
+    const STATE_TAG: u8 = 5;
 }
-
+/// Assigned by NIST in the Computer Security Objects Register: id-shake128 { hashAlgs 11 }
+impl AlgorithmOID for SHAKE128 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 11];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0b];
+}
+/// The parameters for SHAKE256.
+#[derive(Clone)]
 pub struct SHAKE256Params;
 impl Algorithm for SHAKE256Params {
     const ALG_NAME: &'static str = SHAKE256_NAME;
@@ -258,4 +338,11 @@ impl Algorithm for SHAKE256Params {
 }
 impl SHAKEParams for SHAKE256Params {
     const SIZE: KeccakSize = KeccakSize::_256;
+    const STATE_TAG: u8 = 6;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-shake256 { hashAlgs 12 }
+impl AlgorithmOID for SHAKE256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 12];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0c];
 }

@@ -50,7 +50,7 @@
 //!
 //! See [do_hazardous_operations] for documentation and sample code.
 
-use crate::errors::KeyMaterialError;
+use crate::errors::{KeyMaterialError, SuspendableError};
 use crate::traits::{RNG, Secret, SecurityStrength};
 use bouncycastle_utils::{ct, min};
 
@@ -59,9 +59,11 @@ use core::fmt;
 
 /// Sometimes you just need a zero-length dummy key.
 pub type KeyMaterial0 = KeyMaterial<0>;
-
+/// Named type for a 128-bit (16-byte) key, for convenience.
 pub type KeyMaterial128 = KeyMaterial<16>;
+/// Named type for a 256-bit (32-byte) key, for convenience.
 pub type KeyMaterial256 = KeyMaterial<32>;
+/// Named type for a 512-bit (64-byte) key, for convenience.
 pub type KeyMaterial512 = KeyMaterial<64>;
 
 /// A helper class used across the bc-rust.test library to hold bytes-like key material.
@@ -222,10 +224,16 @@ pub struct KeyMaterial<const KEY_LEN: usize> {
 
 impl<const KEY_LEN: usize> Secret for KeyMaterial<KEY_LEN> {}
 
+// The explicit `#[repr(u8)]` discriminants are the stable on-the-wire encoding used by
+// `SerializableState` implementations (see the `TryFrom<u8>` impl below). Pin each value to its
+// variant name: reordering variants is fine, but never reuse or renumber an existing discriminant,
+// or previously-serialized states will be misread.
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
 pub enum KeyType {
     /// The KeyMaterial is zeroized and MUST NOT be used for any cryptographic operation in this state.
-    Zeroized,
+    Zeroized = 0,
 
     /// The KeyMaterial contains non-zero data of unknown key type.
     /// A KeyMaterial of key type Unknown will always have a [SecurityStrength] of [SecurityStrength::None].
@@ -235,19 +243,36 @@ pub enum KeyType {
     /// and must be done within a [do_hazardous_operations] closure.
     /// If you want to import key material directly into a known key type, use [KeyMaterial::from_bytes_as_type],
     /// which does not require a hazardous operations closure.
-    Unknown,
+    Unknown = 1,
 
     /// The KeyMaterial contains data of full entropy and can be safely converted to any other key type.
-    CryptographicRandom,
+    CryptographicRandom = 2,
 
     /// A seed for asymmetric private keys, RNGs, and other seed-based cryptographic objects.
-    Seed,
+    Seed = 3,
 
     /// A MAC key.
-    MACKey,
+    MACKey = 4,
 
     /// A key for a symmetric block or stream cipher.
-    SymmetricCipherKey,
+    SymmetricCipherKey = 5,
+}
+
+impl TryFrom<u8> for KeyType {
+    type Error = SuspendableError;
+
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SuspendableError::InvalidData].
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::Zeroized,
+            1 => Self::Unknown,
+            2 => Self::CryptographicRandom,
+            3 => Self::Seed,
+            4 => Self::MACKey,
+            5 => Self::SymmetricCipherKey,
+            _ => return Err(SuspendableError::InvalidData),
+        })
+    }
 }
 
 impl<const KEY_LEN: usize> Default for KeyMaterial<KEY_LEN> {
@@ -258,6 +283,8 @@ impl<const KEY_LEN: usize> Default for KeyMaterial<KEY_LEN> {
 }
 
 impl<const KEY_LEN: usize> KeyMaterial<KEY_LEN> {
+    /// Creates a new empty instance (key_len = 0, key_type = Zeroized).
+    /// If you want a properly populated instance, use [KeyMaterial::from_rng].
     pub fn new() -> Self {
         Self {
             buf: [0u8; KEY_LEN],
@@ -268,7 +295,7 @@ impl<const KEY_LEN: usize> KeyMaterial<KEY_LEN> {
         }
     }
 
-    /// Create a new instance of KeyMaterial containing random bytes from the provided random number generator.
+    /// Creates a new instance of KeyMaterial containing random bytes from the provided random number generator.
     pub fn from_rng(rng: &mut impl RNG) -> Result<Self, KeyMaterialError> {
         let mut key = Self::new();
 

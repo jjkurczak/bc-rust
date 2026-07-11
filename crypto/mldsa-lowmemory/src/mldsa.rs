@@ -308,6 +308,81 @@
 //! private key encoding (which is often called the "semi-expanded format" since the in-memory representation
 //! is still larger).
 //! Contact us if you need such a thing implemented.
+//!
+//! # Suspending and resuming execution via SerializableState
+//!
+//! When signing or verifying a large message, it can be advantageous to be able to suspend the operation
+//! to a cache and resume it later; for example if waiting for the message to stream over a slow network
+//! connection.
+//!
+//! This can bo accomplished for both the ML-DSA signer and verifier through the [MuBuilder] object.
+//!
+//! Suspending an in-progress sign operation:
+//!
+//! ```rust
+//! use bouncycastle_mldsa_lowmemory::{MLDSA65, MuBuilder, MLDSATrait, MLDSAPublicKeyTrait};
+//! use bouncycastle_core::traits::{Signer, Suspendable};
+//!
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let (pk, sk) = MLDSA65::keygen().unwrap();
+//!
+//! let mut mb = MuBuilder::do_init(&pk.compute_tr(), None).unwrap();
+//! mb.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = mb.suspend();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! let mut mb_resumed = MuBuilder::from_suspended(serialized_state).unwrap();
+//! mb_resumed.do_update(msg_part2);
+//! let mu: [u8; 64] = mb_resumed.do_final();
+//!
+//! // Now we'll do the actual sign_mu operation
+//! let sig = MLDSA65::sign_mu(&sk, &mu).unwrap();
+//! ```
+//!
+//! Suspending an in-progress verify operation behaves exactly the same way:
+//!
+//! ```rust
+//! use bouncycastle_mldsa_lowmemory::{MLDSA65, MuBuilder, MLDSATrait, MLDSAPublicKeyTrait};
+//! use bouncycastle_core::traits::{Signer, Suspendable};
+//! use bouncycastle_core::errors::SignatureError;
+//!
+//! let (pk, sk) = MLDSA65::keygen().unwrap();
+//!
+//! // first, let's generate a signature to verify
+//! let sig = MLDSA65::sign(&sk, b"The quick brown fox jumped over the lazy dog", None).unwrap();
+//!
+//! // Now we'll verify it with a suspension in the middle
+//! let msg_part1 = b"The quick brown fox";
+//! let msg_part2 = b" jumped over the lazy dog";
+//!
+//! let mut mb = MuBuilder::do_init(&pk.compute_tr(), None).unwrap();
+//! mb.do_update(msg_part1);
+//!
+//! // here, we'll suspend while "waiting" for the second part of the message
+//! let serialized_state = mb.suspend();
+//!
+//! // ...
+//! // do other things in the meantime
+//! // ...
+//!
+//! let mut mb_resumed = MuBuilder::from_suspended(serialized_state).unwrap();
+//! mb_resumed.do_update(msg_part2);
+//! let mu: [u8; 64] = mb_resumed.do_final();
+//!
+//! // Now we'll do the actual verify_mu operation
+//! match MLDSA65::verify_mu(&pk, &mu, &sig) {
+//!     Ok(()) => println!("Signature is valid!"),
+//!     Err(SignatureError::SignatureVerificationFailed) => println!("Signature is invalid!"),
+//!     Err(e) => panic!("Something else went wrong: {:?}", e),
+//! }
+//! ```
 
 use crate::aux_functions::{
     bitlen_eta, bitpack_gamma1, sample_in_ball, unpack_c_tilde, unpack_h_row,
@@ -322,11 +397,13 @@ use crate::{
     MLDSA44PrivateKey, MLDSA44PublicKey, MLDSA65PrivateKey, MLDSA65PublicKey, MLDSA87PrivateKey,
     MLDSA87PublicKey,
 };
-use bouncycastle_core::errors::{RNGError, SignatureError};
+use bouncycastle_core::errors::{RNGError, SignatureError, SuspendableError};
 use bouncycastle_core::key_material::KeyMaterial;
-use bouncycastle_core::traits::{Algorithm, RNG, SecurityStrength, SignatureVerifier, Signer, XOF};
+use bouncycastle_core::traits::{
+    Algorithm, AlgorithmOID, RNG, SecurityStrength, SignatureVerifier, Signer, Suspendable, XOF,
+};
 use bouncycastle_rng::HashDRBG_SHA512;
-use bouncycastle_sha3::{SHAKE128, SHAKE256};
+use bouncycastle_sha3::{SHAKE128, SHAKE256, SUSPENDED_SHA3_STATE_LEN};
 use core::marker::PhantomData;
 
 // imports needed just for docs
@@ -507,6 +584,12 @@ impl Algorithm for MLDSA44 {
     const ALG_NAME: &'static str = ML_DSA_44_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-ml-dsa-44 { sigAlgs 17 }
+impl AlgorithmOID for MLDSA44 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 17];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11];
+}
 
 /// The ML-DSA-65 algorithm.
 pub type MLDSA65 = MLDSA<
@@ -541,6 +624,12 @@ impl Algorithm for MLDSA65 {
     const ALG_NAME: &'static str = ML_DSA_65_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-ml-dsa-65 { sigAlgs 18 }
+impl AlgorithmOID for MLDSA65 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 18];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12];
+}
 
 /// The ML-DSA-87 algorithm.
 pub type MLDSA87 = MLDSA<
@@ -574,6 +663,12 @@ pub type MLDSA87 = MLDSA<
 impl Algorithm for MLDSA87 {
     const ALG_NAME: &'static str = ML_DSA_87_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-ml-dsa-87 { sigAlgs 19 }
+impl AlgorithmOID for MLDSA87 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 3, 19];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x13];
 }
 
 /// The core internal implementation of the ML-DSA algorithm.
@@ -1210,7 +1305,7 @@ impl<
     /// Internal function to verify a signature 𝜎 for a formatted message 𝑀′ .
     /// Input: Public key 𝑝𝑘 ∈ 𝔹32+32𝑘(bitlen (𝑞−1)−𝑑) and message 𝑀′ ∈ {0, 1}∗ .
     /// Input: Signature 𝜎 ∈ 𝔹𝜆/4+ℓ⋅32⋅(1+bitlen (𝛾1−1))+𝜔+𝑘.
-    fn verify_mu_internal(pk: &PK, mu: &[u8; 64], sig: &[u8; SIG_LEN]) -> bool {
+    fn verify_mu(pk: &PK, mu: &[u8; 64], sig: &[u8; SIG_LEN]) -> Result<(), SignatureError> {
         // 1: (𝜌, 𝐭1) ← pkDecode(𝑝𝑘)
         // Already done -- the pk struct is already decoded
 
@@ -1247,7 +1342,7 @@ impl<
             } {
                 Ok(wp_approx) => wp_approx,
                 // means the norm check on z failed
-                Err(_) => return false,
+                Err(_) => return Err(SignatureError::SignatureVerificationFailed),
             };
 
             let h_i = match unpack_h_row::<
@@ -1262,7 +1357,7 @@ impl<
             {
                 Some(h_i) => h_i,
                 // means there were more than OMEGA bits set in the hint
-                None => return false,
+                None => return Err(SignatureError::SignatureVerificationFailed),
             };
 
             // 10: 𝐰1′ ← UseHint(𝐡, 𝐰'_approx)
@@ -1278,7 +1373,11 @@ impl<
         // 13 (second half): return [[ ||𝐳||∞ < 𝛾1 − 𝛽]] and [[𝑐 ̃ = 𝑐′ ]]
         //   note: the first half of this check (the norm check) is buried in unpack_z_row(),
         //         which is called from compute_wp_approx_row()
-        bouncycastle_utils::ct::ct_eq_bytes(unpack_c_tilde::<LAMBDA_over_4>(sig), &c_tilde_p)
+        if bouncycastle_utils::ct::ct_eq_bytes(unpack_c_tilde::<LAMBDA_over_4>(sig), &c_tilde_p) {
+            Ok(())
+        } else {
+            Err(SignatureError::SignatureVerificationFailed)
+        }
     }
 }
 
@@ -1504,11 +1603,10 @@ pub trait MLDSATrait<
         seed: &KeyMaterial<32>,
         ctx: Option<&[u8]>,
     ) -> Result<Self, SignatureError>;
-    /// Algorithm 8 ML-DSA.Verify_internal(𝑝𝑘, 𝑀′, 𝜎)
-    /// Internal function to verify a signature 𝜎 for a formatted message 𝑀′ .
-    /// Input: Public key 𝑝𝑘 ∈ 𝔹32+32𝑘(bitlen (𝑞−1)−𝑑) and message 𝑀′ ∈ {0, 1}∗ .
-    /// Input: Signature 𝜎 ∈ 𝔹𝜆/4+ℓ⋅32⋅(1+bitlen (𝛾1−1))+𝜔+𝑘.
-    fn verify_mu_internal(pk: &PK, mu: &[u8; 64], sig: &[u8; SIG_LEN]) -> bool;
+    /// Performs an ML-DSA signature verification using the provided external message representative `mu`.
+    /// This implements FIPS 204 Algorithm 8 with line 7 removed; a modification that is allowed by both
+    /// FIPS 204 itself, as well as subsequent FAQ documents.
+    fn verify_mu(pk: &PK, mu: &[u8; 64], sig: &[u8; SIG_LEN]) -> Result<(), SignatureError>;
 }
 
 impl<
@@ -1746,11 +1844,7 @@ impl<
         if sig.len() != SIG_LEN {
             return Err(SignatureError::LengthError("Signature value is not the correct length."));
         }
-        if Self::verify_mu_internal(pk, &mu, &sig.try_into().unwrap()) {
-            Ok(())
-        } else {
-            Err(SignatureError::SignatureVerificationFailed)
-        }
+        Self::verify_mu(pk, &mu, &sig.try_into().unwrap())
     }
 
     fn verify_init(pk: &PK, ctx: Option<&[u8]>) -> Result<Self, SignatureError> {
@@ -1780,11 +1874,7 @@ impl<
             return Err(SignatureError::LengthError("Signature value is not the correct length."));
         }
 
-        if Self::verify_mu_internal(&self.pk.unwrap(), &mu, &sig.try_into().unwrap()) {
-            Ok(())
-        } else {
-            Err(SignatureError::SignatureVerificationFailed)
-        }
+        Self::verify_mu(&self.pk.unwrap(), &mu, &sig.try_into().unwrap())
     }
 }
 
@@ -1797,6 +1887,7 @@ impl<
 /// does not benefit from allowing external construction of the message representative mu.
 /// You can get the same behaviour by computing the pre-hash `ph` with the appropriate hash function
 /// and providing that to HashMLDSA via [PHSigner::sign_ph].
+#[derive(Clone)]
 pub struct MuBuilder {
     h: H,
 }
@@ -1860,5 +1951,27 @@ impl MuBuilder {
         self.h.squeeze_out(&mut mu);
 
         mu
+    }
+}
+
+/// The length, in bytes, of a serialized state of a [MuBuilder] object.
+pub const SUSPENDED_MU_BUILDER_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
+
+/// If you are processing a large input message into ML-DSA and want to pause the operation
+/// -- maybe while waiting for slow network IO), you'll need to use [Suspendable].
+/// Serialization of the state of an in-progress ML-DSA instance is really just serialization
+/// of the construction of the message representative mu, since no other part of the ML-DSA algorithm
+/// has a pausable state.
+// A [MuBuilder]'s (and by virtue, an ML-DSA instance's) entire mutable state is its inner SHAKE256 sponge,
+// so serialization delegates directly to [SHAKE256]'s [SerializableState] impl.
+impl Suspendable<SUSPENDED_SHA3_STATE_LEN> for MuBuilder {
+    fn suspend(self) -> [u8; SUSPENDED_SHA3_STATE_LEN] {
+        self.h.suspend()
+    }
+
+    fn from_suspended(
+        serialized_state: [u8; SUSPENDED_SHA3_STATE_LEN],
+    ) -> Result<Self, SuspendableError> {
+        Ok(MuBuilder { h: H::from_suspended(serialized_state)? })
     }
 }

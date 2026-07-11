@@ -22,8 +22,6 @@
   appropriate.
 * Probably it makes sense to leave Hex and Base64 as requiring std; ... or maybe add a no_std version that uses
   fixed-sized blocks?
-* Make this build on the stable compiler. IE Remove the rust-toolchain.toml file that builds with nightly. Will require
-  some refactoring.
 * Create a cargo feature #[cfg(feature='rng')] and put it around things like keygen that takes an rng so that the build
   dependency on bouncycastle_rng is optional.
 * Factories ... Are they worth it? Michael Richardson says Very Yes. If we are keeping them, then we need a serious
@@ -31,24 +29,34 @@
   static one-shot APIs.
 * Deal with as many of the inline TODOs as possible
 * Close all open github issues and document them in this file.
-* After everything is merged, circle back to crucible, and make sure that the harness still works (and maybe remove the
-  nightly build toolchain)
+* After everything is merged, circle back to crucible, and make sure that the harness still works
 * Search for all the uses of .unwrap() in non-test code and replace each with either a comment or an expect with a
   meaningful error string.
 
 # 0.1.2 Features / Changelog
+
+## Major features
 
 * New algorithms added to crypto/ :
     * mldsa (FIPS 204)
     * mldsa-lowmemory -- runs in about 1/10th of the usual memory (~ 30 kb of stack) with comparable performance impact.
     * mlkem (FIPS 203)
     * mlkem-lowmemory -- runs in about 1/4th of the usual memory (~ 12 kb of stack) with comparable performance impact.
+* New traits [Suspendable] and [SuspendableKeyed] allow algorithms with a streaming API (`do_update()` ->
+  `do_final()`) to be suspended to a small byte array and then resumed later, potentially from a different host and
+  potentially across versions of the library. The intended use case is if you are processing a large input that depends
+  on one or more network round-trips and you wish to suspend to a cache and potentially transfer to a new host while
+  waiting for network IO.
+
+## Minor features / bug fixes
+
 * All public `*_out(.., out: &mut [u8])` functions now begin by zeroizing the entire output buffer with `.fill(0)`,
   preventing exposure of stale data in oversized output buffers or on early error returns.
 * Reworked the way KeyMaterial hazardous operations work; instead of a stateful .allow_hazardous_operations() /
   .drop_hazardous_operations(), it now uses a closure-based do_hazardous_operations(). Github issue #39.
 * Renamed KeyMaterial::KeyType's and deleted KeyMaterial::concatenate in order to give a better intuition and
   FIPS-alignment.
+* Removed the dependence on nightly / experimental compiler features; the library now buildds on stable.
 * Github issues resolved:
     * #6: https://github.com/bcgit/bc-rust/issues/6, thanks to Q. T. Felix (github: @Quant-TheodoreFelix)
     * #10: https://github.com/bcgit/bc-rust/issues/10, thanks to Nicola Tuveri (github: @romen)

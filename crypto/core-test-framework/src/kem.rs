@@ -1,9 +1,12 @@
+//! Generic behaviour tests for anything that implements [KEMEncapsulator] and [KEMDecapsulator].
+
 use crate::FixedSeedRNG;
 use bouncycastle_core::errors::KEMError;
 use bouncycastle_core::traits::{
     KEMDecapsulator, KEMEncapsulator, KEMPrivateKey, KEMPublicKey, RNG, SecurityStrength,
 };
 
+/// Instance of the test framework.
 pub struct TestFrameworkKEM {
     // Put any config options here
     /// Should the test framework expect that repeated calls to encaps() will produce the same CT?
@@ -15,6 +18,7 @@ pub struct TestFrameworkKEM {
 }
 
 impl TestFrameworkKEM {
+    ///
     pub fn new(alg_is_deterministic: bool, is_implicitly_rejecting: bool) -> Self {
         Self { alg_is_deterministic, is_implicitly_rejecting }
     }
@@ -140,9 +144,11 @@ impl TestFrameworkKEM {
     }
 }
 
+/// Instance of the test framework.
 pub struct TestFrameworkKEMKeys {}
 
 impl TestFrameworkKEMKeys {
+    ///
     pub fn new() -> Self {
         Self {}
     }

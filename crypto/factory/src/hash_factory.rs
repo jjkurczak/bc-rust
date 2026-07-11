@@ -29,22 +29,30 @@
 use crate::{AlgorithmFactory, FactoryError};
 use crate::{DEFAULT, DEFAULT_128_BIT, DEFAULT_256_BIT};
 use bouncycastle_core::errors::HashError;
-use bouncycastle_core::traits::{Hash, SecurityStrength};
+use bouncycastle_core::traits::{Algorithm, Hash, SecurityStrength};
 use bouncycastle_sha2 as sha2;
 use bouncycastle_sha2::{SHA224_NAME, SHA256_NAME, SHA384_NAME, SHA512_NAME};
 use bouncycastle_sha3 as sha3;
 use bouncycastle_sha3::{SHA3_224_NAME, SHA3_256_NAME, SHA3_384_NAME, SHA3_512_NAME};
 
-/// All members must impl Hash.
+/// Wrapper object for all algorithms that impl [Hash].
 /// Note: no SHAKE because SHAKE is not NIST approved as a hash function. See FIPS 202 section A.2.
 pub enum HashFactory {
+    ///
     SHA224(sha2::SHA224),
+    ///
     SHA256(sha2::SHA256),
+    ///
     SHA384(sha2::SHA384),
+    ///
     SHA512(sha2::SHA512),
+    ///
     SHA3_224(sha3::SHA3_224),
+    ///
     SHA3_256(sha3::SHA3_256),
+    ///
     SHA3_384(sha3::SHA3_384),
+    ///
     SHA3_512(sha3::SHA3_512),
 }
 
@@ -81,6 +89,15 @@ impl AlgorithmFactory for HashFactory {
             ))),
         }
     }
+}
+
+// TODO -- this is broken.
+//      The designed behaviour here is that the Factory object pass these through to the underlying algorithm
+//      that it's wrapping, but that can't be done with consts, so I think the Algorithm trait needs
+//      a rework to be functions instead of consts.
+impl Algorithm for HashFactory {
+    const ALG_NAME: &'static str = "TODO";
+    const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::None;
 }
 
 impl Hash for HashFactory {

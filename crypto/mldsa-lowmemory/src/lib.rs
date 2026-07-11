@@ -200,11 +200,8 @@
 //! constant-time after compilation.
 
 #![no_std]
-#![forbid(missing_docs)]
 #![forbid(unsafe_code)]
-#![allow(incomplete_features)] // needed because currently generic_const_exprs is experimental
-#![feature(generic_const_exprs)]
-#![feature(adt_const_params)]
+#![forbid(missing_docs)]
 // These are because I'm matching variable names exactly against FIPS 204, for example both 'K' and 'k',
 // or 'A' and 'a' are used and have specific meanings.
 // But need to tell the rust linter to not care.
@@ -213,8 +210,6 @@
 // so I can use private traits to hide internal stuff that needs to be generic within the
 // MLDSA implementation, but I don't want accessed from outside, such as FIPS-internal functions.
 #![allow(private_bounds)]
-// Used in HashMLDSA
-#![feature(unsized_const_params)]
 
 // imports needed just for docs
 #[allow(unused_imports)]
@@ -257,6 +252,8 @@ pub use mldsa::{MLDSA_MU_LEN, MLDSA_RND_LEN, MLDSA_TR_LEN};
 pub use mldsa::{MLDSA44_PK_LEN, MLDSA44_SIG_LEN, MLDSA44_SK_LEN};
 pub use mldsa::{MLDSA65_PK_LEN, MLDSA65_SIG_LEN, MLDSA65_SK_LEN};
 pub use mldsa::{MLDSA87_PK_LEN, MLDSA87_SIG_LEN, MLDSA87_SK_LEN};
+
+pub use mldsa::SUSPENDED_MU_BUILDER_STATE_LEN;
 
 // re-export just so it's visible to unit tests
 pub use polynomial::Polynomial;

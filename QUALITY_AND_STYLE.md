@@ -12,6 +12,10 @@ lib.rs for all crates needs to contain: `#![forbid(missing_docs)]`, `#![no_std]`
 
 All primitives must be accompanied by a CLI in `/cli`.
 
+All algorithms with a state that is exercised across multiple API calls -- typically through a `do_update()`,
+`do_final()` pattern -- should implement SerializableState so that the user can pause the execution of this algorithm to
+a cache and resume later.
+
 # Quality
 
 ## Tests

@@ -1,4 +1,6 @@
-use crate::DUMMY_SEED_512;
+//! Generic behaviour tests for anything that implements [MAC].
+
+use crate::DUMMY_SEED;
 use bouncycastle_core::errors::{KeyMaterialError, MACError};
 use bouncycastle_core::key_material::{
     KeyMaterial512, KeyMaterialTrait, KeyType, do_hazardous_operations,
@@ -6,11 +8,13 @@ use bouncycastle_core::key_material::{
 use bouncycastle_core::traits::MAC;
 use bouncycastle_core::traits::SecurityStrength;
 
+/// Instance of the test framework.
 pub struct TestFrameworkMAC {
     // Put any config options here
 }
 
 impl TestFrameworkMAC {
+    ///
     pub fn new() -> Self {
         Self {}
     }
@@ -78,7 +82,7 @@ impl TestFrameworkMAC {
         // MACs of all security strengths should throw an error on a no-security (and non-zero) key.
 
         let mut key_none =
-            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED_512[0..64], KeyType::MACKey).unwrap();
+            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED[0..64], KeyType::MACKey).unwrap();
         key_none.set_security_strength(SecurityStrength::None).unwrap();
 
         match M::new(&key_none) {
@@ -89,7 +93,7 @@ impl TestFrameworkMAC {
         }
 
         let mut low_security_key =
-            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED_512[..64], KeyType::MACKey).unwrap();
+            KeyMaterial512::from_bytes_as_type(&DUMMY_SEED[..64], KeyType::MACKey).unwrap();
         do_hazardous_operations(&mut low_security_key, |low_security_key| {
             match M::new_allow_weak_key(key).unwrap().max_security_strength() {
                 SecurityStrength::None => {

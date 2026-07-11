@@ -1,4 +1,6 @@
-use crate::{DUMMY_SEED_512, DUMMY_SEED_1024};
+//! Generic behaviour tests for the symmetric cipher traits.
+
+use crate::DUMMY_SEED;
 use bouncycastle_core::errors::SymmetricCipherError;
 use bouncycastle_core::key_material::{
     KeyMaterial, KeyMaterialTrait, KeyType, do_hazardous_operations,
@@ -7,11 +9,13 @@ use bouncycastle_core::traits::{
     AEADCipher, BlockCipher, SecurityStrength, StreamCipher, SymmetricCipher,
 };
 
+/// Instance of the test framework.
 pub struct TestFrameworkSymmetricCipher {
     // Put any config options here
 }
 
 impl TestFrameworkSymmetricCipher {
+    ///
     pub fn new() -> Self {
         Self {}
     }
@@ -28,7 +32,7 @@ impl TestFrameworkSymmetricCipher {
         let msg = b"The quick brown fox jumps over the lazy dog";
 
         let key = KeyMaterial::<KEY_LEN>::from_bytes_as_type(
-            &DUMMY_SEED_512[..KEY_LEN],
+            &DUMMY_SEED[..KEY_LEN],
             KeyType::SymmetricCipherKey,
         )
         .unwrap();
@@ -59,7 +63,7 @@ impl TestFrameworkSymmetricCipher {
 
         // error case: KeyMaterial of wrong type
         let mac_key =
-            KeyMaterial::<KEY_LEN>::from_bytes_as_type(&DUMMY_SEED_512[..KEY_LEN], KeyType::MACKey)
+            KeyMaterial::<KEY_LEN>::from_bytes_as_type(&DUMMY_SEED[..KEY_LEN], KeyType::MACKey)
                 .unwrap();
         match C::encrypt_out(&mac_key, msg, &mut ct) {
             Err(SymmetricCipherError::KeyMaterialError(_)) => { /* good */ }
@@ -68,7 +72,7 @@ impl TestFrameworkSymmetricCipher {
 
         // error case: security strengths too weak and too strong
         let mut key = KeyMaterial::<KEY_LEN>::from_bytes_as_type(
-            &DUMMY_SEED_512[..KEY_LEN],
+            &DUMMY_SEED[..KEY_LEN],
             KeyType::SymmetricCipherKey,
         )
         .unwrap();
@@ -104,15 +108,18 @@ impl TestFrameworkSymmetricCipher {
     }
 }
 
+/// Instance of the test framework.
 pub struct TestFrameworkBlockCipher {
     // Put any config options here
 }
 
 impl TestFrameworkBlockCipher {
+    ///
     pub fn new() -> Self {
         Self {}
     }
 
+    ///
     pub fn test<
         const KEY_LEN: usize,
         const INIT_DATA_LEN: usize,
@@ -122,7 +129,7 @@ impl TestFrameworkBlockCipher {
         &self,
     ) {
         let key = KeyMaterial::<KEY_LEN>::from_bytes_as_type(
-            &DUMMY_SEED_512[..KEY_LEN],
+            &DUMMY_SEED[..KEY_LEN],
             KeyType::SymmetricCipherKey,
         )
         .unwrap();
@@ -131,7 +138,7 @@ impl TestFrameworkBlockCipher {
         let (mut encryptor, iv) = C::do_encrypt_init(&key).unwrap();
         let mut decryptor = C::do_decrypt_init(&key, &iv).unwrap();
 
-        for msg_chunk in DUMMY_SEED_512.as_chunks::<BLOCK_LEN>().0.iter() {
+        for msg_chunk in DUMMY_SEED.as_chunks::<BLOCK_LEN>().0.iter() {
             let ct = encryptor.do_encrypt_block(msg_chunk).unwrap();
             let pt = decryptor.do_decrypt_block(&ct).unwrap();
             assert_eq!(msg_chunk, &pt);
@@ -144,7 +151,7 @@ impl TestFrameworkBlockCipher {
 
         let mut ct = [0u8; BLOCK_LEN];
         let mut pt = [0u8; BLOCK_LEN];
-        for msg_chunk in DUMMY_SEED_1024.as_chunks::<BLOCK_LEN>().0.iter() {
+        for msg_chunk in DUMMY_SEED.as_chunks::<BLOCK_LEN>().0.iter() {
             let ct_bytes_written = encryptor.do_encrypt_block_out(msg_chunk, &mut ct).unwrap();
             assert_eq!(ct_bytes_written, BLOCK_LEN);
 
@@ -161,7 +168,7 @@ impl TestFrameworkBlockCipher {
 
         // error case: KeyMaterial of wrong type
         let mac_key =
-            KeyMaterial::<KEY_LEN>::from_bytes_as_type(&DUMMY_SEED_512[..KEY_LEN], KeyType::MACKey)
+            KeyMaterial::<KEY_LEN>::from_bytes_as_type(&DUMMY_SEED[..KEY_LEN], KeyType::MACKey)
                 .unwrap();
         match C::do_encrypt_init(&mac_key) {
             Err(SymmetricCipherError::KeyMaterialError(_)) => { /* good */ }
@@ -170,7 +177,7 @@ impl TestFrameworkBlockCipher {
 
         // error case: security strengths too weak and too strong
         let mut key = KeyMaterial::<KEY_LEN>::from_bytes_as_type(
-            &DUMMY_SEED_512[..KEY_LEN],
+            &DUMMY_SEED[..KEY_LEN],
             KeyType::SymmetricCipherKey,
         )
         .unwrap();
@@ -206,11 +213,13 @@ impl TestFrameworkBlockCipher {
     }
 }
 
+/// Instance of the test framework.
 pub struct TestFrameworkAEADCipher {
     // Put any config options here
 }
 
 impl TestFrameworkAEADCipher {
+    ///
     pub fn new() -> Self {
         Self {}
     }
@@ -229,7 +238,7 @@ impl TestFrameworkAEADCipher {
         let aad = b"some associated data";
 
         let key = KeyMaterial::<KEY_LEN>::from_bytes_as_type(
-            &DUMMY_SEED_512[..KEY_LEN],
+            &DUMMY_SEED[..KEY_LEN],
             KeyType::SymmetricCipherKey,
         )
         .unwrap();
@@ -297,7 +306,7 @@ impl TestFrameworkAEADCipher {
 
         // error case: KeyMaterial of wrong type
         let mac_key =
-            KeyMaterial::<KEY_LEN>::from_bytes_as_type(&DUMMY_SEED_512[..KEY_LEN], KeyType::MACKey)
+            KeyMaterial::<KEY_LEN>::from_bytes_as_type(&DUMMY_SEED[..KEY_LEN], KeyType::MACKey)
                 .unwrap();
         match C::aead_encrypt_out(&mac_key, aad, msg, &mut ct) {
             Err(SymmetricCipherError::KeyMaterialError(_)) => { /* good */ }
@@ -306,7 +315,7 @@ impl TestFrameworkAEADCipher {
 
         // error case: security strengths too weak and too strong
         let mut key = KeyMaterial::<KEY_LEN>::from_bytes_as_type(
-            &DUMMY_SEED_512[..KEY_LEN],
+            &DUMMY_SEED[..KEY_LEN],
             KeyType::SymmetricCipherKey,
         )
         .unwrap();
@@ -346,11 +355,13 @@ impl TestFrameworkAEADCipher {
     }
 }
 
+/// Instance of the test framework.
 pub struct TestFrameworkStreamCipher {
     // Put any config options here
 }
 
 impl TestFrameworkStreamCipher {
+    ///
     pub fn new() -> Self {
         Self {}
     }

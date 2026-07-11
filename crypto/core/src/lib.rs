@@ -4,7 +4,9 @@
 // #![no_std]
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 
 pub mod errors;
 pub mod key_material;
+pub mod suspendable_state;
 pub mod traits;

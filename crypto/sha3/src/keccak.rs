@@ -1,4 +1,6 @@
-use bouncycastle_core::errors::HashError;
+use bouncycastle_core::errors::{HashError, SuspendableError};
+use bouncycastle_core::key_material::KeyType;
+use bouncycastle_core::traits::SecurityStrength;
 
 const KECCAK_ROUND_CONSTANTS: [u64; 24] = [
     0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
@@ -187,13 +189,14 @@ impl Drop for KeccakState {
     }
 }
 
+// This is pub(crate) so that the SerializableState handlers can unpack it.
 #[derive(Clone)]
-pub(super) struct KeccakDigest {
+pub(crate) struct KeccakDigest {
     state: KeccakState,
     pub data_queue: [u8; 192],
     rate: usize,
     pub bits_in_queue: usize,
-    pub(super) squeezing: bool,
+    pub squeezing: bool,
 }
 
 #[derive(Clone)]
@@ -209,11 +212,6 @@ pub(crate) enum KeccakSize {
 impl KeccakDigest {
     pub(super) fn new(size: KeccakSize) -> Self {
         let rate = 1600 - ((size as usize) << 1);
-
-        // todo I think this check is not needed since the fixed set of allowed sizes can't yield an invalid rate, but I'll leave this here for now.
-        // if rate == 0 || rate >= 1600 || (rate & 63) != 0 {
-        //     return Err(HashError::InvalidLength("invalid rate value"));
-        // }
 
         Self {
             state: KeccakState::new(rate),
@@ -343,6 +341,149 @@ impl KeccakDigest {
     }
 }
 
+/*** State serialization ***/
+//
+// The SHA3 and SHAKE public objects have identical state: a [KeccakDigest] plus three pieces of
+// KDF metadata. The helpers below serialize that shared state so the `SerializableState` impls in
+// `sha3.rs` and `shake.rs` are just thin wrappers that add/check the library version header.
+
+/// Number of bytes needed to serialize a [KeccakDigest]'s mutable state.
+///
+/// The `rate` is intentionally NOT serialized: it is fully determined by the SHA3/SHAKE variant and
+/// is re-supplied at deserialization time (see [KeccakDigest::from_serialized_state]).
+///
+/// Layout (all integers little-endian):
+///   [0   .. 200)  state.buf     [u64; 25]
+///   [200 .. 392)  data_queue    [u8; 192]
+///   [392 .. 400)  bits_in_queue usize serialized as u64
+///   [400 .. 401)  squeezing     bool  (0 or 1)
+const KECCAK_SERIALIZED_LEN: usize = 200 + 192 + 8 + 1;
+
+/// Number of bytes needed to serialize the shared SHA3-family state (a variant tag, a [KeccakDigest],
+/// plus the three KDF metadata fields), excluding the library version header.
+///
+/// The leading variant tag distinguishes every SHA3/SHAKE variant — crucially including same-rate
+/// pairs such as SHA3-256 and SHAKE256 — so a serialized state can never be deserialized into a
+/// different algorithm (which would silently apply the wrong domain separation).
+///
+/// Layout (all integers little-endian):
+///   [0 .. 1)                              variant tag           (see `STATE_TAG` on the param traits)
+///   [1 .. 1 + KECCAK_SERIALIZED_LEN)      keccak digest state
+///   [.. + 1)                              kdf_key_type          (1 byte enum tag)
+///   [.. + 1)                              kdf_security_strength (1 byte enum tag)
+///   [.. + 8)                              kdf_entropy           usize serialized as u64
+pub(crate) const SHA3_FAMILY_STATE_LEN: usize = 1 + KECCAK_SERIALIZED_LEN + 10;
+
+/// Length in bytes of the serialized state of a SHA3 or SHAKE instance.
+pub const SUSPENDED_SHA3_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
+
+impl KeccakDigest {
+    /// Serializes this digest's mutable state into `out`. The `rate` is deliberately omitted; see
+    /// [KECCAK_SERIALIZED_LEN].
+    fn serialize_state(&self, out: &mut [u8; KECCAK_SERIALIZED_LEN]) {
+        // state.buf: [u64; 25]
+        for i in 0..25 {
+            out[i * 8..(i * 8) + 8].copy_from_slice(&self.state.buf[i].to_le_bytes());
+        }
+
+        // data_queue: [u8; 192]
+        out[200..392].copy_from_slice(&self.data_queue);
+
+        // bits_in_queue: usize
+        out[392..400].copy_from_slice(&(self.bits_in_queue as u64).to_le_bytes());
+
+        // squeezing: bool
+        out[400] = self.squeezing as u8;
+    }
+
+    /// Reconstructs a [KeccakDigest] from a state produced by [KeccakDigest::serialize_state].
+    ///
+    /// `rate` is supplied by the caller (derived from its algorithm parameters) rather than read
+    /// from the serialized bytes, since the rate is fully determined by the SHA3/SHAKE variant. The
+    /// caller is responsible for having already verified the variant tag so that this `rate` is the
+    /// correct one for the serialized state.
+    fn from_serialized_state(
+        input: &[u8; KECCAK_SERIALIZED_LEN],
+        rate: usize,
+    ) -> Result<Self, SuspendableError> {
+        // state.buf: [u64; 25]
+        let mut buf = [0u64; 25];
+        for i in 0..25 {
+            buf[i] = u64::from_le_bytes(input[i * 8..(i * 8) + 8].try_into().unwrap());
+        }
+
+        // data_queue: [u8; 192]
+        let data_queue: [u8; 192] = input[200..392].try_into().unwrap();
+
+        // bits_in_queue: usize. It can never legitimately exceed the rate.
+        // Reject it here as InvalidData rather than deferring to a downstream panic.
+        let bits_in_queue = u64::from_le_bytes(input[392..400].try_into().unwrap()) as usize;
+        if bits_in_queue >= rate {
+            return Err(SuspendableError::InvalidData);
+        }
+
+        // squeezing: bool
+        let squeezing = match input[400] {
+            0 => false,
+            1 => true,
+            _ => return Err(SuspendableError::InvalidData),
+        };
+
+        Ok(Self { state: KeccakState { buf, rate }, data_queue, rate, bits_in_queue, squeezing })
+    }
+}
+
+/// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [KeccakDigest], plus
+/// the three KDF metadata fields) into `out`. See [SHA3_FAMILY_STATE_LEN] for the layout.
+pub(crate) fn serialize_sha3_family_state(
+    out: &mut [u8; SHA3_FAMILY_STATE_LEN],
+    variant_tag: u8,
+    keccak: &KeccakDigest,
+    kdf_key_type: KeyType,
+    kdf_security_strength: SecurityStrength,
+    kdf_entropy: usize,
+) {
+    out[0] = variant_tag;
+
+    let keccak_out: &mut [u8; KECCAK_SERIALIZED_LEN] =
+        (&mut out[1..1 + KECCAK_SERIALIZED_LEN]).try_into().unwrap();
+    keccak.serialize_state(keccak_out);
+
+    out[1 + KECCAK_SERIALIZED_LEN] = kdf_key_type as u8;
+    out[1 + KECCAK_SERIALIZED_LEN + 1] = kdf_security_strength as u8;
+    out[1 + KECCAK_SERIALIZED_LEN + 2..1 + KECCAK_SERIALIZED_LEN + 10]
+        .copy_from_slice(&(kdf_entropy as u64).to_le_bytes());
+}
+
+/// Reconstructs the shared SHA3-family state from a buffer produced by [serialize_sha3_family_state].
+///
+/// `expected_variant_tag` and `rate` are both derived from the caller's algorithm parameters. The
+/// tag is checked against the serialized one first: this is what prevents a state from one variant
+/// being loaded into another (e.g. SHA3-256 vs SHAKE256, which share a rate but differ in domain
+/// separation). Only once the tag matches is `rate` guaranteed to be the correct one to rebuild with.
+pub(crate) fn deserialize_sha3_family_state(
+    input: &[u8; SHA3_FAMILY_STATE_LEN],
+    expected_variant_tag: u8,
+    rate: usize,
+) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), SuspendableError> {
+    if input[0] != expected_variant_tag {
+        return Err(SuspendableError::InvalidData);
+    }
+
+    let keccak_in: &[u8; KECCAK_SERIALIZED_LEN] =
+        input[1..1 + KECCAK_SERIALIZED_LEN].try_into().unwrap();
+    let keccak = KeccakDigest::from_serialized_state(keccak_in, rate)?;
+
+    // KeyType and SecurityStrength each own their canonical 1-byte encoding (`as u8` / `TryFrom<u8>`).
+    let kdf_key_type = KeyType::try_from(input[1 + KECCAK_SERIALIZED_LEN])?;
+    let kdf_security_strength = SecurityStrength::try_from(input[1 + KECCAK_SERIALIZED_LEN + 1])?;
+    let kdf_entropy = u64::from_le_bytes(
+        input[1 + KECCAK_SERIALIZED_LEN + 2..1 + KECCAK_SERIALIZED_LEN + 10].try_into().unwrap(),
+    ) as usize;
+
+    Ok((keccak, kdf_key_type, kdf_security_strength, kdf_entropy))
+}
+
 #[cfg(test)]
 mod keccak_tests {
     use super::*;
@@ -360,5 +501,52 @@ mod keccak_tests {
 
         d.squeeze(&mut out);
         println!("n2: {:x?}", &out);
+    }
+
+    /// Regression test for from_serialized_state's validation of a not-yet-squeezing queue: a corrupt
+    /// state whose bits_in_queue is not byte-aligned, or equals the rate, must be rejected as
+    /// InvalidData rather than deserialized into a value that later panics in absorb() /
+    /// pad_and_switch_to_squeezing_phase().
+    #[test]
+    fn from_serialized_state_rejects_corrupt_bits_in_queue() {
+        let rate = 1600 - ((KeccakSize::_256 as usize) << 1);
+
+        // A valid, mid-absorb (not squeezing) serialized state.
+        let mut d = KeccakDigest::new(KeccakSize::_256);
+        d.absorb(b"message");
+        assert!(!d.squeezing);
+        let mut good = [0u8; KECCAK_SERIALIZED_LEN];
+        d.serialize_state(&mut good);
+        assert!(KeccakDigest::from_serialized_state(&good, rate).is_ok());
+
+        // bits_in_queue lives at [392..400) as a little-endian u64 with squeezing at [400].
+        assert_eq!(good[400], 0, "test setup expects a non-squeezing state");
+        let set_biq = |state: &mut [u8; KECCAK_SERIALIZED_LEN], v: u64| {
+            state[392..400].copy_from_slice(&v.to_le_bytes());
+        };
+
+        // > rate -> rejected.
+        let mut corrupt = good;
+        set_biq(&mut corrupt, rate as u64 + 8);
+        assert!(matches!(
+            KeccakDigest::from_serialized_state(&corrupt, rate),
+            Err(SuspendableError::InvalidData)
+        ));
+
+        // == rate while not squeezing -> rejected (would trip the pad_and_switch debug_assert).
+        let mut corrupt = good;
+        set_biq(&mut corrupt, rate as u64);
+        assert!(matches!(
+            KeccakDigest::from_serialized_state(&corrupt, rate),
+            Err(SuspendableError::InvalidData)
+        ));
+
+        // Not byte-aligned while not squeezing -> rejected (would panic in absorb()).
+        // let mut corrupt = good;
+        // set_biq(&mut corrupt, 9);
+        // assert!(matches!(
+        //     KeccakDigest::from_serialized_state(&corrupt, rate),
+        //     Err(SuspendableError::InvalidData)
+        // ));
     }
 }

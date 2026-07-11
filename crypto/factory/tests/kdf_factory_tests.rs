@@ -4,7 +4,7 @@ mod kdf_factory_tests {
         KeyMaterial256, KeyMaterial512, KeyMaterialTrait, KeyType,
     };
     use bouncycastle_core::traits::KDF;
-    use bouncycastle_core_test_framework::DUMMY_SEED_512;
+    use bouncycastle_core_test_framework::DUMMY_SEED;
     use bouncycastle_factory as factory;
     use bouncycastle_factory::AlgorithmFactory;
     use bouncycastle_factory::kdf_factory::KDFFactory;
@@ -12,7 +12,7 @@ mod kdf_factory_tests {
 
     #[test]
     fn sha3_kdf_tests() {
-        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED_512[..32]).unwrap();
+        let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
 
         // SHA3_224
         let derived_key =
@@ -65,7 +65,7 @@ mod kdf_factory_tests {
         // Note: this value is not checked against any external reference implementation,
         // I just hard-coded the value to make sure it stays consistent.
         let key_material =
-            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED_512[..32], KeyType::MACKey).unwrap();
+            KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::MACKey).unwrap();
         let derived_key =
             KDFFactory::new("HKDF-SHA256").unwrap().derive_key(&key_material, &[0u8; 0]).unwrap();
         let expected_key = KeyMaterial256::from_bytes(b"\x37\xad\x29\x10\x9f\x43\x26\x52\x87\x80\x4b\x67\x4e\x26\x53\xd0\xa5\x13\x71\x89\x07\xf9\x7f\xca\x97\xc9\x5b\xde\xd8\x10\x4b\xbf").unwrap();
@@ -74,7 +74,7 @@ mod kdf_factory_tests {
         /* HKDF-SHA512 */
         // Note: this value is not checked against any external reference implementation,
         // I just hard-coded the value to make sure it stays consistent.
-        let key_material = KeyMaterial512::from_bytes(&DUMMY_SEED_512[..64]).unwrap();
+        let key_material = KeyMaterial512::from_bytes(&DUMMY_SEED[..64]).unwrap();
         let derived_key =
             KDFFactory::new("HKDF-SHA512").unwrap().derive_key(&key_material, &[0u8; 0]).unwrap();
         let expected_key = KeyMaterial512::from_bytes(b"\x8f\x5a\x29\x79\xfe\x16\x4d\x3a\x01\x72\x02\x32\x6c\x61\x97\xae\xa2\x58\x56\x3d\x90\x9b\x01\x20\x12\x1c\x37\x22\x6c\xb3\xd3\x68\xf4\x31\xf9\x79\x9d\x33\x8c\xe3\x0e\xfc\x5f\x41\xaf\xfc\x3d\x38\x54\x44\xa0\x65\xae\x80\x78\x60\x59\x45\x79\x50\xa1\xe6\x5e\x57").unwrap();
@@ -83,7 +83,7 @@ mod kdf_factory_tests {
 
     #[test]
     fn test_defaults() {
-        let key = KeyMaterial256::from_bytes(&DUMMY_SEED_512[..32]).unwrap();
+        let key = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
 
         // All the ways to get "default"
         let _ = KDFFactory::default().derive_key(&key, &[0u8; 0]).unwrap();
