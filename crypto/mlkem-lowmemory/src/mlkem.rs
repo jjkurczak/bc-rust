@@ -17,7 +17,7 @@ use bouncycastle_core::key_material::{
     KeyMaterial, KeyMaterialTrait, KeyType, do_hazardous_operations,
 };
 use bouncycastle_core::traits::{
-    Algorithm, Hash, KEMDecapsulator, KEMEncapsulator, RNG, SecurityStrength, XOF,
+    Algorithm, AlgorithmOID, Hash, KEMDecapsulator, KEMEncapsulator, RNG, SecurityStrength, XOF,
 };
 use bouncycastle_rng::HashDRBG_SHA512;
 use bouncycastle_sha3::{SHA3_256, SHA3_512, SHAKE256};
@@ -136,6 +136,12 @@ impl Algorithm for MLKEM512 {
     const ALG_NAME: &'static str = ML_KEM_512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-alg-ml-kem-512 { kems 1 }
+impl AlgorithmOID for MLKEM512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 4, 1];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x04, 0x01];
+}
 
 /// The ML-KEM-768 algorithm.
 pub type MLKEM768 = MLKEM<
@@ -158,6 +164,12 @@ impl Algorithm for MLKEM768 {
     const ALG_NAME: &'static str = ML_KEM_768_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-alg-ml-kem-768 { kems 2 }
+impl AlgorithmOID for MLKEM768 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 4, 2];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x04, 0x02];
+}
 
 /// The ML-KEM-1024 algorithm.
 pub type MLKEM1024 = MLKEM<
@@ -179,6 +191,12 @@ pub type MLKEM1024 = MLKEM<
 impl Algorithm for MLKEM1024 {
     const ALG_NAME: &'static str = ML_KEM_1024_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-alg-ml-kem-1024 { kems 3 }
+impl AlgorithmOID for MLKEM1024 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 4, 3];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x04, 0x03];
 }
 
 /// The core internal implementation of the ML-KEM algorithm.

@@ -7,12 +7,12 @@
 use core::ops::*;
 
 mod sealed {
-    pub trait Sealed {}
+    pub(super) trait Sealed {}
 }
 
-pub struct MaskType<T>(core::marker::PhantomData<T>);
+struct MaskType<T>(core::marker::PhantomData<T>);
 
-pub trait SupportedMaskType: sealed::Sealed {}
+trait SupportedMaskType: sealed::Sealed {}
 
 macro_rules! supported_mask_type {
     ($($t:ty),+) => {
@@ -25,6 +25,7 @@ macro_rules! supported_mask_type {
 
 supported_mask_type!(i64, u64);
 
+/// Helper functions for checking some condition on some data using constant-time operations.
 #[derive(Clone, Copy)]
 #[must_use]
 #[repr(transparent)]
@@ -42,57 +43,57 @@ impl Condition<i64> {
     pub const TRUE: Self = Self(-1);
     /// FALSE is the bit vector of all 0's
     pub const FALSE: Self = Self(0);
-
+    ///
     pub const fn from_bool<const VALUE: bool>() -> Self {
         Self(-(VALUE as i64))
     }
-
+    ///
     pub const fn from_bool_var(value: bool) -> Self {
         Self(-(value as i64))
     }
-
+    ///
     pub const fn is_bit_set(value: i64, bit: i64) -> Self {
         Self(-((value >> bit) & 1))
     }
-
+    ///
     pub const fn is_negative(value: i64) -> Self {
         Self(value >> 63)
     }
-
+    ///
     pub const fn is_not_zero(value: i64) -> Self {
         Self::is_negative(-Self::or_halves(value))
     }
-
+    ///
     pub const fn is_zero(value: i64) -> Self {
         Self::is_negative(Self::or_halves(value) - 1)
     }
-
+    ///
     pub const fn is_equal(x: i64, y: i64) -> Self {
         Self::is_zero(x ^ y)
     }
-
+    ///
     pub const fn is_lt(x: i64, y: i64) -> Self {
         Self::is_negative(x - y)
     }
-
+    ///
     // Note: haven't found a clever way to make this const, since it either needs a (non-const) not (!) or a boolean OR is_zero.
     pub fn is_lte(x: i64, y: i64) -> Self {
         !Self::is_gt(x, y)
     }
-
+    ///
     pub const fn is_gt(x: i64, y: i64) -> Self {
         Self::is_lt(y, x)
     }
-
+    ///
     // Note: haven't found a clever way to make this const, since it either needs a (non-const) not (!) or a boolean OR is_zero.
     pub fn is_gte(x: i64, y: i64) -> Self {
         !Self::is_lt(x, y)
     }
-
+    ///
     pub fn is_within_range(value: i64, min: i64, max: i64) -> Self {
         Self::is_gte(value, min) & Self::is_lte(value, max)
     }
-
+    ///
     pub fn is_in_list(value: i64, list: &[i64]) -> Self {
         // Research question: is this actually constant-time?
         // A clever compiler might turn this into a short-circuiting loop.
@@ -136,21 +137,19 @@ impl Condition<i64> {
     pub const fn negate(self, value: i64) -> i64 {
         (value ^ self.0).wrapping_sub(self.0)
     }
-
+    ///
     pub const fn or_halves(value: i64) -> i64 {
         (value | (value >> 32)) & 0xFFFFFFFF
     }
-
     /// Conditional selection: return `true_value` if the condition is true, otherwise return `false_value`.
     pub const fn select(self, true_value: i64, false_value: i64) -> i64 {
         (true_value & self.0) | (false_value & !self.0)
     }
-
     /// Conditional swap: returns (lhs, rhs) if the condition is true, otherwise returns (rhs, lhs).
     pub const fn swap(self, lhs: i64, rhs: i64) -> (i64, i64) {
         (self.select(rhs, lhs), self.select(lhs, rhs))
     }
-
+    ///
     pub const fn to_bool_var(self) -> bool {
         self.0 != 0
     }
@@ -166,22 +165,21 @@ impl Condition<u64> {
     /// FALSE is the bit vector of all 0's
     pub const FALSE: Self = Self(0);
 
-    // this is the core logic for constant-time mask generation for unsigned integers
-    //   Unlike signed integers where we can rely on Two's Complement via negation `-(v as i64)`,
-    //   for u64 we must use wrapping subtraction to achieve the all-ones bit pattern (u64::MAX) for true
+    /// this is the core logic for constant-time mask generation for unsigned integers
+    ///   Unlike signed integers where we can rely on Two's Complement via negation `-(v as i64)`,
+    ///   for u64 we must use wrapping subtraction to achieve the all-ones bit pattern (u64::MAX) for true
     pub const fn from_bool<const VALUE: bool>() -> Self {
         // If VALUE is true (1) -> 0 - 1 = u64::MAX (All 1s)
         // If VALUE is false (0) -> 0 - 0 = 0 (All 0s)
         Self(0u64.wrapping_sub(VALUE as u64))
     }
-
-    // the select function manually for u64
-    //    although a fully generic impl<T> would be the ultimate long-term goal
+    /// impl the select function manually for u64
+    ///    although a fully generic impl<T> would be the ultimate long-term goal
     pub fn select(self, a: u64, b: u64) -> u64 {
         let mask = self.0;
         (a & mask) | (b & !mask)
     }
-
+    ///
     pub fn is_true(&self) -> bool {
         self.0 != 0
     }

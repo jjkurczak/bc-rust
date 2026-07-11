@@ -181,13 +181,13 @@
 //! ```
 
 #![forbid(unsafe_code)]
-#![allow(incomplete_features)] // because at time of writing, generic_const_exprs is not a stable feature
-#![feature(generic_const_exprs)]
+#![forbid(missing_docs)]
 
 use bouncycastle_core::errors::{KeyMaterialError, MACError, RNGError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, Hash, MAC, RNG, Secret, SecurityStrength, Suspendable, SuspendableKeyed,
+    Algorithm, AlgorithmOID, Hash, MAC, RNG, Secret, SecurityStrength, Suspendable,
+    SuspendableKeyed,
 };
 use bouncycastle_rng::{HashDRBG_SHA256, HashDRBG_SHA512};
 use bouncycastle_sha2::{
@@ -216,60 +216,112 @@ pub const HMAC_SHA3_384_NAME: &str = "HMAC-SHA3-384";
 pub const HMAC_SHA3_512_NAME: &str = "HMAC-SHA3-512";
 
 /*** Type aliases ***/
+/// Public type for HMAC using SHA224.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA224 = HMAC<SHA224, 64>;
 impl Algorithm for HMAC_SHA224 {
     const ALG_NAME: &'static str = HMAC_SHA224_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
 }
+/// Defined in RFC 4231: id-hmacWithSHA224 { digestAlgorithm 8 }
+impl AlgorithmOID for HMAC_SHA224 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 8];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x08];
+}
 
+/// Public type for HKDF using SHA256.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA256 = HMAC<SHA256, 64>;
 impl Algorithm for HMAC_SHA256 {
     const ALG_NAME: &'static str = HMAC_SHA256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
+/// Defined in RFC 4231: id-hmacWithSHA256 { digestAlgorithm 9 }
+impl AlgorithmOID for HMAC_SHA256 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 9];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x09];
+}
 
+/// Public type for HKDF using SHA384.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA384 = HMAC<SHA384, 128>;
 impl Algorithm for HMAC_SHA384 {
     const ALG_NAME: &'static str = HMAC_SHA384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Defined in RFC 4231: id-hmacWithSHA384 { digestAlgorithm 10 }
+impl AlgorithmOID for HMAC_SHA384 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 10];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x0a];
+}
 
+/// Public type for HKDF using SHA512.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA512 = HMAC<SHA512, 128>;
 impl Algorithm for HMAC_SHA512 {
     const ALG_NAME: &'static str = HMAC_SHA512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
 }
+/// Defined in RFC 4231: id-hmacWithSHA512 { digestAlgorithm 11 }
+impl AlgorithmOID for HMAC_SHA512 {
+    const OID: &'static [u32] = &[1, 2, 840, 113549, 2, 11];
+    const OID_DER: &'static [u8] = &[0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x0b];
+}
 
+/// Public type for HKDF using SHA3_224.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_224 = HMAC<SHA3_224, 144>;
 impl Algorithm for HMAC_SHA3_224 {
     const ALG_NAME: &'static str = HMAC_SHA3_224_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_112bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-224 { hashAlgs 13 }
+impl AlgorithmOID for HMAC_SHA3_224 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 13];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0d];
+}
 
+/// Public type for HKDF using SHA3_256.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_256 = HMAC<SHA3_256, 136>;
 impl Algorithm for HMAC_SHA3_256 {
     const ALG_NAME: &'static str = HMAC_SHA3_256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-256 { hashAlgs 14 }
+impl AlgorithmOID for HMAC_SHA3_256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 14];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0e];
+}
 
+/// Public type for HKDF using SHA3_384.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_384 = HMAC<SHA3_384, 104>;
 impl Algorithm for HMAC_SHA3_384 {
     const ALG_NAME: &'static str = HMAC_SHA3_384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-384 { hashAlgs 15 }
+impl AlgorithmOID for HMAC_SHA3_384 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 15];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0f];
+}
 
+/// Public type for HKDF using SHA3_512.
 #[allow(non_camel_case_types)]
 pub type HMAC_SHA3_512 = HMAC<SHA3_512, 72>;
 impl Algorithm for HMAC_SHA3_512 {
     const ALG_NAME: &'static str = HMAC_SHA3_512_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_256bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-hmacWithSHA3-512 { hashAlgs 16 }
+impl AlgorithmOID for HMAC_SHA3_512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 16];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x10];
 }
 
 // The internal key buffer must be able to hold a key up to the *block length* of the underlying hash:
@@ -282,7 +334,9 @@ impl Algorithm for HMAC_SHA3_512 {
 // largest block length across all supported hashes, so it is always large enough.
 const LARGEST_HASHER_BLOCK_LEN: usize = 144;
 
-// HMAC implements RFC 2104.
+/// Internal struct for HKDF.
+/// HMAC implements RFC 2104.
+/// Can, in theory, be instantiated with hash functions other than the ones provided by this crate (even custom ones).
 #[derive(Clone)]
 pub struct HMAC<HASH: Hash + Default, const KEY_BUF_LEN: usize = LARGEST_HASHER_BLOCK_LEN> {
     hasher: HASH,
@@ -318,16 +372,17 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Display for HMAC<HASH, KEY_
 const IPAD_BYTE: u8 = 0x36;
 const OPAD_BYTE: u8 = 0x5C;
 
-// Per FIPS 140-2 IG A.8 Use of a truncated HMAC (matching NIST SP 800-107-r1
-// Section 5.3.3. Truncation of HMAC), says that the minimum truncation of a
-// HMAC for tagging should be 32 bits; this exceeds the lower bound set by
-// IETF RFC 2104 Section 5 Truncated output, which sets the lower bound to be
-// half of the hash's length and no fewer than 80 bits.
-//
-// However, as we feel there should be a minimum limit (and have an author
-// work around this via explicit truncation manually afterwards), but not
-// be too strict about it,
-pub const MIN_FIPS_DIGEST_LEN: usize = 4; // 32 / 8;
+/// Per FIPS 140-2 IG A.8 Use of a truncated HMAC (matching NIST SP 800-107-r1
+/// Section 5.3.3. Truncation of HMAC), says that the minimum truncation of a
+/// HMAC for tagging should be 32 bits; this exceeds the lower bound set by
+/// IETF RFC 2104 Section 5 Truncated output, which sets the lower bound to be
+/// half of the hash's length and no fewer than 80 bits.
+///
+/// However, as we feel there should be a minimum limit (and have an author
+/// work around this via explicit truncation manually afterwards), but not
+/// be too strict about it,
+/// = 32 bits / 8 = 4 bytes;
+pub const MIN_FIPS_DIGEST_LEN: usize = 4;
 
 impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
     fn pad_key_into_hasher(&mut self, padding: u8) {
@@ -569,6 +624,7 @@ impl<
 }
 
 /* KeyGen functions */
+
 // These need to be separate intrinsic impl's because there isn't a way to statically-type the
 // KeyMaterial<N> based on the HASH type.
 // Using a macro to cut down on code duplication.
@@ -577,6 +633,7 @@ impl<
 macro_rules! impl_hmac_keygen {
     ($hash:ty, $block_len:literal, $n:literal, $drbg:ty) => {
         impl HMAC<$hash, $block_len> {
+            /// Generate a key of the appropriate length for the given HMAC
             pub fn keygen() -> Result<KeyMaterial<$n>, RNGError> {
                 let mut key = KeyMaterial::<$n>::new();
                 let mut os_rng = <$drbg>::new_from_os();

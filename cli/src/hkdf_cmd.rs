@@ -22,7 +22,7 @@ pub(crate) fn hkdf_cmd(
     let salt_bytes: Vec<u8>;
     let ikm_bytes: Vec<u8>;
     let additional_input_bytes: Vec<u8>;
-    let mut out_key = KeyMaterial::<1024>::new();
+    let mut out_key = KeyMaterial::<{ hkdf::MAX_HMAC_OUTPUT_LEN }>::new();
 
     if len > 1024 {
         eprintln!("Error: The CLI only supports output lengths up to 128 bytes (1024 bits).");

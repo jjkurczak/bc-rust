@@ -1,15 +1,21 @@
+//! Generic behaviour tests for anything that implements [KDF].
+
 use bouncycastle_core::key_material::{
     KeyMaterial, KeyMaterial256, KeyMaterial512, KeyMaterialTrait, KeyType,
 };
 use bouncycastle_core::traits::{KDF, SecurityStrength};
 
-pub struct TestFrameworkKDF {}
+/// Instance of the test framework.
+pub struct TestFrameworkKDF {
+    // Put any config options here
+}
 
 impl TestFrameworkKDF {
+    ///
     pub fn new() -> Self {
         Self {}
     }
-
+    ///
     pub fn test_kdf_single_key<H: KDF + Default>(
         &self,
         key: &impl KeyMaterialTrait,
@@ -86,7 +92,7 @@ impl TestFrameworkKDF {
         assert_eq!(out_key.key_type(), KeyType::CryptographicRandom);
         assert!(out_key.security_strength() > SecurityStrength::None);
     }
-
+    ///
     pub fn test_kdf_multiple_key<H: KDF + Default>(
         &self,
         keys: &[&impl KeyMaterialTrait],

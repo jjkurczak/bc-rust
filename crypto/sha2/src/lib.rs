@@ -66,6 +66,7 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 #![allow(private_bounds)]
 
 mod sha256;
@@ -73,32 +74,42 @@ mod sha512;
 
 pub use self::sha256::SHA256Internal;
 pub use self::sha512::SHA512Internal;
-use bouncycastle_core::traits::{Algorithm, HashAlgParams, SecurityStrength};
+use bouncycastle_core::traits::{Algorithm, AlgorithmOID, HashAlgParams, SecurityStrength};
 
 /*** Imports needed for docs ***/
 #[allow(unused_imports)]
 use bouncycastle_core::traits::Suspendable;
 
 /*** String constants ***/
+///
 pub const SHA224_NAME: &str = "SHA224";
+///
 pub const SHA256_NAME: &str = "SHA256";
+///
 pub const SHA384_NAME: &str = "SHA384";
+///
 pub const SHA512_NAME: &str = "SHA512";
 
 /*** pub types ***/
+/// Public type for SHA224.
 pub type SHA224 = SHA256Internal<SHA224Params>;
+/// Public type for SHA256.
 pub type SHA256 = SHA256Internal<SHA256Params>;
+/// Public type for SHA384.
 pub type SHA384 = SHA512Internal<SHA384Params>;
+/// Public type for SHA512.
 pub type SHA512 = SHA512Internal<SHA512Params>;
 
 /*** Param traits ***/
-
+/// Private trait on purpose so that only the NIST-approved params can be used.
 trait SHA2Params: HashAlgParams {}
 
+/*** SHA224 ***/
 impl HashAlgParams for SHA224 {
     const OUTPUT_LEN: usize = 28;
     const BLOCK_LEN: usize = 64;
 }
+/// The parameters for SHA224.
 #[derive(Clone)]
 pub struct SHA224Params;
 impl Algorithm for SHA224Params {
@@ -109,17 +120,31 @@ impl HashAlgParams for SHA224Params {
     const OUTPUT_LEN: usize = 28;
     const BLOCK_LEN: usize = 64;
 }
+/// Assigned by NIST in the Computer Security Objects Register: id-sha224 { hashAlgs 4 }
+impl AlgorithmOID for SHA224 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 4];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04];
+}
 impl SHA2Params for SHA224Params {}
 
+/*** SHA256 ***/
 impl HashAlgParams for SHA256 {
     const OUTPUT_LEN: usize = 32;
     const BLOCK_LEN: usize = 64;
 }
+/// The parameters for SHA256.
 #[derive(Clone)]
 pub struct SHA256Params;
 impl Algorithm for SHA256Params {
     const ALG_NAME: &'static str = SHA256_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_128bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-sha256 { hashAlgs 1 }
+impl AlgorithmOID for SHA256 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 1];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01];
 }
 impl HashAlgParams for SHA256Params {
     const OUTPUT_LEN: usize = 32;
@@ -127,15 +152,23 @@ impl HashAlgParams for SHA256Params {
 }
 impl SHA2Params for SHA256Params {}
 
+/*** SHA384 ***/
 impl HashAlgParams for SHA384 {
     const OUTPUT_LEN: usize = 48;
     const BLOCK_LEN: usize = 128;
 }
+/// The parameters for SHA384.
 #[derive(Clone)]
 pub struct SHA384Params;
 impl Algorithm for SHA384Params {
     const ALG_NAME: &'static str = SHA384_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = SecurityStrength::_192bit;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-sha384 { hashAlgs 2 }
+impl AlgorithmOID for SHA384 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 2];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02];
 }
 impl HashAlgParams for SHA384Params {
     const OUTPUT_LEN: usize = 48;
@@ -143,6 +176,8 @@ impl HashAlgParams for SHA384Params {
 }
 impl SHA2Params for SHA384Params {}
 
+/*** SHA512 ***/
+/// The parameters for SHA512.
 #[derive(Clone)]
 pub struct SHA512Params;
 impl HashAlgParams for SHA512 {
@@ -156,6 +191,12 @@ impl Algorithm for SHA512Params {
 impl HashAlgParams for SHA512Params {
     const OUTPUT_LEN: usize = 64;
     const BLOCK_LEN: usize = 128;
+}
+/// Assigned by NIST in the Computer Security Objects Register: id-sha512 { hashAlgs 3 }
+impl AlgorithmOID for SHA512 {
+    const OID: &'static [u32] = &[2, 16, 840, 1, 101, 3, 4, 2, 3];
+    const OID_DER: &'static [u8] =
+        &[0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03];
 }
 impl SHA2Params for SHA512Params {}
 

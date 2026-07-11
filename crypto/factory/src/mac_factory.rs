@@ -83,39 +83,51 @@ use bouncycastle_sha2 as sha2;
 use bouncycastle_sha3 as sha3;
 
 /*** Defaults ***/
+///
 pub const DEFAULT_MAC_NAME: &str = HMAC_SHA256_NAME;
+///
 pub const DEFAULT_128BIT_MAC_NAME: &str = HMAC_SHA256_NAME;
+///
 pub const DEFAULT_256BIT_MAC_NAME: &str = HMAC_SHA256_NAME;
 
 #[allow(non_camel_case_types)]
 
+/// Wrapper object for all algorithms that impl [MAC].
 /// MACFactory deviates from the usual AlgorithmFactory trait because MAC objects do not have a no-arg constructor;
 /// instead they have a constructor that takes a [KeyMaterialTrait] and can return an error.
 pub enum MACFactory {
-    // All members must impl MAC.
+    ///
     HMAC_SHA224(hmac::HMAC<sha2::SHA224>),
+    ///
     HMAC_SHA256(hmac::HMAC<sha2::SHA256>),
+    ///
     HMAC_SHA384(hmac::HMAC<sha2::SHA384>),
+    ///
     HMAC_SHA512(hmac::HMAC<sha2::SHA512>),
+    ///
     HMAC_SHA3_224(hmac::HMAC<sha3::SHA3_224>),
+    ///
     HMAC_SHA3_256(hmac::HMAC<sha3::SHA3_256>),
+    ///
     HMAC_SHA3_384(hmac::HMAC<sha3::SHA3_384>),
+    ///
     HMAC_SHA3_512(hmac::HMAC<sha3::SHA3_512>),
 }
 
 impl MACFactory {
+    /// Get the default MAC algorithm.
     pub fn default(key: &impl KeyMaterialTrait) -> Result<Self, FactoryError> {
         Self::new(DEFAULT_MAC_NAME, key)
     }
-
+    /// Get the default 128-bit MAC algorithm.
     pub fn default_128_bit(key: &impl KeyMaterialTrait) -> Result<Self, FactoryError> {
         Self::new(DEFAULT_128BIT_MAC_NAME, key)
     }
-
+    /// Get the default 256-bit MAC algorithm.
     pub fn default_256_bit(key: &impl KeyMaterialTrait) -> Result<Self, FactoryError> {
         Self::new(DEFAULT_256BIT_MAC_NAME, key)
     }
-
+    /// Get an instance of the algorithm by name.
     pub fn new(alg_name: &str, key: &impl KeyMaterialTrait) -> Result<Self, FactoryError> {
         match alg_name {
             DEFAULT => Self::default(key),

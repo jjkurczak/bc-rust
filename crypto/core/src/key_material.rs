@@ -59,9 +59,11 @@ use core::fmt;
 
 /// Sometimes you just need a zero-length dummy key.
 pub type KeyMaterial0 = KeyMaterial<0>;
-
+/// Named type for a 128-bit (16-byte) key, for convenience.
 pub type KeyMaterial128 = KeyMaterial<16>;
+/// Named type for a 256-bit (32-byte) key, for convenience.
 pub type KeyMaterial256 = KeyMaterial<32>;
+/// Named type for a 512-bit (64-byte) key, for convenience.
 pub type KeyMaterial512 = KeyMaterial<64>;
 
 /// A helper class used across the bc-rust.test library to hold bytes-like key material.
@@ -226,6 +228,7 @@ impl<const KEY_LEN: usize> Secret for KeyMaterial<KEY_LEN> {}
 // `SerializableState` implementations (see the `TryFrom<u8>` impl below). Pin each value to its
 // variant name: reordering variants is fine, but never reuse or renumber an existing discriminant,
 // or previously-serialized states will be misread.
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum KeyType {
@@ -280,6 +283,8 @@ impl<const KEY_LEN: usize> Default for KeyMaterial<KEY_LEN> {
 }
 
 impl<const KEY_LEN: usize> KeyMaterial<KEY_LEN> {
+    /// Creates a new empty instance (key_len = 0, key_type = Zeroized).
+    /// If you want a properly populated instance, use [KeyMaterial::from_rng].
     pub fn new() -> Self {
         Self {
             buf: [0u8; KEY_LEN],
@@ -290,7 +295,7 @@ impl<const KEY_LEN: usize> KeyMaterial<KEY_LEN> {
         }
     }
 
-    /// Create a new instance of KeyMaterial containing random bytes from the provided random number generator.
+    /// Creates a new instance of KeyMaterial containing random bytes from the provided random number generator.
     pub fn from_rng(rng: &mut impl RNG) -> Result<Self, KeyMaterialError> {
         let mut key = Self::new();
 

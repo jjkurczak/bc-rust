@@ -41,13 +41,18 @@ use bouncycastle_sha3 as sha3;
 use bouncycastle_sha3::{SHAKE128_NAME, SHAKE256_NAME};
 
 /*** Defaults ***/
+///
 pub const DEFAULT_XOF_NAME: &str = SHAKE128_NAME;
+///
 pub const DEFAULT_128BIT_XOF_NAME: &str = SHAKE128_NAME;
+///
 pub const DEFAULT_256BIT_XOF_NAME: &str = SHAKE256_NAME;
 
-// All members must impl XOF.
+/// Wrapper object for all algorithms that impl [XOF].
 pub enum XOFFactory {
+    ///
     SHAKE128(sha3::SHAKE128),
+    ///
     SHAKE256(sha3::SHAKE256),
 }
 

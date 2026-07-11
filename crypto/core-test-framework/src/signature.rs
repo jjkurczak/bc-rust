@@ -1,10 +1,13 @@
-use crate::DUMMY_SEED_1024;
+//! Generic behaviour tests for anything that implements [Signer] and [SignatureVerifier].
+
+use crate::DUMMY_SEED;
 use bouncycastle_core::errors::SignatureError;
 use bouncycastle_core::traits::{
     Hash, PHSignatureVerifier, PHSigner, SignaturePrivateKey, SignaturePublicKey,
     SignatureVerifier, Signer,
 };
 
+/// Instance of the test framework.
 pub struct TestFrameworkSignature {
     // Put any config options here
     /// Should the test framework expect that repeated calls to sign() will produce the same signature?
@@ -15,6 +18,7 @@ pub struct TestFrameworkSignature {
 }
 
 impl TestFrameworkSignature {
+    ///
     pub fn new(alg_is_deterministic: bool, alg_accepts_ctx: bool) -> Self {
         Self { alg_is_deterministic, alg_accepts_ctx }
     }
@@ -104,8 +108,8 @@ impl TestFrameworkSignature {
         VERIFIER::verify(&pk, msg, None, &sig_val).unwrap();
 
         // test with a large message
-        let sig = SIGNER::sign(&sk, DUMMY_SEED_1024, None).unwrap();
-        VERIFIER::verify(&pk, DUMMY_SEED_1024, None, &sig).unwrap();
+        let sig = SIGNER::sign(&sk, DUMMY_SEED, None).unwrap();
+        VERIFIER::verify(&pk, DUMMY_SEED, None, &sig).unwrap();
 
         // Test the streaming signing API
         // fn sign_init(&mut self, sk: &SK) -> Result<(), SignatureError>;
@@ -115,35 +119,35 @@ impl TestFrameworkSignature {
 
         // First, test the streaming API with one call to .sign_update
         let mut s = SIGNER::sign_init(&sk, Some(b"streaming API")).unwrap();
-        s.sign_update(DUMMY_SEED_1024);
+        s.sign_update(DUMMY_SEED);
         let sig_val = s.sign_final().unwrap();
-        VERIFIER::verify(&pk, DUMMY_SEED_1024, Some(b"streaming API"), &sig_val).unwrap();
+        VERIFIER::verify(&pk, DUMMY_SEED, Some(b"streaming API"), &sig_val).unwrap();
 
         // Then with the message broken into chunks
         let mut s = SIGNER::sign_init(&sk, Some(b"streaming API chunked")).unwrap();
-        for msg_chunk in DUMMY_SEED_1024.chunks(100) {
+        for msg_chunk in DUMMY_SEED.chunks(100) {
             s.sign_update(msg_chunk);
         }
         let sig_val = s.sign_final().unwrap();
-        VERIFIER::verify(&pk, DUMMY_SEED_1024, Some(b"streaming API chunked"), &sig_val).unwrap();
+        VERIFIER::verify(&pk, DUMMY_SEED, Some(b"streaming API chunked"), &sig_val).unwrap();
 
         // Test the streaming verification API
         // one-shot
-        let sig = SIGNER::sign(&sk, DUMMY_SEED_1024, Some(b"streaming API")).unwrap();
+        let sig = SIGNER::sign(&sk, DUMMY_SEED, Some(b"streaming API")).unwrap();
         let mut v = VERIFIER::verify_init(&pk, Some(b"streaming API")).unwrap();
-        v.verify_update(DUMMY_SEED_1024);
+        v.verify_update(DUMMY_SEED);
         v.verify_final(&sig).unwrap();
 
         // chunked
-        let sig = SIGNER::sign(&sk, DUMMY_SEED_1024, Some(b"streaming API")).unwrap();
+        let sig = SIGNER::sign(&sk, DUMMY_SEED, Some(b"streaming API")).unwrap();
         let mut v = VERIFIER::verify_init(&pk, Some(b"streaming API")).unwrap();
-        for msg_chunk in DUMMY_SEED_1024.chunks(100) {
+        for msg_chunk in DUMMY_SEED.chunks(100) {
             v.verify_update(msg_chunk);
         }
         v.verify_final(&sig).unwrap();
 
         // failure case for streaming verify
-        let sig = SIGNER::sign(&sk, DUMMY_SEED_1024, Some(b"streaming API")).unwrap();
+        let sig = SIGNER::sign(&sk, DUMMY_SEED, Some(b"streaming API")).unwrap();
         let mut v = VERIFIER::verify_init(&pk, Some(b"streaming API")).unwrap();
         v.verify_update(b"this is the wrong message");
         match v.verify_final(&sig) {
@@ -153,16 +157,16 @@ impl TestFrameworkSignature {
 
         // test sign_out version of streaming API
         let mut s = SIGNER::sign_init(&sk, Some(b"streaming API")).unwrap();
-        s.sign_update(DUMMY_SEED_1024);
+        s.sign_update(DUMMY_SEED);
         let mut sig_val = [0u8; SIG_LEN];
         let bytes_written = s.sign_final_out(&mut sig_val).unwrap();
         assert_eq!(bytes_written, SIG_LEN);
-        VERIFIER::verify(&pk, DUMMY_SEED_1024, Some(b"streaming API"), &sig_val).unwrap();
+        VERIFIER::verify(&pk, DUMMY_SEED, Some(b"streaming API"), &sig_val).unwrap();
 
         // the ::verify API should accept a sig value that's too long and just ignore the extra bytes
         let mut sig_val_too_long = vec![1u8; SIG_LEN + 2];
         sig_val_too_long[..SIG_LEN].copy_from_slice(&sig_val);
-        VERIFIER::verify(&pk, DUMMY_SEED_1024, Some(b"streaming API"), &sig_val).unwrap();
+        VERIFIER::verify(&pk, DUMMY_SEED, Some(b"streaming API"), &sig_val).unwrap();
     }
 
     /// Test all the members of traits [PHSigner] and [PHSignatureVerifier] against the given input-output pair.
@@ -253,13 +257,13 @@ impl TestFrameworkSignature {
         PHVERIFIER::verify(&pk, msg, None, &sig_val).unwrap();
 
         // test with a large message
-        let sig = PHSIGNER::sign(&sk, DUMMY_SEED_1024, None).unwrap();
-        PHVERIFIER::verify(&pk, DUMMY_SEED_1024, None, &sig).unwrap();
+        let sig = PHSIGNER::sign(&sk, DUMMY_SEED, None).unwrap();
+        PHVERIFIER::verify(&pk, DUMMY_SEED, None, &sig).unwrap();
 
         // the ::verify API should not accept a sig value that's too
         let mut sig_val_too_long = vec![1u8; SIG_LEN + 2];
         sig_val_too_long[..SIG_LEN].copy_from_slice(&sig);
-        match PHVERIFIER::verify(&pk, DUMMY_SEED_1024, None, &sig_val_too_long) {
+        match PHVERIFIER::verify(&pk, DUMMY_SEED, None, &sig_val_too_long) {
             Err(SignatureError::LengthError(_)) => (),
             _ => panic!("Unexpected error"),
         }
@@ -282,9 +286,11 @@ impl TestFrameworkSignature {
     }
 }
 
+/// Instance of the test framework.
 pub struct TestFrameworkSignatureKeys {}
 
 impl TestFrameworkSignatureKeys {
+    ///
     pub fn new() -> Self {
         Self {}
     }

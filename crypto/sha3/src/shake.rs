@@ -10,7 +10,15 @@ use bouncycastle_core::suspendable_state::{add_lib_ver, check_lib_ver};
 use bouncycastle_core::traits::{Algorithm, KDF, SecurityStrength, Suspendable, XOF};
 use bouncycastle_utils::{max, min};
 
-/// Note: FIPS 202 section 7 states:
+/// Internal struct for SHAKE.
+/// This uses a private bound so that you cannot instantiate it directly and have to use the
+/// provided and NIST-approved parameters.
+///
+///
+///
+/// Note that even though SHAKE is physically capable of acting as a hash function, and in fact is secure
+/// as such if the provided message includes the requested length, SHAKE does not implement the [Hash] trait.
+/// FIPS 202 section 7 states:
 ///
 ///   "SHAKE128 and SHAKE256 are approved XOFs, whose approved uses will be specified in
 /// NIST Special Publications. Although some of those uses may overlap with the uses of approved
@@ -21,12 +29,9 @@ use bouncycastle_utils::{max, min};
 /// For example, the first 32 bytes of SHAKE128("message", 64) and SHAKE128("message", 128), will be identical
 /// and equal to SHAKE128("message", 32). Proper hash functions don't do this, and NIST is concerned that
 /// this could lead to application vulnerabilities.
-///
-/// As such, even though SHAKE is physically capable of acting as a hash function, and in fact is secure
-/// as such if the provided message includes the requested length, SHAKE does not implement the [Hash] trait.
 #[derive(Clone)]
-pub struct SHAKE<PARAMS: SHAKEParams> {
-    _phantomdata: std::marker::PhantomData<PARAMS>,
+pub struct SHAKEInternal<PARAMS: SHAKEParams> {
+    _phantomdata: core::marker::PhantomData<PARAMS>,
     keccak: KeccakDigest,
     kdf_key_type: KeyType,
     kdf_security_strength: SecurityStrength,
@@ -35,15 +40,16 @@ pub struct SHAKE<PARAMS: SHAKEParams> {
 
 // Note: don't need a zeroizing Drop here because all the sensitive info is in KeccakDigest, which has one.
 
-impl<PARAMS: SHAKEParams> Algorithm for SHAKE<PARAMS> {
+impl<PARAMS: SHAKEParams> Algorithm for SHAKEInternal<PARAMS> {
     const ALG_NAME: &'static str = PARAMS::ALG_NAME;
     const MAX_SECURITY_STRENGTH: SecurityStrength = PARAMS::MAX_SECURITY_STRENGTH;
 }
 
-impl<PARAMS: SHAKEParams> SHAKE<PARAMS> {
+impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
+    /// Get a new SHA3 instance, ready for use.
     pub fn new() -> Self {
         Self {
-            _phantomdata: std::marker::PhantomData,
+            _phantomdata: core::marker::PhantomData,
             keccak: KeccakDigest::new(PARAMS::SIZE),
             kdf_key_type: KeyType::Zeroized,
             kdf_security_strength: SecurityStrength::None,
@@ -142,7 +148,7 @@ impl<PARAMS: SHAKEParams> SHAKE<PARAMS> {
     }
 }
 
-impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKE<PARAMS> {
+impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKEInternal<PARAMS> {
     fn suspend(self) -> [u8; SUSPENDED_SHA3_STATE_LEN] {
         let mut out_to_return = [0u8; SUSPENDED_SHA3_STATE_LEN];
 
@@ -175,8 +181,8 @@ impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKE<PARAMS
         let (keccak, kdf_key_type, kdf_security_strength, kdf_entropy) =
             deserialize_sha3_family_state(input, PARAMS::STATE_TAG, rate)?;
 
-        Ok(SHAKE {
-            _phantomdata: std::marker::PhantomData,
+        Ok(SHAKEInternal {
+            _phantomdata: core::marker::PhantomData,
             keccak,
             kdf_key_type,
             kdf_security_strength,
@@ -185,7 +191,7 @@ impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKE<PARAMS
     }
 }
 
-impl<PARAMS: SHAKEParams> KDF for SHAKE<PARAMS> {
+impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
     /// Returns a [KeyMaterial].
     /// For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
     /// it requires full-entropy input that is at least 2x the bit size (ie 256 bits for SHAKE128, and 512 bits for SHAKE256).
@@ -249,13 +255,13 @@ impl<PARAMS: SHAKEParams> KDF for SHAKE<PARAMS> {
     }
 }
 
-impl<PARAMS: SHAKEParams> Default for SHAKE<PARAMS> {
+impl<PARAMS: SHAKEParams> Default for SHAKEInternal<PARAMS> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<PARAMS: SHAKEParams> XOF for SHAKE<PARAMS> {
+impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
     fn hash_xof(self, data: &[u8], result_len: usize) -> Vec<u8> {
         self.hash_internal(data, result_len)
     }

@@ -112,8 +112,8 @@
 //! constant-time after compilation.
 
 #![no_std]
-#![forbid(missing_docs)]
 #![forbid(unsafe_code)]
+#![forbid(missing_docs)]
 // These are because I'm matching variable names exactly against FIPS 204, for example both 'K' and 'k',
 // or 'A' and 'a' are used and have specific meanings.
 // But need to tell the rust linter to not care.
@@ -176,7 +176,7 @@ pub use mldsa::{MLDSA44_PK_LEN, MLDSA44_SIG_LEN, MLDSA44_SK_LEN};
 pub use mldsa::{MLDSA65_PK_LEN, MLDSA65_SIG_LEN, MLDSA65_SK_LEN};
 pub use mldsa::{MLDSA87_PK_LEN, MLDSA87_SIG_LEN, MLDSA87_SK_LEN};
 
-pub use mldsa::MU_BUILDER_SERIALIZED_STATE_LEN;
+pub use mldsa::SUSPENDED_MU_BUILDER_STATE_LEN;
 
 pub use matrix::Matrix;
 
