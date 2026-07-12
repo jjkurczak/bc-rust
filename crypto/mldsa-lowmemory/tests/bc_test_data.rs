@@ -946,7 +946,7 @@ impl BustedMuBuilder {
         // Algorithm 7
         // 6: 𝜇 ← H(BytesToBits(𝑡𝑟)||𝑀', 64)
         let mut mb = Self { h: SHAKE256::new() };
-        mb.h.absorb(tr);
+        mb.h.absorb(tr).expect("absorb before squeeze is infallible");
 
         // Algorithm 2
         // 10: 𝑀′ ← BytesToBits(IntegerToBytes(0, 1) ∥ IntegerToBytes(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥) ∥ 𝑀
@@ -961,7 +961,7 @@ impl BustedMuBuilder {
 
     /// Stream a chunk of the message.
     pub fn do_update(&mut self, msg_chunk: &[u8]) {
-        self.h.absorb(msg_chunk);
+        self.h.absorb(msg_chunk).expect("absorb before squeeze is infallible");
     }
 
     /// Finalize and return the mu value.

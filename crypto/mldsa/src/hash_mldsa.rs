@@ -607,16 +607,16 @@ impl<
         // 6: 𝜇 ← H(BytesToBits(𝑡𝑟)||𝑀', 64)
         let mu = {
             let mut h = H::new();
-            h.absorb(sk.tr());
+            h.absorb(sk.tr()).expect("absorb before squeeze is infallible");
 
             // Algorithm 4
             // 23: 𝑀' ← BytesToBits(IntegerToBytes(1, 1) ∥ IntegerToBytes(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥 ∥ OID ∥ PH𝑀)
             // all done together
-            h.absorb(&[1u8]);
-            h.absorb(&[ctx.len() as u8]);
-            h.absorb(ctx);
-            h.absorb(HASH::OID_DER);
-            h.absorb(ph);
+            h.absorb(&[1u8]).expect("absorb before squeeze is infallible");
+            h.absorb(&[ctx.len() as u8]).expect("absorb before squeeze is infallible");
+            h.absorb(ctx).expect("absorb before squeeze is infallible");
+            h.absorb(HASH::OID_DER).expect("absorb before squeeze is infallible");
+            h.absorb(ph).expect("absorb before squeeze is infallible");
             let mut mu = [0u8; MLDSA_MU_LEN];
             let bytes_written = h.squeeze_out(&mut mu);
             debug_assert_eq!(bytes_written, MLDSA_MU_LEN);
@@ -730,16 +730,16 @@ impl<
         // 6: 𝜇 ← H(BytesToBits(𝑡𝑟)||𝑀', 64)
         let mu = {
             let mut h = H::new();
-            h.absorb(&pk.compute_tr());
+            h.absorb(&pk.compute_tr()).expect("absorb before squeeze is infallible");
 
             // Algorithm 4
             // 23: 𝑀 ← BytesToBits(IntegerToBytes(1, 1) ∥ IntegerToBytes(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥 ∥ OID ∥ PH𝑀)
             // all done together
-            h.absorb(&[1u8]);
-            h.absorb(&[ctx.len() as u8]);
-            h.absorb(ctx);
-            h.absorb(HASH::OID_DER);
-            h.absorb(ph);
+            h.absorb(&[1u8]).expect("absorb before squeeze is infallible");
+            h.absorb(&[ctx.len() as u8]).expect("absorb before squeeze is infallible");
+            h.absorb(ctx).expect("absorb before squeeze is infallible");
+            h.absorb(HASH::OID_DER).expect("absorb before squeeze is infallible");
+            h.absorb(ph).expect("absorb before squeeze is infallible");
             let mut mu = [0u8; MLDSA_MU_LEN];
             _ = h.squeeze_out(&mut mu);
 

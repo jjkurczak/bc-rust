@@ -99,7 +99,7 @@ impl XOF for XOFFactory {
         }
     }
 
-    fn absorb(&mut self, data: &[u8]) {
+    fn absorb(&mut self, data: &[u8]) -> Result<(), HashError> {
         match self {
             Self::SHAKE128(h) => h.absorb(data),
             Self::SHAKE256(h) => h.absorb(data),

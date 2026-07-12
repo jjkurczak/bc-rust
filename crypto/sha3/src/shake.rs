@@ -1,6 +1,6 @@
 use crate::SHAKEParams;
 use crate::keccak::{
-    KeccakDigest, KeccakSize, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN,
+    KeccakInternal, KeccakSize, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN,
     deserialize_sha3_family_state, serialize_sha3_family_state,
 };
 use bouncycastle_core::errors::{HashError, KDFError, SuspendableError};
@@ -32,7 +32,7 @@ use bouncycastle_utils::{max, min};
 #[derive(Clone)]
 pub struct SHAKEInternal<PARAMS: SHAKEParams> {
     _phantomdata: core::marker::PhantomData<PARAMS>,
-    keccak: KeccakDigest,
+    keccak: KeccakInternal,
     kdf_key_type: KeyType,
     kdf_security_strength: SecurityStrength,
     kdf_entropy: usize,
@@ -50,7 +50,7 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
     pub fn new() -> Self {
         Self {
             _phantomdata: core::marker::PhantomData,
-            keccak: KeccakDigest::new(PARAMS::SIZE),
+            keccak: KeccakInternal::new(PARAMS::SIZE),
             kdf_key_type: KeyType::Zeroized,
             kdf_security_strength: SecurityStrength::None,
             kdf_entropy: 0,
@@ -59,14 +59,16 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
 
     /// Swallows errors and simply returns an empty Vec<u8> if the hashes fails for whatever reason.
     fn hash_internal(mut self, data: &[u8], result_len: usize) -> Vec<u8> {
-        self.absorb(data);
+        // Infallible: this is the only absorb, and it precedes the squeeze below.
+        self.absorb(data).expect("absorb precedes squeeze on a fresh SHAKE");
         self.squeeze(result_len)
     }
 
     fn hash_internal_out(mut self, data: &[u8], output: &mut [u8]) -> usize {
         output.fill(0);
 
-        self.absorb(data);
+        // Infallible: this is the only absorb, and it precedes the squeeze below.
+        self.absorb(data).expect("absorb precedes squeeze on a fresh SHAKE");
         self.squeeze_out(output)
     }
 
@@ -86,7 +88,8 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
             .clone();
         }
 
-        self.absorb(key.ref_to_bytes())
+        // Infallible: mix_key_internal is only called during the absorb phase, before any squeeze.
+        self.absorb(key.ref_to_bytes()).expect("absorb precedes squeeze during key mixing");
     }
 
     fn derive_key_final_internal(
@@ -123,7 +126,9 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
             self.kdf_security_strength = SecurityStrength::None; // BytesLowEntropy can't have a securtiy level.
         }
 
-        self.absorb(additional_input);
+        // Infallible: additional_input is absorbed before the squeeze below, and this method is only
+        // reached during the absorb phase.
+        self.absorb(additional_input).expect("absorb precedes squeeze during key derivation");
 
         let mut bytes_written: usize = 0;
         key_material::do_hazardous_operations(output_key, |output_key| {
@@ -272,8 +277,22 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
         self.hash_internal_out(data, output)
     }
 
-    fn absorb(&mut self, data: &[u8]) {
-        self.keccak.absorb(data)
+    /// This can throw a [HashError::InvalidState] if called after squeezing has begun,
+    /// but is safe to consider infallible otherwise -- IE feel free to use `.unwrap()` or `.expect()`
+    /// on the result if you are confident that your code cannot call `absorb` after squeezing.
+    ///
+    /// A rejected call leaves the SHAKE object untouched so the output stream continues consistently.
+    /// IE it is safe to attempt to feed in more input and do nothing if the absorb fails
+    /// ("safe" in the sense that it won't panic, but it may still produce an incorrect output which
+    /// could be insecure in the sense of being predictable or low-entropy).
+    fn absorb(&mut self, data: &[u8]) -> Result<(), HashError> {
+        // A sponge XOF cannot return to absorbing once squeezing has begun (FIPS 202 defines SHAKE as
+        // a single function of the whole message; re-absorbing would be an unapproved duplex).
+        if self.keccak.squeezing {
+            return Err(HashError::InvalidState("cannot absorb after squeezing has begun"));
+        }
+        self.keccak.absorb(data);
+        Ok(())
     }
 
     /// Switches to squeezing.
@@ -282,6 +301,11 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
         partial_byte: u8,
         num_partial_bits: usize,
     ) -> Result<(), HashError> {
+        // Same phase rule as absorb(): reject a partial-byte absorb once squeezing has begun. Checked
+        // before any state mutation so a rejected call leaves the sponge untouched.
+        if self.keccak.squeezing {
+            return Err(HashError::InvalidState("cannot absorb after squeezing has begun"));
+        }
         if !(1..=7).contains(&num_partial_bits) {
             return Err(HashError::InvalidLength("must be in the range [0,7]"));
         }
@@ -296,6 +320,8 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
             final_input >>= 8;
         }
 
+        // Infallible: guarded above (not squeezing), the queue is byte-aligned here, and final_bits is
+        // in 0..=7 by construction.
         self.keccak.absorb_bits(final_input as u8, final_bits).expect("Absorb failed.");
 
         Ok(())

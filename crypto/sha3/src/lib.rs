@@ -64,6 +64,10 @@
 //!
 //! As with [Hash] above, the [XOF] trait has streaming APIs in the form of [XOF::absorb] and [XOF::squeeze].
 //! Unlike [Hash::do_final], [XOF::squeeze] can be called multiple times.
+//! Note, however, that once you start squeezing, you can no longer absorb more input -- [SHAKE::absorb]
+//! will throw a [HashError::InvalidState], but the SHAKE object will still be usable for squeezing
+//! as if the erroneous `absorb` call never happened.
+//!
 //! The following code produces the same output as the previous example:
 //!```
 //! use bouncycastle_core::traits::XOF;
@@ -71,7 +75,7 @@
 //!
 //! let data: &[u8] = b"Hello, world!";
 //! let mut shake = sha3::SHAKE128::new();
-//! shake.absorb(data);
+//! shake.absorb(data).expect("infallible before squeeze");
 //! let output_16byte: Vec<u8> = shake.squeeze(16);
 //!
 //! let mut shake = sha3::SHAKE128::new();

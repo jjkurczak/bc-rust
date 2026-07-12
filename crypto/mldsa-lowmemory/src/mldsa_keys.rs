@@ -511,9 +511,9 @@ impl<
         let mut K: [u8; 32] = [0u8; 32];
 
         let mut h = H::default();
-        h.absorb(seed.ref_to_bytes());
-        h.absorb(&(k as u8).to_le_bytes());
-        h.absorb(&(l as u8).to_le_bytes());
+        h.absorb(seed.ref_to_bytes()).expect("absorb before squeeze is infallible");
+        h.absorb(&(k as u8).to_le_bytes()).expect("absorb before squeeze is infallible");
+        h.absorb(&(l as u8).to_le_bytes()).expect("absorb before squeeze is infallible");
         let bytes_written = h.squeeze_out(&mut rho);
         debug_assert_eq!(bytes_written, 32);
         let bytes_written = h.squeeze_out(&mut rho_prime);

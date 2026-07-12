@@ -518,7 +518,7 @@ pub(crate) fn sample_in_ball<const LAMBDA_over_4: usize, const TAU: i32>(
     // 3: ctx ← H.Absorb(ctx, 𝜌)
     // 4: (ctx, 𝑠) ← H.Squeeze(ctx, 8)
     let mut h = H::new();
-    h.absorb(rho);
+    h.absorb(rho).expect("absorb before squeeze is infallible");
     let mut s = [0u8; 8];
     h.squeeze_out(&mut s);
 
@@ -581,8 +581,8 @@ pub(crate) fn rej_ntt_poly(rho: &[u8; 32], nonce: &[u8; 2]) -> Polynomial {
     let mut w_hat = Polynomial::new();
     let mut j: usize = 0;
     let mut g = G::new();
-    g.absorb(rho);
-    g.absorb(nonce);
+    g.absorb(rho).expect("absorb before squeeze is infallible");
+    g.absorb(nonce).expect("absorb before squeeze is infallible");
 
     // SHAKE is fairly inefficient if you just squeeze 3 bytes at a time, so we'll do a block.
     // size doesn't really matter, so long as it's a multiple of 3.
@@ -626,8 +626,8 @@ pub(crate) fn rej_bounded_poly<const ETA: usize>(rho: &[u8; 64], nonce: &[u8; 2]
     let mut a = Polynomial::new();
     let mut j: usize = 0;
     let mut h = H::new();
-    h.absorb(rho);
-    h.absorb(nonce);
+    h.absorb(rho).expect("absorb before squeeze is infallible");
+    h.absorb(nonce).expect("absorb before squeeze is infallible");
 
     // size doesn't really matter
     // 312 seemed to be the sweet spot from playing with benchmarks
@@ -733,8 +733,9 @@ pub(crate) fn expand_mask<const l: usize, const GAMMA1: i32, const GAMMA1_MASK_L
         // 4: 𝑣 ← H(𝜌′, 32𝑐)
         let v = {
             let mut h = H::new();
-            h.absorb(rho);
-            h.absorb(&(mu + (r as u16)).to_le_bytes());
+            h.absorb(rho).expect("absorb before squeeze is infallible");
+            h.absorb(&(mu + (r as u16)).to_le_bytes())
+                .expect("absorb before squeeze is infallible");
             let mut v = [0u8; GAMMA1_MASK_LEN];
             h.squeeze_out(&mut v);
             v

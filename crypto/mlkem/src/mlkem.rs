@@ -673,8 +673,8 @@ impl<
         let K_bar: [u8; MLKEM_SS_LEN];
         K_bar = {
             let mut j = J::new();
-            j.absorb(dk.z());
-            j.absorb(&c);
+            j.absorb(dk.z()).expect("absorb before squeeze is infallible");
+            j.absorb(&c).expect("absorb before squeeze is infallible");
             let mut buf = [0u8; MLKEM_SS_LEN];
             let bytes_written = j.squeeze_out(&mut buf);
             debug_assert_eq!(bytes_written, MLKEM_SS_LEN);
