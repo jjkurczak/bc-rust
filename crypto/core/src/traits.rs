@@ -1078,7 +1078,7 @@ pub trait XOF: Default {
     fn hash_xof_out(self, data: &[u8], output: &mut [u8]) -> usize;
 
     /// Absorb some amount of input.
-    fn absorb(&mut self, data: &[u8]);
+    fn absorb(&mut self, data: &[u8]) -> Result<(), HashError>;
 
     /// Switches to squeezing.
     fn absorb_last_partial_byte(

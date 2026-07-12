@@ -82,8 +82,8 @@ pub(crate) fn sample_ntt(rho: &[u8; 32], nonce: &[u8; 2]) -> Polynomial {
     // 1: ctx ← XOF.Init()
     // 2: ctx ← XOF.Absorb(ctx, 𝐵) ▷ input the given byte array into XOF
     let mut xof = SHAKE128::new();
-    xof.absorb(rho);
-    xof.absorb(nonce);
+    xof.absorb(rho).expect("absorb before squeeze is infallible");
+    xof.absorb(nonce).expect("absorb before squeeze is infallible");
 
     // 3: 𝑗 ← 0
     let mut j = 0usize;
@@ -199,8 +199,8 @@ pub(crate) fn sample_poly_CBD<const eta: i16>(b: &[u8; 32], n: u8) -> Polynomial
         2 => {
             let buf = {
                 let mut xof = SHAKE256::new();
-                xof.absorb(b);
-                xof.absorb(&n.to_le_bytes());
+                xof.absorb(b).expect("absorb before squeeze is infallible");
+                xof.absorb(&n.to_le_bytes()).expect("absorb before squeeze is infallible");
 
                 let mut buf = [0u8; 2 * 64];
                 xof.squeeze_out(&mut buf);
@@ -212,8 +212,8 @@ pub(crate) fn sample_poly_CBD<const eta: i16>(b: &[u8; 32], n: u8) -> Polynomial
         3 => {
             let buf = {
                 let mut xof = SHAKE256::new();
-                xof.absorb(b);
-                xof.absorb(&n.to_le_bytes());
+                xof.absorb(b).expect("absorb before squeeze is infallible");
+                xof.absorb(&n.to_le_bytes()).expect("absorb before squeeze is infallible");
                 let mut buf = [0u8; 3 * 64];
                 xof.squeeze_out(&mut buf);
                 buf

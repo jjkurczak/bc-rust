@@ -191,7 +191,7 @@ impl Drop for KeccakState {
 
 // This is pub(crate) so that the SerializableState handlers can unpack it.
 #[derive(Clone)]
-pub(crate) struct KeccakDigest {
+pub(crate) struct KeccakInternal {
     state: KeccakState,
     pub data_queue: [u8; 192],
     rate: usize,
@@ -209,7 +209,7 @@ pub(crate) enum KeccakSize {
     _512 = 512,
 }
 
-impl KeccakDigest {
+impl KeccakInternal {
     pub(super) fn new(size: KeccakSize) -> Self {
         let rate = 1600 - ((size as usize) << 1);
 
@@ -222,15 +222,29 @@ impl KeccakDigest {
         }
     }
 
+    /// Absorbs `data` (whole bytes only) into the sponge.
+    ///
+    /// # Contract
+    /// This private function has preconditions to entry that the caller must uphold:
+    /// ## `bits_in_queue` is byte-aligned (a multiple of 8) on entry.
+    /// currently all call sites within the crate respect this, and there are unit tests to trigger
+    /// the embedded debug_assert for existing call sites, but any new call sites to this MUST
+    /// respect this precondition. If we ever open up the [KeccakInternal] object to be called publicly,
+    /// then we'll have to add proper error-handling here.
+    ///
+    /// ## No absorbing after squeezing
+    /// The prohibition on absorbing more input after squeezing is only technically enforced
+    /// for SHAKE and not for KECCAK (and only because FIPS 202 Section 6.2 places a four-bit suffix
+    /// "1111" after the last byte of input). There is a debug_assert to catch this, but we could
+    /// in theory expose the Keccak primitive externally in the future and relax this restriction,
+    /// but some more careful reading of FIPS 202 and some thinking about error and security handling
+    /// would need to be done.
     pub(super) fn absorb(&mut self, data: &[u8]) {
-        if (self.bits_in_queue & 7) != 0 {
-            panic!("attempt to absorb with odd length queue");
-        }
-        if self.squeezing {
-            // Maybe this should be an error rather than a panic?
-            // But, like, don't write your code to absorb after squeezing.
-            panic!("attempt to absorb while squeezing");
-        }
+        // Debug-only backstops for the two contract preconditions; see the doc comment above. Both are
+        // enforced for real by the SHA3 / SHAKE callers within these crates, so these asserts
+        // _should_ be unreachable.
+        debug_assert!(self.bits_in_queue & 7 == 0, "attempt to absorb with odd length queue");
+        debug_assert!(!self.squeezing, "attempt to absorb while squeezing");
 
         for byte in data {
             self.data_queue[self.bits_in_queue >> 3] = *byte;
@@ -347,10 +361,10 @@ impl KeccakDigest {
 // KDF metadata. The helpers below serialize that shared state so the `SerializableState` impls in
 // `sha3.rs` and `shake.rs` are just thin wrappers that add/check the library version header.
 
-/// Number of bytes needed to serialize a [KeccakDigest]'s mutable state.
+/// Number of bytes needed to serialize a [KeccakInternal]'s mutable state.
 ///
 /// The `rate` is intentionally NOT serialized: it is fully determined by the SHA3/SHAKE variant and
-/// is re-supplied at deserialization time (see [KeccakDigest::from_serialized_state]).
+/// is re-supplied at deserialization time (see [KeccakInternal::from_serialized_state]).
 ///
 /// Layout (all integers little-endian):
 ///   [0   .. 200)  state.buf     [u64; 25]
@@ -359,7 +373,7 @@ impl KeccakDigest {
 ///   [400 .. 401)  squeezing     bool  (0 or 1)
 const KECCAK_SERIALIZED_LEN: usize = 200 + 192 + 8 + 1;
 
-/// Number of bytes needed to serialize the shared SHA3-family state (a variant tag, a [KeccakDigest],
+/// Number of bytes needed to serialize the shared SHA3-family state (a variant tag, a [KeccakInternal],
 /// plus the three KDF metadata fields), excluding the library version header.
 ///
 /// The leading variant tag distinguishes every SHA3/SHAKE variant — crucially including same-rate
@@ -377,7 +391,7 @@ pub(crate) const SHA3_FAMILY_STATE_LEN: usize = 1 + KECCAK_SERIALIZED_LEN + 10;
 /// Length in bytes of the serialized state of a SHA3 or SHAKE instance.
 pub const SUSPENDED_SHA3_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
 
-impl KeccakDigest {
+impl KeccakInternal {
     /// Serializes this digest's mutable state into `out`. The `rate` is deliberately omitted; see
     /// [KECCAK_SERIALIZED_LEN].
     fn serialize_state(&self, out: &mut [u8; KECCAK_SERIALIZED_LEN]) {
@@ -396,7 +410,7 @@ impl KeccakDigest {
         out[400] = self.squeezing as u8;
     }
 
-    /// Reconstructs a [KeccakDigest] from a state produced by [KeccakDigest::serialize_state].
+    /// Reconstructs a [KeccakInternal] from a state produced by [KeccakInternal::serialize_state].
     ///
     /// `rate` is supplied by the caller (derived from its algorithm parameters) rather than read
     /// from the serialized bytes, since the rate is fully determined by the SHA3/SHAKE variant. The
@@ -415,10 +429,13 @@ impl KeccakDigest {
         // data_queue: [u8; 192]
         let data_queue: [u8; 192] = input[200..392].try_into().unwrap();
 
-        // bits_in_queue: usize. It can never legitimately exceed the rate.
-        // Reject it here as InvalidData rather than deferring to a downstream panic.
+        // bits_in_queue: usize.
+        // In a legitimate state it is always a multiple of 8 AND strictly less
+        // than the rate: absorb() only enqueues whole bytes, and a sub-byte queue exists only
+        // transiently inside absorb_bits(), which pads and switches to squeezing before returning.
+        // So here we reject unaligned values (ie where bits_in_queue is not a multiple of 8)
         let bits_in_queue = u64::from_le_bytes(input[392..400].try_into().unwrap()) as usize;
-        if bits_in_queue >= rate {
+        if bits_in_queue >= rate || (bits_in_queue & 7) != 0 {
             return Err(SuspendableError::InvalidData);
         }
 
@@ -433,12 +450,12 @@ impl KeccakDigest {
     }
 }
 
-/// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [KeccakDigest], plus
+/// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [KeccakInternal], plus
 /// the three KDF metadata fields) into `out`. See [SHA3_FAMILY_STATE_LEN] for the layout.
 pub(crate) fn serialize_sha3_family_state(
     out: &mut [u8; SHA3_FAMILY_STATE_LEN],
     variant_tag: u8,
-    keccak: &KeccakDigest,
+    keccak: &KeccakInternal,
     kdf_key_type: KeyType,
     kdf_security_strength: SecurityStrength,
     kdf_entropy: usize,
@@ -465,14 +482,14 @@ pub(crate) fn deserialize_sha3_family_state(
     input: &[u8; SHA3_FAMILY_STATE_LEN],
     expected_variant_tag: u8,
     rate: usize,
-) -> Result<(KeccakDigest, KeyType, SecurityStrength, usize), SuspendableError> {
+) -> Result<(KeccakInternal, KeyType, SecurityStrength, usize), SuspendableError> {
     if input[0] != expected_variant_tag {
         return Err(SuspendableError::InvalidData);
     }
 
     let keccak_in: &[u8; KECCAK_SERIALIZED_LEN] =
         input[1..1 + KECCAK_SERIALIZED_LEN].try_into().unwrap();
-    let keccak = KeccakDigest::from_serialized_state(keccak_in, rate)?;
+    let keccak = KeccakInternal::from_serialized_state(keccak_in, rate)?;
 
     // KeyType and SecurityStrength each own their canonical 1-byte encoding (`as u8` / `TryFrom<u8>`).
     let kdf_key_type = KeyType::try_from(input[1 + KECCAK_SERIALIZED_LEN])?;
@@ -491,7 +508,7 @@ mod keccak_tests {
 
     #[test]
     fn test_keccak() {
-        let mut d = KeccakDigest::new(KeccakSize::_256);
+        let mut d = KeccakInternal::new(KeccakSize::_256);
         let m_vec = hex::decode("6d657373616765").unwrap();
         d.absorb(&m_vec);
 
@@ -504,20 +521,20 @@ mod keccak_tests {
     }
 
     /// Regression test for from_serialized_state's validation of a not-yet-squeezing queue: a corrupt
-    /// state whose bits_in_queue is not byte-aligned, or equals the rate, must be rejected as
-    /// InvalidData rather than deserialized into a value that later panics in absorb() /
-    /// pad_and_switch_to_squeezing_phase().
+    /// state whose bits_in_queue is not byte-aligned, or equals/exceeds the rate, must be rejected as
+    /// InvalidData rather than deserialized into a value that later trips the debug_assert in absorb()
+    /// or the pad_and_switch_to_squeezing_phase() invariant.
     #[test]
     fn from_serialized_state_rejects_corrupt_bits_in_queue() {
         let rate = 1600 - ((KeccakSize::_256 as usize) << 1);
 
         // A valid, mid-absorb (not squeezing) serialized state.
-        let mut d = KeccakDigest::new(KeccakSize::_256);
+        let mut d = KeccakInternal::new(KeccakSize::_256);
         d.absorb(b"message");
         assert!(!d.squeezing);
         let mut good = [0u8; KECCAK_SERIALIZED_LEN];
         d.serialize_state(&mut good);
-        assert!(KeccakDigest::from_serialized_state(&good, rate).is_ok());
+        assert!(KeccakInternal::from_serialized_state(&good, rate).is_ok());
 
         // bits_in_queue lives at [392..400) as a little-endian u64 with squeezing at [400].
         assert_eq!(good[400], 0, "test setup expects a non-squeezing state");
@@ -529,7 +546,7 @@ mod keccak_tests {
         let mut corrupt = good;
         set_biq(&mut corrupt, rate as u64 + 8);
         assert!(matches!(
-            KeccakDigest::from_serialized_state(&corrupt, rate),
+            KeccakInternal::from_serialized_state(&corrupt, rate),
             Err(SuspendableError::InvalidData)
         ));
 
@@ -537,16 +554,18 @@ mod keccak_tests {
         let mut corrupt = good;
         set_biq(&mut corrupt, rate as u64);
         assert!(matches!(
-            KeccakDigest::from_serialized_state(&corrupt, rate),
+            KeccakInternal::from_serialized_state(&corrupt, rate),
             Err(SuspendableError::InvalidData)
         ));
 
-        // Not byte-aligned while not squeezing -> rejected (would panic in absorb()).
-        // let mut corrupt = good;
-        // set_biq(&mut corrupt, 9);
-        // assert!(matches!(
-        //     KeccakDigest::from_serialized_state(&corrupt, rate),
-        //     Err(SuspendableError::InvalidData)
-        // ));
+        // Non byte-aligned number of bits in queue -> rejected
+        // (meaning a bits_in_queue which is not a multiple of 8, and only allowed during the absorb_bits,
+        // which may not be called outside of absorb_last_partial_byte(), so is not a valid suspendable state)
+        let mut corrupt = good;
+        set_biq(&mut corrupt, 9);
+        assert!(matches!(
+            KeccakInternal::from_serialized_state(&corrupt, rate),
+            Err(SuspendableError::InvalidData)
+        ));
     }
 }

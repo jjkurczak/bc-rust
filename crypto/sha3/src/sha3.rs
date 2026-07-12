@@ -1,6 +1,6 @@
 use crate::SHA3Params;
 use crate::keccak::{
-    KeccakDigest, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN, deserialize_sha3_family_state,
+    KeccakInternal, SHA3_FAMILY_STATE_LEN, SUSPENDED_SHA3_STATE_LEN, deserialize_sha3_family_state,
     serialize_sha3_family_state,
 };
 use bouncycastle_core::errors::{HashError, KDFError, SuspendableError};
@@ -16,7 +16,7 @@ use bouncycastle_utils::{max, min};
 #[derive(Clone)]
 pub struct SHA3Internal<PARAMS: SHA3Params> {
     _params: std::marker::PhantomData<PARAMS>,
-    keccak: KeccakDigest,
+    keccak: KeccakInternal,
     kdf_key_type: KeyType,
     kdf_security_strength: SecurityStrength,
     kdf_entropy: usize,
@@ -29,7 +29,7 @@ impl<PARAMS: SHA3Params> SHA3Internal<PARAMS> {
     pub fn new() -> Self {
         Self {
             _params: std::marker::PhantomData,
-            keccak: KeccakDigest::new(PARAMS::SIZE),
+            keccak: KeccakInternal::new(PARAMS::SIZE),
             kdf_key_type: KeyType::Zeroized,
             kdf_security_strength: SecurityStrength::None,
             kdf_entropy: 0,

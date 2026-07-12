@@ -1096,9 +1096,9 @@ impl<
         // Alg 7; 7: 𝜌″ ← H(𝐾||𝑟𝑛𝑑||𝜇, 64)
         let rho_p_p: [u8; 64] = {
             let mut h = H::new();
-            h.absorb(sk.K());
-            h.absorb(&rnd);
-            h.absorb(mu);
+            h.absorb(sk.K()).expect("absorb before squeeze is infallible");
+            h.absorb(&rnd).expect("absorb before squeeze is infallible");
+            h.absorb(mu).expect("absorb before squeeze is infallible");
             let mut rho_p_p = [0u8; 64];
             h.squeeze_out(&mut rho_p_p);
 
@@ -1126,7 +1126,7 @@ impl<
             let sig_val_c_tilde = {
                 // scope for hash
                 let mut hash = H::new();
-                hash.absorb(mu);
+                hash.absorb(mu).expect("absorb before squeeze is infallible");
                 for row in 0..k {
                     let mut w = compute_w_row::<l, GAMMA1, GAMMA1_MASK_LEN>(
                         &sk.rho(),
@@ -1135,7 +1135,8 @@ impl<
                         row,
                     );
                     w.high_bits::<GAMMA2>();
-                    hash.absorb(&w.w1_encode::<POLY_W1_PACKED_LEN>());
+                    hash.absorb(&w.w1_encode::<POLY_W1_PACKED_LEN>())
+                        .expect("absorb before squeeze is infallible");
                 }
                 let mut sig_val_c_tilde = [0u8; LAMBDA_over_4];
                 hash.squeeze_out(&mut sig_val_c_tilde);
@@ -1326,7 +1327,7 @@ impl<
         // 12: 𝑐_tilde_p ← H(𝜇||w1Encode(𝐰1'), 𝜆/4)
         // ▷ hash it; this should match 𝑐_tilde
         let mut hash = H::new();
-        hash.absorb(mu);
+        hash.absorb(mu).expect("absorb before squeeze is infallible");
 
         for row in 0..k {
             let mut wp_approx = match {
@@ -1363,7 +1364,8 @@ impl<
             // 10: 𝐰1′ ← UseHint(𝐡, 𝐰'_approx)
             // ▷ reconstruction of signer’s commitment
             wp_approx.use_hint::<GAMMA2>(&h_i);
-            hash.absorb(&wp_approx.w1_encode::<POLY_W1_PACKED_LEN>());
+            hash.absorb(&wp_approx.w1_encode::<POLY_W1_PACKED_LEN>())
+                .expect("absorb before squeeze is infallible");
         }
 
         let mut c_tilde_p = [0u8; LAMBDA_over_4];
@@ -1924,14 +1926,14 @@ impl MuBuilder {
         // Algorithm 7
         // 6: 𝜇 ← H(BytesToBits(𝑡𝑟)||𝑀', 64)
         let mut mb = Self { h: H::new() };
-        mb.h.absorb(tr);
+        mb.h.absorb(tr).expect("absorb before squeeze is infallible");
 
         // Algorithm 2
         // 10: 𝑀′ ← BytesToBits(IntegerToBytes(0, 1) ∥ IntegerToBytes(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥) ∥ 𝑀
         // all done together
-        mb.h.absorb(&[0u8]);
-        mb.h.absorb(&[ctx.len() as u8]);
-        mb.h.absorb(ctx);
+        mb.h.absorb(&[0u8]).expect("absorb before squeeze is infallible");
+        mb.h.absorb(&[ctx.len() as u8]).expect("absorb before squeeze is infallible");
+        mb.h.absorb(ctx).expect("absorb before squeeze is infallible");
 
         // now ready to absorb M
         Ok(mb)
@@ -1939,7 +1941,7 @@ impl MuBuilder {
 
     /// Stream a chunk of the message.
     pub fn do_update(&mut self, msg_chunk: &[u8]) {
-        self.h.absorb(msg_chunk);
+        self.h.absorb(msg_chunk).expect("absorb before squeeze is infallible");
     }
 
     /// Finalize and return the mu value.

@@ -196,7 +196,8 @@ impl<const LEN: usize> Vector<LEN> {
         // 3:   𝐰̃1 ← 𝐰̃1 || SimpleBitPack (𝐰1[𝑖], (𝑞 − 1)/(2𝛾2) − 1)
         // 4: end for
         for w in self.vec.iter() {
-            h.absorb(&w.w1_encode::<POLY_W1_PACKED_LEN>());
+            h.absorb(&w.w1_encode::<POLY_W1_PACKED_LEN>())
+                .expect("absorb before squeeze is infallible");
         }
     }
 }

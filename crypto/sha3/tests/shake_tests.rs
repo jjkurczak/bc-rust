@@ -26,7 +26,7 @@ mod shake_tests {
 
         // test bounds
         let mut shake = SHAKE128::new();
-        shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]);
+        shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]).expect("absorb before squeeze is infallible");
         let _throwaway = shake.squeeze(3);
         match shake.squeeze_partial_byte_final(0) {
             Err(_) => { /* good */ }
@@ -36,7 +36,7 @@ mod shake_tests {
         }
 
         let mut shake = SHAKE128::new();
-        shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]);
+        shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]).expect("absorb before squeeze is infallible");
         let _throwaway = shake.squeeze(3);
         match shake.squeeze_partial_byte_final(8) {
             Err(_) => { /* good */ }
@@ -47,7 +47,7 @@ mod shake_tests {
 
         for i in 1..7 {
             let mut shake = SHAKE128::new();
-            shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]);
+            shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]).expect("absorb before squeeze is infallible");
             _ = shake.squeeze(3);
             let out: u8 = shake.squeeze_partial_byte_final(i).expect("Squeeze failed");
             assert_eq!(out, 0xFF >> (8 - i));
@@ -55,11 +55,47 @@ mod shake_tests {
 
         // success case -- output slice version
         let mut shake = SHAKE128::new();
-        shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]);
+        shake.absorb(&[0u8, 1u8, 2u8, 3u8, 4u8]).expect("absorb before squeeze is infallible");
         _ = shake.squeeze(3);
         let mut out = 0u8;
         shake.squeeze_partial_byte_final_out(1, &mut out).expect("Squeeze failed");
         assert_eq!(out, 0x01);
+    }
+
+    /// Once squeezing has begun, a SHAKE cannot return to absorbing (FIPS 202 defines SHAKE as a
+    /// single function of the whole message). Both absorb entry points must reject a post-squeeze call
+    /// with `HashError::InvalidState` rather than panicking, and a rejected call must leave the sponge
+    /// untouched so the output stream continues consistently.
+    #[test]
+    fn absorb_after_squeeze_is_rejected() {
+        use bouncycastle_core::errors::HashError;
+
+        // absorb() after squeeze() -> InvalidState.
+        let mut shake = SHAKE128::new();
+        shake.absorb(b"input").expect("absorb before squeeze is infallible");
+        let _ = shake.squeeze(16);
+        assert!(matches!(shake.absorb(b"more"), Err(HashError::InvalidState(_))));
+
+        // absorb_last_partial_byte() after squeeze() -> InvalidState.
+        let mut shake = SHAKE256::new();
+        shake.absorb(b"input").expect("absorb before squeeze is infallible");
+        let _ = shake.squeeze(16);
+        assert!(matches!(shake.absorb_last_partial_byte(0x01, 3), Err(HashError::InvalidState(_))));
+
+        // A rejected absorb must not corrupt state: the output stream continues as if it never
+        // happened. Squeezing 16 + 16 bytes around a rejected absorb must equal a clean squeeze of 32.
+        let mut a = SHAKE128::new();
+        a.absorb(b"input").expect("absorb before squeeze is infallible");
+        let first = a.squeeze(16);
+        assert!(a.absorb(b"more").is_err());
+        let second = a.squeeze(16);
+
+        let mut b = SHAKE128::new();
+        b.absorb(b"input").expect("absorb before squeeze is infallible");
+        let clean = b.squeeze(32);
+
+        assert_eq!(first.as_slice(), &clean[..16]);
+        assert_eq!(second.as_slice(), &clean[16..]);
     }
 
     #[test]
@@ -248,7 +284,7 @@ mod shake_tests {
 
         // A helper that exercises the full round-trip for one SHAKE variant.
         fn round_trip<const N: usize, X: XOF + Suspendable<N> + Clone>(mut shake: X, input: &[u8]) {
-            shake.absorb(input);
+            shake.absorb(input).expect("absorb before squeeze is infallible");
 
             // do the default trait-conformance tests
             TestFrameworkSuspendableState::new().test(&shake);
@@ -289,7 +325,7 @@ mod shake_tests {
         // variant tag). The SHAKE256 -> SHA3-256 case is the important one: they share the same rate
         // (1088), so only the variant tag distinguishes them.
         let mut shake128 = SHAKE128::new();
-        shake128.absorb(str.as_bytes());
+        shake128.absorb(str.as_bytes()).expect("absorb before squeeze is infallible");
         let serialized_128 = shake128.suspend();
         match SHAKE256::from_suspended(serialized_128) {
             Err(SuspendableError::InvalidData) => { /* good */ }
@@ -297,7 +333,7 @@ mod shake_tests {
         }
 
         let mut shake256 = SHAKE256::new();
-        shake256.absorb(str.as_bytes());
+        shake256.absorb(str.as_bytes()).expect("absorb before squeeze is infallible");
         let serialized_256 = shake256.suspend();
         match SHA3_256::from_suspended(serialized_256) {
             Err(SuspendableError::InvalidData) => { /* good */ }
@@ -324,10 +360,12 @@ mod shake_tests {
         let output: Vec<u8>;
 
         if partial_bits == 0 {
-            shake.absorb(tc.msg.as_slice());
+            shake.absorb(tc.msg.as_slice()).expect("absorb before squeeze is infallible");
             output = shake.squeeze(tc.output.len());
         } else {
-            shake.absorb(&tc.msg[..(tc.msg.len() - 1)]);
+            shake
+                .absorb(&tc.msg[..(tc.msg.len() - 1)])
+                .expect("absorb before squeeze is infallible");
             shake
                 .absorb_last_partial_byte(tc.msg[tc.msg.len() - 1], partial_bits)
                 .expect("Absorb failed");

@@ -1076,7 +1076,9 @@ mod mldsa_tests {
         // variant tag weren't checked -- SHAKE128 (tag 5) must be rejected by MuBuilder (SHAKE256,
         // tag 6).
         let mut shake128 = SHAKE128::new();
-        shake128.absorb(b"Colorless green ideas sleep furiously");
+        shake128
+            .absorb(b"Colorless green ideas sleep furiously")
+            .expect("absorb before squeeze is infallible");
         let serialized_128 = shake128.suspend();
 
         match MuBuilder::from_suspended(serialized_128) {

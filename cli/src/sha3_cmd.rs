@@ -49,7 +49,7 @@ fn do_shake(mut shake: impl XOF, output_len: usize, output_hex: bool) {
     // read from stdin
     let mut bytes_read = io::stdin().read(&mut buf).expect("Failed to read from stdin");
     while bytes_read != 0 {
-        shake.absorb(&buf[..bytes_read]);
+        shake.absorb(&buf[..bytes_read]).expect("absorb before squeeze is infallible");
         bytes_read = io::stdin().read(&mut buf).expect("Failed to read from stdin");
     }
 

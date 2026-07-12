@@ -434,8 +434,10 @@ mod mlkem_tests {
                 //  J is SHAKE256(𝑠, 8*32)
 
                 let mut shake = SHAKE256::new();
-                shake.absorb(&seed.ref_to_bytes()[32..64]);
-                shake.absorb(&busted_ciphertext);
+                shake
+                    .absorb(&seed.ref_to_bytes()[32..64])
+                    .expect("absorb before squeeze is infallible");
+                shake.absorb(&busted_ciphertext).expect("absorb before squeeze is infallible");
                 let mut buf = [0u8; 32];
                 _ = shake.squeeze_out(&mut buf);
 
