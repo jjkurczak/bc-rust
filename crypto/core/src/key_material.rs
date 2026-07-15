@@ -57,7 +57,7 @@ use bouncycastle_utils::{ct, min, secret::Secret};
 use core::cmp::{Ordering, PartialOrd};
 use core::fmt;
 
-/// Sometimes you just need a zero-length dummy key.
+/// For when it is necessary to get a zero-length dummy key (an empty HMAC salt, for example).
 pub type KeyMaterial0 = KeyMaterial<0>;
 /// Named type for a 128-bit (16-byte) key, for convenience.
 pub type KeyMaterial128 = KeyMaterial<16>;
@@ -208,6 +208,11 @@ pub trait KeyMaterialTrait: KeyMaterialInternalTrait {
     /// Perform a constant-time comparison between the two key material buffers,
     /// ignoring differences in capacity, [KeyType], [SecurityStrength], etc.
     fn equals(&self, other: &dyn KeyMaterialTrait) -> bool;
+
+    /// Truncate this key material into the provided destination.
+    /// Not an error to provide a destination which is larger than the source.
+    /// Consumes self, use `clone()` if you intend to make a copy.
+    fn truncate(self, into: &mut dyn KeyMaterialTrait);
 }
 
 /// A wrapper for holding bytes-like key material (symmetric keys or seeds) which aims to apply a
@@ -439,9 +444,11 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
             Ok(())
         }
     }
+
     fn key_type(&self) -> KeyType {
         self.key_type.clone()
     }
+
     fn set_key_type(&mut self, key_type: KeyType) -> Result<(), KeyMaterialError> {
         if self.allow_hazardous_operations {
             // just do it
@@ -488,6 +495,7 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
 
         Ok(())
     }
+
     fn security_strength(&self) -> SecurityStrength {
         self.security_strength.clone()
     }
@@ -539,8 +547,10 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
         }
 
         self.security_strength = strength;
+
         Ok(())
     }
+
     fn is_full_entropy(&self) -> bool {
         match self.key_type {
             KeyType::CryptographicRandom
@@ -562,6 +572,32 @@ impl<const KEY_LEN: usize> KeyMaterialTrait for KeyMaterial<KEY_LEN> {
             return false;
         }
         ct::ct_eq_bytes(&self.ref_to_bytes(), &other.ref_to_bytes())
+    }
+
+    fn truncate(self, into: &mut dyn KeyMaterialTrait) {
+        into.zeroize();
+
+        let bytes_to_copy =
+            if *self.key_len > into.capacity() { into.capacity() } else { *self.key_len };
+
+        do_hazardous_operations(into, |into| {
+            // copy the bytes
+            into.ref_to_bytes_mut()?[..bytes_to_copy]
+                .copy_from_slice(&self.ref_to_bytes()[..bytes_to_copy]);
+
+            // set the metadata
+            into.set_key_len(bytes_to_copy)?;
+            into.set_key_type(self.key_type)?;
+            into.set_security_strength(
+                min(&self.security_strength(), &SecurityStrength::from_bytes(bytes_to_copy))
+                    .clone(),
+            )?;
+
+            Ok(())
+        })
+        // Swallow all errors generated inside the hazardous operations closure.
+        // The set_* calls here are all infallible inside the hazardous closure.
+        .unwrap();
     }
 }
 

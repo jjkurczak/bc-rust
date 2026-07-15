@@ -410,7 +410,7 @@ use core::marker::PhantomData;
 #[allow(unused_imports)]
 use crate::hash_mldsa;
 #[allow(unused_imports)]
-use bouncycastle_core::key_material::KeyMaterial256;
+use bouncycastle_core::key_material::{KeyMaterial256, KeyMaterialTrait};
 #[allow(unused_imports)]
 use bouncycastle_core::traits::{PHSignatureVerifier, PHSigner};
 use bouncycastle_utils::secret::Secret;
@@ -819,8 +819,8 @@ impl<
     /// Unlike other interfaces across the library that take an &impl KeyMaterial, this one
     /// specifically takes a 32-byte [KeyMaterial256] and checks that it has [KeyType::Seed] and
     /// the appropriate [SecurityStrength] for the requested ML-DSA parameter set.
-    /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it using
-    /// [KeyMaterial::from_key].
+    /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it into a
+    /// correctly-sized [KeyMaterial256] using [KeyMaterialTrait::truncate].
     pub(crate) fn keygen_internal(seed: &KeyMaterial<32>) -> Result<(PK, SK), SignatureError> {
         let sk = SK::from_keymaterial(seed)?;
         let pk = sk.derive_pk();

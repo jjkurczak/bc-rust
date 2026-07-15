@@ -39,7 +39,7 @@ pub trait AlgorithmOID {
 pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>: Algorithm {
     #[cfg(feature = "std")]
     /// A one-shot API to encrypt some plaintext with the given key.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// Returns a tuple containing the initialization data and the ciphertext.
     /// This is not available if building for no_std.
     fn encrypt(
@@ -59,7 +59,7 @@ pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>: Alg
     ) -> Result<([u8; INIT_DATA_LEN], usize), SymmetricCipherError>;
     #[cfg(feature = "std")]
     /// A one-shot API to decrypt some ciphertext with the given key.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// This is not available if building for no_std.
     fn decrypt(
         key: &KeyMaterial<KEY_LEN>,
@@ -158,7 +158,7 @@ pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN
     /// A distinguishing feature of AEAD ciphers is the ability to provide additional authenticated data (AAD)
     /// that is not encrypted but is protected by the authentication tag; ie it can be sent along with the ciphertext
     /// and any tampering with it will result in the decryption operation failing the tag check.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// Returns a tuple containing a generated nonce, the ciphertext and the tag.
     fn aead_encrypt(
         key: &KeyMaterial<KEY_LEN>,
@@ -185,7 +185,7 @@ pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN
     fn do_aead_encrypt_final(self) -> Result<[u8; TAG_LEN], SymmetricCipherError>;
     #[cfg(feature = "std")]
     /// A one-shot API to decrypt some ciphertext with the given key.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     fn aead_decrypt(
         key: &KeyMaterial<KEY_LEN>,
         nonce: &[u8; NONCE_LEN],

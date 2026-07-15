@@ -64,7 +64,7 @@
 //!
 //! As with [Hash] above, the [XOF] trait has streaming APIs in the form of [XOF::absorb] and [XOF::squeeze].
 //! Unlike [Hash::do_final], [XOF::squeeze] can be called multiple times.
-//! Note, however, that once you start squeezing, you can no longer absorb more input -- [SHAKE::absorb]
+//! Note, however, that once you start squeezing, you can no longer absorb more input -- [XOF::absorb]
 //! will throw a [HashError::InvalidState], but the SHAKE object will still be usable for squeezing
 //! as if the erroneous `absorb` call never happened.
 //!
@@ -147,6 +147,8 @@ use crate::keccak::KeccakSize;
 use bouncycastle_core::traits::{Algorithm, AlgorithmOID, HashAlgParams, SecurityStrength};
 
 // imports needed for docs
+#[allow(unused_imports)]
+use bouncycastle_core::errors::HashError;
 #[allow(unused_imports)]
 use bouncycastle_core::key_material::{KeyMaterial, KeyType};
 #[allow(unused_imports)]

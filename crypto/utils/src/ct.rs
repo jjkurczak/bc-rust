@@ -174,7 +174,7 @@ impl Condition<u64> {
         Self(0u64.wrapping_sub(VALUE as u64))
     }
     /// impl the select function manually for u64
-    ///    although a fully generic impl<T> would be the ultimate long-term goal
+    ///    although a fully generic `impl<T>` would be the ultimate long-term goal
     pub fn select(self, a: u64, b: u64) -> u64 {
         let mask = self.0;
         (a & mask) | (b & !mask)

@@ -19,6 +19,8 @@ use core::fmt::{Debug, Display, Formatter};
 // imports just for docs
 #[allow(unused_imports)]
 use crate::mldsa::MLDSATrait;
+#[allow(unused_imports)]
+use crate::polynomial::Polynomial;
 
 /* Pub Types */
 

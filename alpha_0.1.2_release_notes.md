@@ -1,15 +1,3 @@
-# TODO
-
-[remove this section before publication]
-
-* Deal with as many of the inline TODOs as possible
-* Close all open github issues and document them in this file.
-* Clean up `cargo doc --all` warnings
-* On release/0.1.2alpha, get Claude to make a cosmetic change to the docs for all crates to use [`Secret`] instead
-  of [Secret] because this renders better.
-* After everything is merged, circle back to crucible, and make sure that the harness still works
-* Delete this file and stuff it into the Description of a github Release.
-
 # 0.1.2 Features / Changelog
 
 ## Major features
@@ -55,6 +43,8 @@ The KeyMaterial object:
 
 Docs:
 
+* Major overhaul of the docs (public crate docs, and inline comments) to make them more neutral and professional (Huge
+  thanks to @laruizlo for this big effort!).
 * All crypto algorithm crates now have Memory Usage docs that list the stack memory usage of the implementation.
 * All crypto algorithm crates now have `#![forbid(missing_docs)]` to ensure that they have a fully-documented public
   API.

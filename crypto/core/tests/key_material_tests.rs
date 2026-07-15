@@ -192,11 +192,11 @@ mod test_key_material {
         assert_eq!(key1, key2);
 
         // success case: bigger
-        let key2 = KeyMaterial512::from_key(&key1).unwrap();
-        assert_eq!(key1.key_len(), key2.key_len());
-        assert_eq!(key1.key_type(), key2.key_type());
-        assert_eq!(key1.security_strength(), key2.security_strength());
-        assert_eq!(key1.ref_to_bytes(), &key2.ref_to_bytes()[..key1.key_len()]);
+        let key512 = KeyMaterial512::from_key(&key1).unwrap();
+        assert_eq!(key1.key_len(), key512.key_len());
+        assert_eq!(key1.key_type(), key512.key_type());
+        assert_eq!(key1.security_strength(), key512.security_strength());
+        assert_eq!(key1.ref_to_bytes(), &key512.ref_to_bytes()[..key1.key_len()]);
     }
 
     #[test]
@@ -291,6 +291,64 @@ mod test_key_material {
         key.set_security_strength(SecurityStrength::_112bit).unwrap();
         key.set_key_len(64).unwrap();
         assert_eq!(key.security_strength(), SecurityStrength::_112bit);
+    }
+
+    #[test]
+    fn test_truncate() {
+        // Case A: truncate a full 64-byte key into a smaller-capacity destination.
+        // bytes_to_copy = min(src.key_len=64, dest.capacity()=16) = 16.
+        let src =
+            KeyMaterial512::from_bytes_as_type(DUMMY_KEY, KeyType::CryptographicRandom).unwrap();
+        assert_eq!(src.security_strength(), SecurityStrength::_256bit);
+        let mut dest = KeyMaterial128::new();
+        src.truncate(&mut dest);
+        assert_eq!(dest.key_len(), 16);
+        assert_eq!(dest.ref_to_bytes(), &DUMMY_KEY[..16]);
+        assert_eq!(dest.key_type(), KeyType::CryptographicRandom);
+        // strength = min(source _256bit, from_bytes(16) = _128bit) = _128bit
+        assert_eq!(dest.security_strength(), SecurityStrength::_128bit);
+
+        // Case B: source shorter than the destination capacity copies the whole source.
+        // bytes_to_copy = min(src.key_len=32, dest.capacity()=64) = 32.
+        let src = KeyMaterial256::from_bytes_as_type(&DUMMY_KEY[..32], KeyType::MACKey).unwrap();
+        assert_eq!(src.security_strength(), SecurityStrength::_256bit);
+        let mut dest = KeyMaterial512::new();
+        // cloning because we want src to continue existing so we can check against it.
+        src.clone().truncate(&mut dest);
+        assert_eq!(dest.key_len(), 32);
+        assert_eq!(dest.ref_to_bytes(), src.ref_to_bytes());
+        assert_eq!(dest.key_type(), src.key_type());
+        // strength = min(source _256bit, from_bytes(32) = _256bit) = _256bit
+        assert_eq!(dest.security_strength(), SecurityStrength::_256bit);
+
+        // Case C: truncate must never raise the security strength above the source's.
+        // Source is 64 bytes but manually pinned to _112bit; after copying 32 bytes into the dest,
+        // strength = min(source _112bit, from_bytes(32) = _256bit) = _112bit.
+        let mut src =
+            KeyMaterial512::from_bytes_as_type(DUMMY_KEY, KeyType::CryptographicRandom).unwrap();
+        src.set_security_strength(SecurityStrength::_112bit).unwrap();
+        let mut dest = KeyMaterial256::new();
+        src.truncate(&mut dest);
+        assert_eq!(dest.key_len(), 32);
+        assert_eq!(dest.ref_to_bytes(), &DUMMY_KEY[..32]);
+        assert_eq!(dest.security_strength(), SecurityStrength::_112bit);
+
+        // Case D: a pre-populated destination is zeroized first, so bytes beyond the new key_len
+        // must not leak the destination's previous contents.
+        let src = KeyMaterial512::from_bytes_as_type(&DUMMY_KEY[..16], KeyType::Seed).unwrap();
+        let mut dest = KeyMaterial512::from_bytes(&[0xFFu8; 64]).unwrap();
+        src.truncate(&mut dest);
+        assert_eq!(dest.key_len(), 16);
+        assert_eq!(dest.ref_to_bytes(), &DUMMY_KEY[..16]);
+        assert_eq!(dest.key_type(), KeyType::Seed);
+        // The tail of the backing buffer (beyond the new 16-byte key) must be all zeros.
+        do_hazardous_operations(&mut dest, |dest| {
+            let full_buf = dest.ref_to_bytes_mut().unwrap();
+            assert_eq!(full_buf.len(), 64);
+            assert!(full_buf[16..].iter().all(|&b| b == 0));
+            Ok(())
+        })
+        .unwrap();
     }
 
     #[test]

@@ -13,9 +13,12 @@ use bouncycastle_sha3::SHA3_256;
 use bouncycastle_utils::secret::Secret;
 use core::fmt;
 use core::fmt::{Debug, Display, Formatter};
+
 // imports just for docs
 #[allow(unused_imports)]
 use crate::mlkem::MLKEMTrait;
+#[allow(unused_imports)]
+use crate::polynomial::Polynomial;
 
 /* Pub Types */
 

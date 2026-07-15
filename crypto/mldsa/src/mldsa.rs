@@ -831,8 +831,8 @@ impl<
     /// Unlike other interfaces across the library that take an &impl KeyMaterial, this one
     /// specifically takes a 32-byte [KeyMaterial256] and checks that it has [KeyType::Seed] and
     /// [SecurityStrength::_256bit].
-    /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it using
-    /// [KeyMaterialTrait::from_key]
+    /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it into a
+    /// correctly-sized [KeyMaterial256] using [KeyMaterialTrait::truncate].
     pub(crate) fn keygen_internal(seed: &KeyMaterial256) -> Result<(PK, SK), SignatureError> {
         if !(seed.key_type() == KeyType::Seed || seed.key_type() == KeyType::CryptographicRandom)
             || seed.key_len() != 32

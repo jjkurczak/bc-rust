@@ -14,7 +14,7 @@
 //!
 //! # Why Sized?
 //!
-//! The [ZeroizablePrimitive] is bounded on [`Sized`](core::marker::Sized), which explicitly forbids
+//! The [ZeroizablePrimitive] is bounded on [`Sized`], which explicitly forbids
 //! instantiating `Secret<T>` over something like `Vec<T>` whose size is not known at compile time.
 //!
 //! The reason is that an implementation of `.zeroize()` that is guaranteed not be optimized away
@@ -187,7 +187,7 @@ impl<T: ZeroizablePrimitive, const N: usize> ZeroizablePrimitive for [T; N] {
 /// ```
 ///
 /// Note that `Secret<T>` is only defined for statically-sized types -- ie types that satisfy
-/// [`Sized`](core::marker::Sized). For a justification, see the module docs.
+/// [`Sized`]. For a justification, see the module docs.
 ///
 /// # Redacting Debug and Display
 ///
@@ -205,7 +205,7 @@ impl<T: ZeroizablePrimitive, const N: usize> ZeroizablePrimitive for [T; N] {
 ///
 /// This will also work for custom types; let's say the `User` struct from the previous example had
 /// impl'd Display and Debug; mhen you wrap them in `Secret<User>` then `Secret`'s Display and Debug
-/// are invoked instead of `User`'s and you get the "<redacted>" output.
+/// are invoked instead of `User`'s and you get the `"<redacted>"` output.
 ///
 /// # Memory Usage
 ///
