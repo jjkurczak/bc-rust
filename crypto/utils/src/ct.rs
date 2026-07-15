@@ -132,7 +132,7 @@ impl Condition<i64> {
     ///
     /// As a result, `1`, which is the negation of `-1`, should be returned, but `-3` is output.
     ///
-    /// Therefore, if the [Self::TRUE] constant value of the i64 [Condition] implementation is changed to `-1`,
+    /// Therefore, if the [`Self::TRUE`] constant value of the i64 [`Condition`] implementation is changed to `-1`,
     /// the test also runs normally.
     pub const fn negate(self, value: i64) -> i64 {
         (value ^ self.0).wrapping_sub(self.0)

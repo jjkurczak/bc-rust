@@ -1,4 +1,4 @@
-//! Generic behaviour tests for anything that implements [MAC].
+//! Generic behaviour tests for anything that implements [`MAC`].
 
 use crate::DUMMY_SEED;
 use bouncycastle_core::errors::{KeyMaterialError, MACError};

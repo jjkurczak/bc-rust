@@ -868,7 +868,7 @@ mod test_key_material {
     }
 
     #[test]
-    /// Pins the error behaviour of [do_hazardous_operations]:
+    /// Pins the error behaviour of [`do_hazardous_operations`]:
     ///  1. an `Err` returned from the closure propagates out verbatim (not swallowed or remapped),
     ///  2. a real `KeyMaterialError` raised by a guarded op inside the closure propagates via `?`,
     ///  3. the "flattening" idiom the KDF/RNG crates rely on — collapsing a *foreign* error type

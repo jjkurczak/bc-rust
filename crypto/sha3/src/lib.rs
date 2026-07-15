@@ -2,8 +2,8 @@
 //!
 //! # Examples
 //! ## Hash
-//! Hash functionality is accessed via the [Hash] trait,
-//! which is implemented by [SHA3_224], [SHA3_256], [SHA3_384] and [SHA3_512].
+//! Hash functionality is accessed via the [`Hash`] trait,
+//! which is implemented by [`SHA3_224`], [`SHA3_256`], [`SHA3_384`] and [`SHA3_512`].
 //!
 //! The simplest usage is via the one-shot functions.
 //! ```
@@ -48,9 +48,9 @@
 //! ```
 //!
 //! ## XOF
-//! SHA3 offers Extendable-Output Functions in the form of SHAKE, which is accessed through the [XOF] trait,
-//! which is implemented by [SHAKE128] and [SHAKE256].
-//! The difference from [Hash] is that SHAKE can produce output of any length.
+//! SHA3 offers Extendable-Output Functions in the form of SHAKE, which is accessed through the [`XOF`] trait,
+//! which is implemented by [`SHAKE128`] and [`SHAKE256`].
+//! The difference from [`Hash`] is that SHAKE can produce output of any length.
 //!
 //! The simplest usage is via the static functions. The following example produces a 16 byte (128-bit) and 16KiB output:
 //!```
@@ -62,10 +62,10 @@
 //! let output_16KiB: Vec<u8> = sha3::SHAKE128::new().hash_xof(data, 16 * 1024);
 //! ```
 //!
-//! As with [Hash] above, the [XOF] trait has streaming APIs in the form of [XOF::absorb] and [XOF::squeeze].
-//! Unlike [Hash::do_final], [XOF::squeeze] can be called multiple times.
-//! Note, however, that once you start squeezing, you can no longer absorb more input -- [XOF::absorb]
-//! will throw a [HashError::InvalidState], but the SHAKE object will still be usable for squeezing
+//! As with [`Hash`] above, the [`XOF`] trait has streaming APIs in the form of [`XOF::absorb`] and [`XOF::squeeze`].
+//! Unlike [`Hash::do_final`], [`XOF::squeeze`] can be called multiple times.
+//! Note, however, that once you start squeezing, you can no longer absorb more input -- [`XOF::absorb`]
+//! will throw a [`HashError::InvalidState`], but the SHAKE object will still be usable for squeezing
 //! as if the erroneous `absorb` call never happened.
 //!
 //! The following code produces the same output as the previous example:
@@ -84,10 +84,10 @@
 //! ```
 //!
 //! ## KDF
-//! SHA3 offers Key Derivation Functions in the form of KDF, which is accessed through the [KDF] trait,
+//! SHA3 offers Key Derivation Functions in the form of KDF, which is accessed through the [`KDF`] trait,
 //! which is implemented by all SHA3 and SHAKE variants.
-//! [KDF] acts on [KeyMaterial] objects as both the input and output values.
-//! In the case of SHA3, the [KDF] interfaces are simple wrapper functions around the underlying SHA3 or SHAKE
+//! [`KDF`] acts on [`KeyMaterial`] objects as both the input and output values.
+//! In the case of SHA3, the [`KDF`] interfaces are simple wrapper functions around the underlying SHA3 or SHAKE
 //! primitive that correctly maintains the length and entropy metadata of the key material that it is acting on.
 //! This is intended to act as a developer ait to prevent  some classes of developer mistakes, such as
 //! deriving a cryptographic key from uninitialized (aka zeroized) input key material, or using low-entropy
@@ -101,11 +101,11 @@
 //! let input_key = KeyMaterial256::from_bytes(b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F").unwrap();
 //! let output_key = sha3::SHA3_256::new().derive_key(&input_key, b"Additional input").unwrap();
 //!```
-//! In the previous example, since [KeyMaterial::from_bytes] cannot know the amount of entropy in the input data,
-//! it automatically tags it as [KeyType::Unknown], and thus [SHA3Internal::derive_key] produces an output key
-//! which also has type [KeyType::Unknown].
+//! In the previous example, since [`KeyMaterial::from_bytes`] cannot know the amount of entropy in the input data,
+//! it automatically tags it as [`KeyType::Unknown`], and thus [`SHA3Internal::derive_key`] produces an output key
+//! which also has type [`KeyType::Unknown`].
 //! This would also be the case even if the input had type
-//! [KeyType::CryptographicRandom] since the input [KeyMaterial] is 16 bytes but [SHA3_256] needs at least 32 bytes of
+//! [`KeyType::CryptographicRandom`] since the input [`KeyMaterial`] is 16 bytes but [`SHA3_256`] needs at least 32 bytes of
 //! full-entropy input key material in order to be able to produce full entropy output key material.
 //!
 //! # Suspending and resuming execution
@@ -114,7 +114,7 @@
 //! to a cache and resume it later; for example if waiting for the message to stream over a slow network
 //! connection.
 //!
-//! For this reason, all SHA3 algorithms impl [Suspendable].
+//! For this reason, all SHA3 algorithms impl [`Suspendable`].
 //!
 //!```rust
 //! use bouncycastle_sha3 as sha3;
@@ -199,7 +199,7 @@ trait SHA3Params: HashAlgParams {
     const SIZE: KeccakSize;
     /// A tag, unique across all SHA3 *and* SHAKE variants, identifying which variant produced a
     /// serialized state. Distinguishing same-rate variants (e.g. SHA3-256 vs SHAKE256) requires
-    /// this to be distinct from every value used by [SHAKEParams::STATE_TAG]. Never reuse a value.
+    /// this to be distinct from every value used by [`SHAKEParams::STATE_TAG`]. Never reuse a value.
     const STATE_TAG: u8;
 }
 
@@ -317,7 +317,7 @@ impl AlgorithmOID for SHA3_512 {
 
 trait SHAKEParams: Algorithm {
     const SIZE: KeccakSize;
-    /// See [SHA3Params::STATE_TAG]. Must be distinct from every SHA3 *and* SHAKE variant's tag.
+    /// See [`SHA3Params::STATE_TAG`]. Must be distinct from every SHA3 *and* SHAKE variant's tag.
     const STATE_TAG: u8;
 }
 /// The parameters for SHAKE128.

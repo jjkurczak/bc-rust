@@ -9,7 +9,7 @@
 //!
 //! This page gives examples of simple usage for generating keys and signatures, and verifying signatures.
 //!
-//! More examples on advanced usage can be found on the [mldsa] and [hash_mldsa] pages.
+//! More examples on advanced usage can be found on the [`mldsa`] and [`hash_mldsa`] pages.
 //!
 //! ## Generating Keys
 //!
@@ -21,7 +21,7 @@
 //! That's it. That will use the library's default OS-backend RNG.
 //!
 //! Commonly with the ML-DSA algorithm, a 32-byte seed is used as the private key, and expanded into
-//! a full private key as needed. This is offered through the library's [KeyMaterialTrait] object:
+//! a full private key as needed. This is offered through the library's [`KeyMaterialTrait`] object:
 //!
 //! ```rust
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType, KeyMaterialTrait};
@@ -36,9 +36,9 @@
 //! let (pk, sk) = MLDSA65::keygen_from_seed(&seed).unwrap();
 //! ```
 //!
-//! See [MLDSATrait] and [MLDSATrait::sign_mu_deterministic_from_seed] for an API flow that uses a merged
+//! See [`MLDSATrait`] and [`MLDSATrait::sign_mu_deterministic_from_seed`] for an API flow that uses a merged
 //! keygen-and-sign function to provide improved speed and memory performance compared with making
-//! separate calls to [MLDSATrait::keygen_from_seed] followed by [Signer::sign].
+//! separate calls to [`MLDSATrait::keygen_from_seed`] followed by [`Signer::sign`].
 //!
 //! ## Generating and Verifying Signatures
 //!
@@ -93,7 +93,7 @@
 //! This crate intends to expose only APIs that are secure to use.
 //! There are, however, a few exceptions that are worth mentioning.
 //!
-//! If using a [MLDSA::keygen_from_seed], then it is your responsibility to ensure that the seed is
+//! If using a [`MLDSA::keygen_from_seed`], then it is your responsibility to ensure that the seed is
 //! cryptographically random and unpredictable at a security strength that matches the MLDSA parameter set.
 //!
 //! ML-DSA and HashML-DSA take several parameters: `seed`, `mu`, `ph`, `ctx`, and `rnd`.

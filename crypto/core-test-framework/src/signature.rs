@@ -1,4 +1,4 @@
-//! Generic behaviour tests for anything that implements [Signer] and [SignatureVerifier].
+//! Generic behaviour tests for anything that implements [`Signer`] and [`SignatureVerifier`].
 
 use crate::DUMMY_SEED;
 use bouncycastle_core::errors::SignatureError;
@@ -23,7 +23,7 @@ impl TestFrameworkSignature {
         Self { alg_is_deterministic, alg_accepts_ctx }
     }
 
-    /// Test all the members of traits [Signer] and [SignatureVerifier] against the given input-output pair.
+    /// Test all the members of traits [`Signer`] and [`SignatureVerifier`] against the given input-output pair.
     /// This gives good baseline test coverage, but is not exhaustive.
     ///
     /// Since key generation is not part of either signature trait, the caller supplies a
@@ -169,7 +169,7 @@ impl TestFrameworkSignature {
         VERIFIER::verify(&pk, DUMMY_SEED, Some(b"streaming API"), &sig_val).unwrap();
     }
 
-    /// Test all the members of traits [PHSigner] and [PHSignatureVerifier] against the given input-output pair.
+    /// Test all the members of traits [`PHSigner`] and [`PHSignatureVerifier`] against the given input-output pair.
     /// This gives good baseline test coverage, but is not exhaustive.
     ///
     /// Since key generation is not part of either signature trait, the caller supplies a

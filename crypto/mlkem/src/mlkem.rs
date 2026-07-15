@@ -21,10 +21,10 @@
 //! However, in non-ephemeral uses where many encaps or decaps operations are performed against the same
 //! key pair in quick succession, there can be substantial performance improvements to pre-computing
 //! this and holding on to a larger key object.
-//! This is accomplished via constructing a [MLKEMPublicKeyExpanded] or [MLKEMPrivateKeyExpanded] object
-//! of the appropriate parameter set from the original key, and then using this with [MLKEM::encaps_for_expanded_key]
-//! or [MLKEM::decaps_with_expanded_key].
-//! Both [MLKEMPublicKeyExpanded] and [MLKEMPrivateKeyExpanded] implement the same traits
+//! This is accomplished via constructing a [`MLKEMPublicKeyExpanded`] or [`MLKEMPrivateKeyExpanded`] object
+//! of the appropriate parameter set from the original key, and then using this with [`MLKEM::encaps_for_expanded_key`]
+//! or [`MLKEM::decaps_with_expanded_key`].
+//! Both [`MLKEMPublicKeyExpanded`] and [`MLKEMPrivateKeyExpanded`] implement the same traits
 //! and therefore behave the same as their non-expanded counterparts in most regards.
 //!
 //! ```rust
@@ -92,7 +92,7 @@
 //! Contact us if you need such a thing implemented.
 //! ## Deterministic encapsulation
 //!
-//! This section pertains to [MLKEM::encaps_internal] which allows to pass in the encapsulation randomness
+//! This section pertains to [`MLKEM::encaps_internal`] which allows to pass in the encapsulation randomness
 //! and thus obtain a deterministic encapsulation.
 //!
 //! The only good reasons for doing this are:
@@ -540,18 +540,18 @@ impl<
     /// This is to enable performance
     /// optimizations when the same public key is used for multiple encapsulations and the intermediate
     /// value called the public matrix A_hat can be re-used for multiple encapsulations.
-    /// A_hat can be obtained from [MLKEMPublicKeyTrait::A_hat].
-    /// Alternatively, a [MLKEMPublicKeyExpanded] with [MLKEM::encaps_for_expanded_key] can be used.
+    /// A_hat can be obtained from [`MLKEMPublicKeyTrait::A_hat`].
+    /// Alternatively, a [`MLKEMPublicKeyExpanded`] with [`MLKEM::encaps_for_expanded_key`] can be used.
     /// If `None` is specified, the function will compute A_hat internally and everything will work fine.
     ///
-    /// Unlike the more public function exposed by [KEMEncapsulator::encaps], this returns the shared secret as raw bytes
-    /// instead of wrapped in an appropriately-set [KeyMaterialTrait].
+    /// Unlike the more public function exposed by [`KEMEncapsulator::encaps`], this returns the shared secret as raw bytes
+    /// instead of wrapped in an appropriately-set [`KeyMaterialTrait`].
     /// Proper handling is up to the user's own judgement.
     ///
     /// Note: this is an internal function that allows the caller to specify the encapsulation
     /// randomness (which is the message `m` to be encrypted by the underlying PKE scheme).
     /// This function should not be used directly unless there is a good reason to do so.
-    /// [KEMEncapsulator::encaps] should be used in 99.9% of cases.
+    /// [`KEMEncapsulator::encaps`] should be used in 99.9% of cases.
     /// The reason this is exposed publicly is:
     ///     A) for unit testing that requires access to the deterministically reproducible function, and
     ///     B) for operational environments that wish to provide randomness from their own source instead
@@ -767,7 +767,7 @@ impl<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [KEMError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError> {
         let derived_pk = sk.pk();
         if derived_pk.compute_hash() == pk.compute_hash() {
@@ -888,21 +888,21 @@ pub trait MLKEMTrait<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [KEMError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError>;
 
-    /// Same as [KEMEncapsulator::encaps], but acts on an [MLKEMPublicKeyExpanded].
+    /// Same as [`KEMEncapsulator::encaps`], but acts on an [`MLKEMPublicKeyExpanded`].
     fn encaps_for_expanded_key(
         pk: &MLKEMPublicKeyExpanded<k, PK, PK_LEN>,
     ) -> Result<(KeyMaterial<SS_LEN>, [u8; CT_LEN]), KEMError>;
 
-    /// Same as [KEMEncapsulator::encaps], but acts on an [MLKEMPublicKeyExpanded] and uses a provided RNG.
+    /// Same as [`KEMEncapsulator::encaps`], but acts on an [`MLKEMPublicKeyExpanded`] and uses a provided RNG.
     fn encaps_for_expanded_key_rng(
         pk: &MLKEMPublicKeyExpanded<k, PK, PK_LEN>,
         rng: &mut dyn RNG,
     ) -> Result<(KeyMaterial<SS_LEN>, [u8; CT_LEN]), KEMError>;
 
-    /// Same as [KEMDecapsulator::decaps], but acts on an [MLKEMPrivateKeyExpanded].
+    /// Same as [`KEMDecapsulator::decaps`], but acts on an [`MLKEMPrivateKeyExpanded`].
     fn decaps_with_expanded_key(
         sk: &MLKEMPrivateKeyExpanded<k, PK, SK, SK_LEN, PK_LEN>,
         ct: &[u8],

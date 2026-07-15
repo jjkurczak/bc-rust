@@ -259,11 +259,11 @@ impl<
     /// Performs the first step of key generation to transform the single provided seed into a set of internal intermediate seeds.
     ///
     /// Unlike other interfaces across the library that take an &impl KeyMaterial, this one
-    /// specifically takes a 64-byte [KeyMaterial512] and checks that it has [KeyType::Seed] and
-    /// the appropriate [SecurityStrength] for the requested ML-KEM parameter set.
+    /// specifically takes a 64-byte [`KeyMaterial512`] and checks that it has [`KeyType::Seed`] and
+    /// the appropriate [`SecurityStrength`] for the requested ML-KEM parameter set.
     ///
     /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it into a
-    /// correctly-sized [KeyMaterial512] using [KeyMaterialTrait::truncate].
+    /// correctly-sized [`KeyMaterial512`] using [`KeyMaterialTrait::truncate`].
     pub(crate) fn keygen_internal(seed: &KeyMaterial<64>) -> Result<(PK, SK), KEMError> {
         let sk = SK::from_keymaterial(seed)?;
         let pk = sk.pk();
@@ -350,14 +350,14 @@ impl<
     /// Output: shared secret key 𝐾 ∈ 𝔹32 .
     /// Output: ciphertext 𝑐 ∈ 𝔹32(𝑑𝑢𝑘+𝑑𝑣).
     ///
-    /// Unlike the more public function exposed by [KEMEncapsulator::encaps], this returns the shared secret as raw bytes
-    /// instead of wrapped in an appropriately-set [KeyMaterialTrait].
+    /// Unlike the more public function exposed by [`KEMEncapsulator::encaps`], this returns the shared secret as raw bytes
+    /// instead of wrapped in an appropriately-set [`KeyMaterialTrait`].
     /// Proper handling is up to the user's own judgement.
     ///
     /// Note: this is an internal function that allows the caller to specify the encapsulation
     /// randomness (which is the message `m` to be encrypted by the underlying PKE scheme).
     /// This function should not be used directly unless there is a good reason to do so.
-    /// [KEMEncapsulator::encaps] should be used in 99.9% of cases.
+    /// [`KEMEncapsulator::encaps`] should be used in 99.9% of cases.
     /// The reason this is exposed publicly is:
     ///     A) for unit testing that requires access to the deterministically reproducible function, and
     ///     B) for operational environments that wish to provide randomness from their own source instead
@@ -611,7 +611,7 @@ impl<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [KEMError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError> {
         let derived_pk = sk.pk();
         if derived_pk.compute_hash() == pk.compute_hash() {
@@ -676,7 +676,7 @@ pub trait MLKEMTrait<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [KEMError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError>;
 }
 

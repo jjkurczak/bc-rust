@@ -1,7 +1,7 @@
-//! Hash factory for creating instances of algorithms that implement the [Hash] trait.
+//! Hash factory for creating instances of algorithms that implement the [`Hash`] trait.
 //!
 //! As with all Factory objects, this implements constructions from strings and defaults, and
-//! returns a [HashFactory] object which itself implements the [Hash] trait as a pass-through to the underlying algorithm.
+//! returns a [`HashFactory`] object which itself implements the [`Hash`] trait as a pass-through to the underlying algorithm.
 //!
 //! Example usage:
 //! ```
@@ -35,7 +35,7 @@ use bouncycastle_sha2::{SHA224_NAME, SHA256_NAME, SHA384_NAME, SHA512_NAME};
 use bouncycastle_sha3 as sha3;
 use bouncycastle_sha3::{SHA3_224_NAME, SHA3_256_NAME, SHA3_384_NAME, SHA3_512_NAME};
 
-/// Wrapper object for all algorithms that impl [Hash].
+/// Wrapper object for all algorithms that impl [`Hash`].
 /// Note: no SHAKE because SHAKE is not NIST approved as a hash function. See FIPS 202 section A.2.
 pub enum HashFactory {
     ///

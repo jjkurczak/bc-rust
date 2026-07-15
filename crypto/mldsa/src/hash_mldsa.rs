@@ -1,9 +1,9 @@
 //! This implements the HashML-DSA algorithm specified in FIPS 204 which is useful for cases
 //! where the user needs to process the to-be-signed message in chunks, and they use the external mu
-//! mode of [MLDSA]; possibly because the message needs to be digested before knowing which public key
+//! mode of [`MLDSA`]; possibly because the message needs to be digested before knowing which public key
 //! will sign it.
 //!
-//! HashML-DSA is a full signature algorithm implementing the [Signer] and [SignatureVerifier] traits:
+//! HashML-DSA is a full signature algorithm implementing the [`Signer`] and [`SignatureVerifier`] traits:
 //!
 //! ```rust
 //! use bouncycastle_core::errors::SignatureError;
@@ -24,7 +24,7 @@
 //! }
 //! ```
 //!
-//! But the user also has access to the pre-hashed functions available from [PHSigner] and [PHSignatureVerifier]:
+//! But the user also has access to the pre-hashed functions available from [`PHSigner`] and [`PHSignatureVerifier`]:
 //!
 //! ```rust
 //! use bouncycastle_core::errors::SignatureError;
@@ -61,9 +61,9 @@
 //! }
 //! ```
 //!
-//! Note that the [HashMLDSA] object is just a light wrapper around [MLDSA], and, for example, they share key types,
-//! so if more sophisticated keygen functions are needed, just use them from [MLDSA].
-//! But a simple [HashMLDSA::keygen] is provided.
+//! Note that the [`HashMLDSA`] object is just a light wrapper around [`MLDSA`], and, for example, they share key types,
+//! so if more sophisticated keygen functions are needed, just use them from [`MLDSA`].
+//! But a simple [`HashMLDSA::keygen`] is provided.
 
 use crate::mldsa::{H, MLDSA_MU_LEN, MLDSA_RND_LEN, MLDSATrait};
 use crate::mldsa::{
@@ -445,7 +445,7 @@ impl<
 {
     /// Generate a keypair, sourcing randomness from bouncycastle's default os-backed RNG.
     ///
-    /// Key generation is intentionally not part of the [Signer] / [SignatureVerifier] traits;
+    /// Key generation is intentionally not part of the [`Signer`] / [`SignatureVerifier`] traits;
     /// it is provided as an inherent associated function directly on the algorithm struct.
     /// Keygen, and keys in general, are interchangeable between MLDSA and HashMLDSA.
     /// Error condition: basically only on RNG failures.
@@ -501,7 +501,7 @@ impl<
             GAMMA1_MASK_LEN,
         >::keygen_internal(seed)
     }
-    /// Same as [Signer::sign], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`Signer::sign`], but signs from an [`MLDSAPrivateKeyExpanded`].
     pub fn sign_with_expanded_key(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         msg: &[u8],
@@ -512,7 +512,7 @@ impl<
 
         Ok(out)
     }
-    /// Same as [Signer::sign_out], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`Signer::sign_out`], but signs from an [`MLDSAPrivateKeyExpanded`].
     pub fn sign_with_expanded_key_out(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         msg: &[u8],
@@ -525,7 +525,7 @@ impl<
         _ = HASH::default().hash_out(msg, &mut ph_m);
         Self::sign_ph_with_expanded_key_out(sk, &ph_m, ctx, output)
     }
-    /// Same as [PHSigner::sign_ph], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`PHSigner::sign_ph`], but signs from an [`MLDSAPrivateKeyExpanded`].
     pub fn sign_ph_with_expanded_key(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         ph: &[u8; PH_LEN],
@@ -536,7 +536,7 @@ impl<
 
         Ok(out)
     }
-    /// Same as [PHSigner::sign_ph_out], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`PHSigner::sign_ph_out`], but signs from an [`MLDSAPrivateKeyExpanded`].
     pub fn sign_ph_with_expanded_key_out(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         ph: &[u8; PH_LEN],
@@ -652,9 +652,9 @@ impl<
         Ok(bytes_written)
     }
 
-    /// To be used for deterministic signing in conjunction with the [Signer::sign_init],
-    /// [Signer::sign_update], and [Signer::sign_final] flow.
-    /// Can be set anywhere after [Signer::sign_init] and before [Signer::sign_final]
+    /// To be used for deterministic signing in conjunction with the [`Signer::sign_init`],
+    /// [`Signer::sign_update`], and [`Signer::sign_final`] flow.
+    /// Can be set anywhere after [`Signer::sign_init`] and before [`Signer::sign_final`]
     pub fn set_signer_rnd(&mut self, rnd: [u8; 32]) {
         self.signer_rnd = Some(rnd);
     }
@@ -693,7 +693,7 @@ impl<
             ctx_len,
         })
     }
-    /// Same as [SignatureVerifier::verify], but verifies from an [MLDSAPublicKeyExpanded].
+    /// Same as [`SignatureVerifier::verify`], but verifies from an [`MLDSAPublicKeyExpanded`].
     pub fn verify_with_expanded_key(
         pk: &MLDSAPublicKeyExpanded<k, l, PK, PK_LEN>,
         msg: &[u8],
@@ -1095,7 +1095,7 @@ impl<
         Ok(out)
     }
 
-    /// Note that the PH expected here *is not the same* as the `mu` computed by [MuBuilder].
+    /// Note that the PH expected here *is not the same* as the `mu` computed by [`MuBuilder`].
     /// To make use of this function, the user needs to compute a straight hash of the message using
     /// the same hash function as the indicated in the HashML-DSA variant; 
     /// for example: SHA256 for HashMDSA44_with_SHA256; SHA512 for HashMLDSA65_with_SHA512; etc.

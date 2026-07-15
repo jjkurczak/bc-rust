@@ -222,7 +222,7 @@ impl KeccakInternal {
     /// ## `bits_in_queue` is byte-aligned (a multiple of 8) on entry.
     /// currently all call sites within the crate respect this, and there are unit tests to trigger
     /// the embedded debug_assert for existing call sites, but any new call sites to this MUST
-    /// respect this precondition. If we ever open up the [KeccakInternal] object to be called publicly,
+    /// respect this precondition. If we ever open up the [`KeccakInternal`] object to be called publicly,
     /// then we'll have to add proper error-handling here.
     ///
     /// ## No absorbing after squeezing
@@ -354,10 +354,10 @@ impl KeccakInternal {
 // KDF metadata. The helpers below serialize that shared state so the `SerializableState` impls in
 // `sha3.rs` and `shake.rs` are just thin wrappers that add/check the library version header.
 
-/// Number of bytes needed to serialize a [KeccakInternal]'s mutable state.
+/// Number of bytes needed to serialize a [`KeccakInternal`]'s mutable state.
 ///
 /// The `rate` is intentionally NOT serialized: it is fully determined by the SHA3/SHAKE variant and
-/// is re-supplied at deserialization time (see [KeccakInternal::from_serialized_state]).
+/// is re-supplied at deserialization time (see [`KeccakInternal::from_serialized_state`]).
 ///
 /// Layout (all integers little-endian):
 ///   [0   .. 200)  state.buf     [u64; 25]
@@ -366,7 +366,7 @@ impl KeccakInternal {
 ///   [400 .. 401)  squeezing     bool  (0 or 1)
 const KECCAK_SERIALIZED_LEN: usize = 200 + 192 + 8 + 1;
 
-/// Number of bytes needed to serialize the shared SHA3-family state (a variant tag, a [KeccakInternal],
+/// Number of bytes needed to serialize the shared SHA3-family state (a variant tag, a [`KeccakInternal`],
 /// plus the three KDF metadata fields), excluding the library version header.
 ///
 /// The leading variant tag distinguishes every SHA3/SHAKE variant — crucially including same-rate
@@ -386,7 +386,7 @@ pub const SUSPENDED_SHA3_STATE_LEN: usize = 3 + SHA3_FAMILY_STATE_LEN;
 
 impl KeccakInternal {
     /// Serializes this digest's mutable state into `out`. The `rate` is deliberately omitted; see
-    /// [KECCAK_SERIALIZED_LEN].
+    /// [`KECCAK_SERIALIZED_LEN`].
     fn serialize_state(&self, out: &mut [u8; KECCAK_SERIALIZED_LEN]) {
         // state.buf: [u64; 25]
         for i in 0..25 {
@@ -403,7 +403,7 @@ impl KeccakInternal {
         out[400] = self.squeezing as u8;
     }
 
-    /// Reconstructs a [KeccakInternal] from a state produced by [KeccakInternal::serialize_state].
+    /// Reconstructs a [`KeccakInternal`] from a state produced by [`KeccakInternal::serialize_state`].
     ///
     /// `rate` is supplied by the caller (derived from its algorithm parameters) rather than read
     /// from the serialized bytes, since the rate is fully determined by the SHA3/SHAKE variant. The
@@ -444,8 +444,8 @@ impl KeccakInternal {
     }
 }
 
-/// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [KeccakInternal], plus
-/// the three KDF metadata fields) into `out`. See [SHA3_FAMILY_STATE_LEN] for the layout.
+/// Serializes the state shared by all SHA3-family objects (the `variant_tag`, a [`KeccakInternal`], plus
+/// the three KDF metadata fields) into `out`. See [`SHA3_FAMILY_STATE_LEN`] for the layout.
 pub(crate) fn serialize_sha3_family_state(
     out: &mut [u8; SHA3_FAMILY_STATE_LEN],
     variant_tag: u8,
@@ -466,7 +466,7 @@ pub(crate) fn serialize_sha3_family_state(
         .copy_from_slice(&(kdf_entropy as u64).to_le_bytes());
 }
 
-/// Reconstructs the shared SHA3-family state from a buffer produced by [serialize_sha3_family_state].
+/// Reconstructs the shared SHA3-family state from a buffer produced by [`serialize_sha3_family_state`].
 ///
 /// `expected_variant_tag` and `rate` are both derived from the caller's algorithm parameters. The
 /// tag is checked against the serialized one first: this is what prevents a state from one variant

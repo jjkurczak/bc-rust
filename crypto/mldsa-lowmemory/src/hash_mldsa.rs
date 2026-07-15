@@ -1,9 +1,9 @@
 //! This implements the HashML-DSA algorithm specified in FIPS 204 which is useful for cases
 //! it is necessary to process the message to be signed in chunks, and it is not possible to use the external mu
-//! mode of [MLDSA]; possibly because it is necessary to digest the message before knowing which public key
+//! mode of [`MLDSA`]; possibly because it is necessary to digest the message before knowing which public key
 //! will sign it.
 //!
-//! HashML-DSA is a full signature algorithm implementing the [Signer] and [SignatureVerifier] traits:
+//! HashML-DSA is a full signature algorithm implementing the [`Signer`] and [`SignatureVerifier`] traits:
 //!
 //! ```rust
 //! use bouncycastle_core::errors::SignatureError;
@@ -24,7 +24,7 @@
 //! }
 //! ```
 //!
-//! There is also access to the pre-hashed function available from [PHSigner] and [PHSignatureVerifier]:
+//! There is also access to the pre-hashed function available from [`PHSigner`] and [`PHSignatureVerifier`]:
 //!
 //! ```rust
 //! use bouncycastle_core::errors::SignatureError;
@@ -61,9 +61,9 @@
 //! }
 //! ```
 //!
-//! Note that the [HashMLDSA] object is just a light wrapper around [MLDSA], and, for example, they share key types.
-//! Thereofre, if the user needs the more sophisticated keygen functions, they should just use them from [MLDSA].
-//! But a simple [HashMLDSA::keygen] is provided.
+//! Note that the [`HashMLDSA`] object is just a light wrapper around [`MLDSA`], and, for example, they share key types.
+//! Thereofre, if the user needs the more sophisticated keygen functions, they should just use them from [`MLDSA`].
+//! But a simple [`HashMLDSA::keygen`] is provided.
 
 use crate::mldsa::{H, MLDSA_MU_LEN, MLDSA_RND_LEN, MLDSATrait};
 use crate::mldsa::{
@@ -522,7 +522,7 @@ impl<
 {
     /// Generate a keypair, sourcing randomness from bouncycastle's default os-backed RNG.
     ///
-    /// Key generation is intentionally not part of the [Signer] / [SignatureVerifier] traits;
+    /// Key generation is intentionally not part of the [`Signer`] / [`SignatureVerifier`] traits;
     /// it is provided as an inherent associated function directly on the algorithm struct.
     /// Keys are interchangeable between MLDSA and HashMLDSA.
     /// Error condition: basically only on RNG failures.
@@ -689,9 +689,9 @@ impl<
         Ok(bytes_written)
     }
 
-    /// To be used for deterministic signing in conjunction with the [Signer::sign_init],
-    /// [Signer::sign_update], and [Signer::sign_final] flow.
-    /// It can be set anywhere after [Signer::sign_init] and before [Signer::sign_final]
+    /// To be used for deterministic signing in conjunction with the [`Signer::sign_init`],
+    /// [`Signer::sign_update`], and [`Signer::sign_final`] flow.
+    /// It can be set anywhere after [`Signer::sign_init`] and before [`Signer::sign_final`]
     pub fn set_signer_rnd(&mut self, rnd: [u8; 32]) {
         self.signer_rnd = Some(rnd);
     }
@@ -1102,7 +1102,7 @@ impl<
         Ok(out)
     }
 
-    /// Note that the PH expected here *is not the same* as the `mu` computed by [MuBuilder].
+    /// Note that the PH expected here *is not the same* as the `mu` computed by [`MuBuilder`].
     /// To make use of this function, it is necessary to compute a straight hash of the message using
     /// the same hash function as the indicated in the HashML-DSA variant. For example, SHA256 for
     /// HashMDSA44_with_SHA256; SHA512 for HashMLDSA65_with_SHA512; etc.

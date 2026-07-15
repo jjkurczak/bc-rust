@@ -51,7 +51,7 @@ const fn parse_version_component(s: &str) -> u8 {
 /// `CARGO_PKG_VERSION_*` env vars).
 ///
 /// MAINTAINER NOTE: this single value is the *only* compatibility gate for every serialized state in
-/// the workspace (see [check_lib_ver]), and the policy accepts any future *patch* on the same
+/// the workspace (see [`check_lib_ver`]), and the policy accepts any future *patch* on the same
 /// major.minor stream. Therefore any change to the on-the-wire layout of *any* suspendable state --
 /// in this crate or in any primitive crate -- MUST bump this crate's **minor** version (never just
 /// the patch), otherwise an older build will silently accept and misread a newer, incompatible state.
@@ -91,7 +91,7 @@ pub fn add_lib_ver<const SERIALIZED_LEN: usize>(state: &mut [u8; SERIALIZED_LEN]
 ///
 /// The state_out array must have length at least SERIALIZED_LEN - 3.
 ///
-/// Returns the number of bytes written to state_out, or a [SuspendableError::IncompatibleVersion] if
+/// Returns the number of bytes written to state_out, or a [`SuspendableError::IncompatibleVersion`] if
 /// the version of the serialized state is earlier than the specified `not_before` version, or
 /// is a future MAJOR or MINOR version (but future PATCH versions are ok).
 ///

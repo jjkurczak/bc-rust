@@ -274,13 +274,13 @@ pub trait MLDSAPrivateKeyTrait<
     /// so that it is compatible with other implementations.
     ///
     /// Note that since this encoding does not include the seed, this is a one-way operation;
-    /// after exporting in this encoding, it will be impossible to re-import it into a [MLDSASeedPrivateKey].
+    /// after exporting in this encoding, it will be impossible to re-import it into a [`MLDSASeedPrivateKey`].
     fn encode_full_sk(&self) -> [u8; FULL_SK_LEN];
     /// This produces the full private key in the encoding specified in FIPS 204 Algorithm 24 skEncode()
     /// so that it is compatible with other implementations.
     ///
     /// Note that since this encoding does not include the seed, this is a one-way operation;
-    /// after exporting in this encoding, it will be impossible to re-import it into a [MLDSASeedPrivateKey].
+    /// after exporting in this encoding, it will be impossible to re-import it into a [`MLDSASeedPrivateKey`].
     fn encode_full_sk_out(&self, out: &mut [u8; FULL_SK_LEN]) -> usize;
     /// Algorithm 25 skDecode(𝑠𝑘)
     /// Reverses the procedure skEncode.
@@ -289,7 +289,7 @@ pub trait MLDSAPrivateKeyTrait<
     /// 𝐬1 ∈ 𝑅ℓ , 𝐬2 ∈ 𝑅𝑘 , 𝐭0 ∈ 𝑅𝑘 with coefficients in [−2𝑑−1 + 1, 2𝑑−1].
     ///
     /// Note: this object contains only the simple decoding routine to unpack a semi-expanded key.
-    /// See [MLDSATrait] for key generation functions, including derive-from-seed and consistency-check functions.
+    /// See [`MLDSATrait`] for key generation functions, including derive-from-seed and consistency-check functions.
     fn sk_decode(sk: &[u8; SK_LEN]) -> Self;
 }
 

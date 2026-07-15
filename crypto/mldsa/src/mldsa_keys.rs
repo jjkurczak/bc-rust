@@ -407,7 +407,7 @@ impl<
 
 /// An ML-DSA private key.
 ///
-/// This will automatically inherit the [Secret] protections because [Polynomial] wraps the underlying data with [Secret].
+/// This will automatically inherit the [`Secret`] protections because [`Polynomial`] wraps the underlying data with [`Secret`].
 #[derive(Clone)]
 pub struct MLDSAPrivateKey<
     const k: usize,
@@ -528,7 +528,7 @@ pub trait MLDSAPrivateKeyTrait<
     /// 𝐬1 ∈ 𝑅ℓ, 𝐬2 ∈ 𝑅𝑘, 𝐭0 ∈ 𝑅𝑘 with coefficients in [−2𝑑−1 + 1, 2𝑑−1].
     ///
     /// Note: this object contains only the simple decoding routine to unpack a semi-expanded key.
-    /// See [MLDSATrait] for key generation functions, including derive-from-seed and consistency-check functions.
+    /// See [`MLDSATrait`] for key generation functions, including derive-from-seed and consistency-check functions.
     fn sk_decode(sk: &[u8; SK_LEN]) -> Result<Self, SignatureError>;
 }
 

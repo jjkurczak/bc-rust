@@ -9,7 +9,7 @@
 //!
 //! This page gives examples of simple usage for generating keys and performing encapsulation and decapsulation operations.
 //!
-//! More examples on advanced usage can be found on the [mlkem] page.
+//! More examples on advanced usage can be found on the [`mlkem`] page.
 //!
 //! # Primer on KEM algorithms
 //!
@@ -52,7 +52,7 @@
 //! That's it. That will use the library's default OS-backend RNG.
 //!
 //! Commonly with the ML-KEM algorithm, a 64-byte seed is used as the private key, and expanded into
-//! a full private key as needed. This is offered through the library's [KeyMaterialTrait] object:
+//! a full private key as needed. This is offered through the library's [`KeyMaterialTrait`] object:
 //!
 //! ```rust
 //! use bouncycastle_core::key_material::{KeyMaterial512, KeyType, KeyMaterialTrait};
@@ -68,7 +68,7 @@
 //! let (pk, sk) = MLKEM768::keygen_from_seed(&seed).unwrap();
 //! ```
 //!
-//! See [MLKEM] and [MLKEM::decaps_from_seed] for an API that uses a merged
+//! See [`MLKEM`] and [`MLKEM::decaps_from_seed`] for an API that uses a merged
 //! keygen-and-decaps function to that allows you to store the private key only as a 64-byte seed.
 //!
 //! ## Encapsulating and Decapsulating
@@ -122,9 +122,9 @@
 //! In other words, this crate does not contain any "hazmat" except for the obvious points about
 //! handling your private keys properly: if you post your private key to github, or you generate
 //! production keys from a weak seed, that use is unsupported
-//! It is worth mentioning, however, that if using a [MLKEM::keygen_from_seed], then it is your
+//! It is worth mentioning, however, that if using a [`MLKEM::keygen_from_seed`], then it is your
 //! responsibility to ensure that the seed is cryptographically random and unpredictable.
-//! And also that [MLKEM::encaps_internal] requires you to provide the randomness, so the ciphertext
+//! And also that [`MLKEM::encaps_internal`] requires you to provide the randomness, so the ciphertext
 //! will only be as strong as the randomness that you provide.
 //!
 //! A note about cryptographic side-channel attacks: considerable effort has been expended to attempt

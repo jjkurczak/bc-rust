@@ -948,7 +948,7 @@ impl BustedMuBuilder {
         Ok(mu)
     }
 
-    /// This function requires the public key hash `tr`, which can be computed from the public key using [MLDSAPublicKey::compute_tr].
+    /// This function requires the public key hash `tr`, which can be computed from the public key using [`MLDSAPublicKey::compute_tr`].
     pub fn do_init(tr: &[u8; 64] /*ctx: Option<&[u8]>*/) -> Result<Self, SignatureError> {
         // let ctx = match ctx {
         //     Some(ctx) => ctx,

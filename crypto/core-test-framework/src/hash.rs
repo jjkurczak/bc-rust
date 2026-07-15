@@ -1,11 +1,11 @@
-//! Generic behaviour tests for anything that implements [Hash].
+//! Generic behaviour tests for anything that implements [`Hash`].
 
 use bouncycastle_core::traits::{Hash, HashAlgParams};
 
 /// Instance of the test framework.
 pub struct TestFrameworkHash {
     // Put any config options here
-    /// Can be disabled for hash functions that don't implement [Hash::do_final_partial_bits].
+    /// Can be disabled for hash functions that don't implement [`Hash::do_final_partial_bits`].
     pub enable_partial_final_input_tests: bool,
 }
 

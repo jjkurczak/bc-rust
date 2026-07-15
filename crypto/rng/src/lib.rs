@@ -23,8 +23,8 @@
 //! and will therefore compromise any cryptographic operation built on top of those outputs.
 //! You should only be here if your application requires direct control over configuring the internals of the DRBG.
 //!
-//! This crate contains the [Sp80090ADrbg] trait, which is intentionally defined here and not in [bouncycastle_core::traits]
-//! since misuse of [Sp80090ADrbg::instantiate] can completely undermine the security of your entire
+//! This crate contains the [`Sp80090ADrbg`] trait, which is intentionally defined here and not in [`bouncycastle_core::traits`]
+//! since misuse of [`Sp80090ADrbg::instantiate`] can completely undermine the security of your entire
 //! cryptographic application.
 
 #![forbid(unsafe_code)]
@@ -75,7 +75,7 @@ pub type Default256BitRNG = HashDRBG_SHA512;
 /// Note: this function implements Rust's Drop on the sensitive working state in place of the explicit 
 /// Uninstantiate function listed in SP 800-90Ar1.
 pub trait Sp80090ADrbg {
-    /// The input KeyMaterial must be of type [KeyType::Seed].
+    /// The input KeyMaterial must be of type [`KeyType::Seed`].
     ///
     /// """
     /// 8.6.3 Entropy Requirements for the Entropy Input
@@ -121,25 +121,25 @@ pub trait Sp80090ADrbg {
     /// security strength provided in these returned bits is the minimum of the security strength
     /// supported by the DRBG and the length of the bit string returned"
     ///
-    /// As required by SP 800-90A section 8.4, `len` cannot exceed the initialized [SecurityStrength]
+    /// As required by SP 800-90A section 8.4, `len` cannot exceed the initialized [`SecurityStrength`]
     /// of this instance, although multiple calls to this function can be made, in which case it is the
-    /// application's responsibility to track that it is not expecting more entropy than the [SecurityStrength]
+    /// application's responsibility to track that it is not expecting more entropy than the [`SecurityStrength`]
     /// to which this instance was instantiated. For example, extracting two 128-bit values from an instance
-    /// instantiated to [SecurityStrength::_128bit] and then combining tem to form an AES-256 key would likely
+    /// instantiated to [`SecurityStrength::_128bit`] and then combining tem to form an AES-256 key would likely
     /// not pass FIPS certification.
     ///
-    /// Throws a [RNGError::InsufficientSeedEntropy] if `len` exceeds [SecurityStrength].
+    /// Throws a [`RNGError::InsufficientSeedEntropy`] if `len` exceeds [`SecurityStrength`].
     fn generate(&mut self, additional_input: &[u8], len: usize) -> Result<Vec<u8>, RNGError>;
 
-    /// As per [Sp80090ADrbg::generate], but writes to the provided output slice.
+    /// As per [`Sp80090ADrbg::generate`], but writes to the provided output slice.
     /// The output slice is filled.
-    /// Throws a [RNGError::InsufficientSeedEntropy] if the length of the output slice exceeds [SecurityStrength].
+    /// Throws a [`RNGError::InsufficientSeedEntropy`] if the length of the output slice exceeds [`SecurityStrength`].
     /// Retruns the number of bits output.
     fn generate_out(&mut self, additional_input: &[u8], out: &mut [u8]) -> Result<usize, RNGError>;
 
-    /// As per [Sp80090ADrbg::generate], but writes to the provided KeyMaterial.
-    /// The output [KeyMaterialTrait] is filled to capacity.
-    /// Throws a [RNGError::InsufficientSeedEntropy] if the capacity of the output KeyMaterial exceeds [SecurityStrength].
+    /// As per [`Sp80090ADrbg::generate`], but writes to the provided KeyMaterial.
+    /// The output [`KeyMaterialTrait`] is filled to capacity.
+    /// Throws a [`RNGError::InsufficientSeedEntropy`] if the capacity of the output KeyMaterial exceeds [`SecurityStrength`].
     /// Retruns the number of bits output.
     fn generate_keymaterial_out<K: KeyMaterialTrait + ?Sized>(
         &mut self,

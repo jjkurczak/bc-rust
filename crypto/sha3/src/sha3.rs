@@ -235,7 +235,7 @@ impl<PARAMS: SHA3Params> Hash for SHA3Internal<PARAMS> {
 
 /// SHA3 is allowed to be used as a KDF in the form HASH(X) as per NIST SP 800-56C.
 impl<PARAMS: SHA3Params> KDF for SHA3Internal<PARAMS> {
-    /// Returns a [KeyMaterial].
+    /// Returns a [`KeyMaterial`].
     /// For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
     /// it requires full-entropy input that is at least the bit size (ie 256 bits for SHA3-256, etc).
     fn derive_key(

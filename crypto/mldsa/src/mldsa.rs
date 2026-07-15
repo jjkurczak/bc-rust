@@ -76,14 +76,14 @@
 //! > 𝜇 ← H(BytesToBits(𝑡𝑟)||𝑀′, 64)
 //! >   ▷ message representative that may optionally be computed in a different cryptographic module
 //!
-//! The External Mu mode of ML-DSA fulfills a similar function to [hash_mldsa] in that it allows large
+//! The External Mu mode of ML-DSA fulfills a similar function to [`hash_mldsa`] in that it allows large
 //! messages to be pre-digested outside of the cryptographic module that holds the private key,
 //! but it does it in a way that is compatible with the ML-DSA verification function.
-//! In other works, whereas [hash_mldsa] represents a different signature algorithm, the external mu
+//! In other works, whereas [`hash_mldsa`] represents a different signature algorithm, the external mu
 //! mode of ML-DSA is simply internal implementation detail of how the signature was computed and
 //! produces signatures that are indistinguishable from "direct" ML-DSA mode.
 //!
-//! The one potential complication with external mu mode -- that [hash_mldsa] does not have --
+//! The one potential complication with external mu mode -- that [`hash_mldsa`] does not have --
 //! is that it requires the user to know the public key that they are about to sign the message with.
 //! Or, more specifically, the hash of the public key `tr`.
 //! `tr` is a public value (derivable from the public key), so there is no harm in, for example,
@@ -91,9 +91,9 @@
 //! 64-byte `mu` value up to the server to be signed.
 //! But in some contexts, the message has to be pre-hashed for performance reasons but
 //! the public key that will be used for signing cannot be known in advance.
-//! For those use cases, the only choice is to use [hash_mldsa].
+//! For those use cases, the only choice is to use [`hash_mldsa`].
 //!
-//! This library exposes [MuBuilder] which can be used to pre-hash a large to-be-signed message
+//! This library exposes [`MuBuilder`] which can be used to pre-hash a large to-be-signed message
 //! along with the public key hash `tr`:
 //!
 //! ```rust
@@ -110,7 +110,7 @@
 //! let mu: [u8; 64] = MuBuilder::compute_mu(&pk.compute_tr(), msg, None).unwrap();
 //! ```
 //!
-//! Note: in order to bind a `ctx` value (explained below), it is necessary to do in [MuBuilder::compute_mu].
+//! Note: in order to bind a `ctx` value (explained below), it is necessary to do in [`MuBuilder::compute_mu`].
 //!
 //! If the message really is so huge that it can't be hold it all in memory at once,
 //! then it might be preferable to use a streaming API for computing mu:
@@ -216,7 +216,7 @@
 //! available in conjunction with external mu or streaming modes. The example of setting `rnd` on the streaming
 //! API was shown above.
 //!
-//! Here is an example of using the [MLDSA::sign_mu_deterministic] function:
+//! Here is an example of using the [`MLDSA::sign_mu_deterministic`] function:
 //!
 //! ```rust
 //! use bouncycastle_core::errors::SignatureError;
@@ -289,7 +289,7 @@
 //! the entire ML-DSA private key does not need to be in memory at the same time.
 //! In fact, it is possible to merge the keygen() and sign() functions
 //!
-//! The codebase contains [MLDSA::sign_mu_deterministic_from_seed] which implements such an algorithm.
+//! The codebase contains [`MLDSA::sign_mu_deterministic_from_seed`] which implements such an algorithm.
 //! It has a significantly lower peak-memory-footprint than the regular signing API (although there's
 //! always room for more optimization), and according to our benchmarks it is only around 25% slower
 //! than signing with a fully-expanded private key -- which is still faster than performing a full
@@ -367,10 +367,10 @@
 //! However, in uses where many sign or verify operations are performed against the same
 //! key pair in quick succession, there can be substantial performance improvements to pre-computing
 //! this and holding on to a larger key object.
-//! This is accomplished via constructing a [MLDSAPublicKeyExpanded] or [MLDSAPrivateKeyExpanded] object
-//! of the appropriate parameter set from the original key, and then using this with [MLDSA::sign_with_expanded_key]
-//! or [MLDSA::verify_with_expanded_key].
-//! Both [MLDSAPublicKeyExpanded] and [MLDSAPrivateKeyExpanded] implement the same traits
+//! This is accomplished via constructing a [`MLDSAPublicKeyExpanded`] or [`MLDSAPrivateKeyExpanded`] object
+//! of the appropriate parameter set from the original key, and then using this with [`MLDSA::sign_with_expanded_key`]
+//! or [`MLDSA::verify_with_expanded_key`].
+//! Both [`MLDSAPublicKeyExpanded`] and [`MLDSAPrivateKeyExpanded`] implement the same traits
 //! and therefore behave the same as their non-expanded counterparts in most regards.
 //!
 //! ```rust
@@ -406,7 +406,7 @@
 //! to a cache and resume it later; for example if waiting for the message to stream over a slow network
 //! connection.
 //!
-//! This can bo accomplished for both the ML-DSA signer and verifier through the [MuBuilder] object.
+//! This can bo accomplished for both the ML-DSA signer and verifier through the [`MuBuilder`] object.
 //!
 //! Suspending an in-progress sign operation:
 //!
@@ -736,7 +736,7 @@ impl AlgorithmOID for MLDSA87 {
 /// The core internal implementation of the ML-DSA algorithm.
 /// This needs to be public for the compiler to be able to find it,
 /// but it shouldn't ever need to be used directly.
-/// Please use the named public types [MLDSA44], [MLDSA65], [MLDSA87] instead.
+/// Please use the named public types [`MLDSA44`], [`MLDSA65`], [`MLDSA87`] instead.
 pub struct MLDSA<
     const PK_LEN: usize,
     const SK_LEN: usize,
@@ -831,10 +831,10 @@ impl<
     /// may in fact be exposed outside the crypto module.
     ///
     /// Unlike other interfaces across the library that take an &impl KeyMaterial, this one
-    /// specifically takes a 32-byte [KeyMaterial256] and checks that it has [KeyType::Seed] and
-    /// [SecurityStrength::_256bit].
+    /// specifically takes a 32-byte [`KeyMaterial256`] and checks that it has [`KeyType::Seed`] and
+    /// [`SecurityStrength::_256bit`].
     /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it into a
-    /// correctly-sized [KeyMaterial256] using [KeyMaterialTrait::truncate].
+    /// correctly-sized [`KeyMaterial256`] using [`KeyMaterialTrait::truncate`].
     pub(crate) fn keygen_internal(seed: &KeyMaterial256) -> Result<(PK, SK), SignatureError> {
         if !(seed.key_type() == KeyType::Seed || seed.key_type() == KeyType::CryptographicRandom)
             || seed.key_len() != 32
@@ -1751,8 +1751,8 @@ pub trait MLDSATrait<
 >: Sized
 {
     /// Runs a key generation using the library's default RNG, seeded from the OS.
-    /// In environments where the default OS based RNG is not available, use instead [MLDSA::keygen_from_rng]
-    /// and explicitly provide a [RNG] implementation, or use [MLDSATrait::keygen_from_seed] and provide the
+    /// In environments where the default OS based RNG is not available, use instead [`MLDSA::keygen_from_rng`]
+    /// and explicitly provide a [`RNG`] implementation, or use [`MLDSATrait::keygen_from_seed`] and provide the
     /// private key seed directly.
     fn keygen() -> Result<(PK, SK), SignatureError> {
         let mut os_rng = HashDRBG_SHA512::new_from_os();
@@ -1788,12 +1788,12 @@ pub trait MLDSATrait<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [SignatureError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`SignatureError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), SignatureError>;
     /// This provides the first half of the "External Mu" interface to ML-DSA which is described
     /// in, and allowed under, NIST's FAQ that accompanies FIPS 204.
     ///
-    /// This function, together with [MLDSATrait::sign_mu] perform a complete ML-DSA signature which is indistinguishable
+    /// This function, together with [`MLDSATrait::sign_mu`] perform a complete ML-DSA signature which is indistinguishable
     /// from one produced by the one-shot sign APIs.
     ///
     /// The utility of this function is exactly as described
@@ -1819,34 +1819,34 @@ pub trait MLDSATrait<
     /// ML-DSA verifier.
     ///
     /// This function requires the public key hash `tr`, which can be computed from the public key
-    /// using [MLDSAPublicKeyTrait::compute_tr].
+    /// using [`MLDSAPublicKeyTrait::compute_tr`].
     ///
-    /// For a streaming version of this, see [MuBuilder].
+    /// For a streaming version of this, see [`MuBuilder`].
     fn compute_mu_from_tr(
         tr: &[u8; 64],
         msg: &[u8],
         ctx: Option<&[u8]>,
     ) -> Result<[u8; 64], SignatureError>;
-    /// Same as [MLDSATrait::compute_mu_from_tr], but extracts tr from the public key.
+    /// Same as [`MLDSATrait::compute_mu_from_tr`], but extracts tr from the public key.
     fn compute_mu_from_pk(
         pk: &impl MLDSAPublicKeyTrait<k, l, PK_LEN>,
         msg: &[u8],
         ctx: Option<&[u8]>,
     ) -> Result<[u8; 64], SignatureError>;
-    /// Same as [MLDSATrait::compute_mu_from_tr], but extracts tr from the private key.
+    /// Same as [`MLDSATrait::compute_mu_from_tr`], but extracts tr from the private key.
     // dev note: defined sk this way so that it accepts either MLDSAPrivateKey or MLDSAPRivateKeyExpanded
     fn compute_mu_from_sk(
         sk: &impl MLDSAPrivateKeyTrait<k, l, ETA, SK_LEN, PK_LEN>,
         msg: &[u8],
         ctx: Option<&[u8]>,
     ) -> Result<[u8; 64], SignatureError>;
-    /// Same as [Signer::sign], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`Signer::sign`], but signs from an [`MLDSAPrivateKeyExpanded`].
     fn sign_with_expanded_key(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         msg: &[u8],
         ctx: Option<&[u8]>,
     ) -> Result<[u8; SIG_LEN], SignatureError>;
-    /// Same as [MLDSATrait::sign_with_expanded_key], but takes an output array.
+    /// Same as [`MLDSATrait::sign_with_expanded_key`], but takes an output array.
     fn sign_with_expanded_key_out(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         msg: &[u8],
@@ -1871,7 +1871,7 @@ pub trait MLDSATrait<
     ///
     /// Optionally takes the public matrix A_hat which can be extracted from either the public key or private
     /// key object -- although the more ergonomic way to use this functionality is via the
-    /// [MLDSAPublicKeyExpanded] object.
+    /// [`MLDSAPublicKeyExpanded`] object.
     ///
     /// Returns the number of bytes written to the output buffer. Can be called with an oversized buffer.
     fn sign_mu_out(
@@ -1880,13 +1880,13 @@ pub trait MLDSATrait<
         mu: &[u8; 64],
         output: &mut [u8; SIG_LEN],
     ) -> Result<usize, SignatureError>;
-    /// Same as [MLDSATrait::sign_mu], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`MLDSATrait::sign_mu`], but signs from an [`MLDSAPrivateKeyExpanded`].
     fn sign_mu_with_expanded_key(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         A_hat: Option<&Matrix<k, l>>,
         mu: &[u8; 64],
     ) -> Result<[u8; SIG_LEN], SignatureError>;
-    /// Same as [MLDSATrait::sign_mu_out], but signs from an [MLDSAPrivateKeyExpanded].
+    /// Same as [`MLDSATrait::sign_mu_out`], but signs from an [`MLDSAPrivateKeyExpanded`].
     fn sign_mu_with_expanded_key_out(
         sk: &MLDSAPrivateKeyExpanded<k, l, ETA, PK, SK, SK_LEN, PK_LEN>,
         A_hat: Option<&Matrix<k, l>>,
@@ -1902,7 +1902,7 @@ pub trait MLDSATrait<
     ///
     /// Optionally takes the public matrix A_hat which can be extracted from either the public key or private
     /// key object -- although the more ergonomic way to use this functionality is via the
-    /// [MLDSAPublicKeyExpanded] object.
+    /// [`MLDSAPublicKeyExpanded`] object.
     ///
     /// Security note about deterministic mode:
     /// This mode exposes deterministic signing (called "hedged mode" and allowed by FIPS 204).
@@ -1967,8 +1967,8 @@ pub trait MLDSATrait<
         rnd: [u8; 32],
         output: &mut [u8; SIG_LEN],
     ) -> Result<usize, SignatureError>;
-    /// To be used for deterministic signing in conjunction with the [MLDSA44::sign_init], [MLDSA44::sign_update], and [MLDSA44::sign_final] flow.
-    /// Can be set anywhere after [MLDSA44::sign_init] and before [MLDSA44::sign_final].
+    /// To be used for deterministic signing in conjunction with the [`MLDSA44::sign_init`], [`MLDSA44::sign_update`], and [`MLDSA44::sign_final`] flow.
+    /// Can be set anywhere after [`MLDSA44::sign_init`] and before [`MLDSA44::sign_final`].
     fn set_signer_rnd(&mut self, rnd: [u8; 32]);
     /// Alternative initialization of the streaming signer where the user has their private key
     /// as a seed and they want to delay its expansion as late as possible for memory-usage reasons.
@@ -1976,7 +1976,7 @@ pub trait MLDSATrait<
         seed: &KeyMaterial<32>,
         ctx: Option<&[u8]>,
     ) -> Result<Self, SignatureError>;
-    /// Same as [SignatureVerifier::verify], but signs from an expanded key object.
+    /// Same as [`SignatureVerifier::verify`], but signs from an expanded key object.
     fn verify_with_expanded_key(
         pk: &MLDSAPublicKeyExpanded<k, l, PK, PK_LEN>,
         msg: &[u8],
@@ -2210,14 +2210,14 @@ impl<
 }
 
 /// Implements parts of Algorithm 2 and Line 6 of Algorithm 7 of FIPS 204.
-/// Provides a stateful version of [MLDSATrait::compute_mu_from_pk] and [MLDSATrait::compute_mu_from_tr]
+/// Provides a stateful version of [`MLDSATrait::compute_mu_from_pk`] and [`MLDSATrait::compute_mu_from_tr`]
 /// that supports streaming
 /// large to-be-signed messages.
 ///
 /// Note: this struct is only exposed for "pure" ML-DSA and not for HashML-DSA because HashML-DSA
 /// does not benefit from allowing external construction of the message representative mu.
 /// The same behaviour can be obtained by computing the pre-hash `ph` with the appropriate hash function
-/// and providing that to HashMLDSA via [PHSigner::sign_ph].
+/// and providing that to HashMLDSA via [`PHSigner::sign_ph`].
 #[derive(Clone)]
 pub struct MuBuilder {
     h: H,
@@ -2239,7 +2239,7 @@ impl MuBuilder {
     }
 
     /// This function requires the public key hash `tr`, which can be computed from the public key
-    /// using [MLDSAPublicKeyTrait::compute_tr].
+    /// using [`MLDSAPublicKeyTrait::compute_tr`].
     pub fn do_init(tr: &[u8; 64], ctx: Option<&[u8]>) -> Result<Self, SignatureError> {
         let ctx = match ctx {
             Some(ctx) => ctx,
@@ -2285,11 +2285,11 @@ impl MuBuilder {
     }
 }
 
-/// The length, in bytes, of a serialized state of a [MuBuilder] object.
+/// The length, in bytes, of a serialized state of a [`MuBuilder`] object.
 pub const SUSPENDED_MU_BUILDER_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
 
 /// If you are processing a large input message into ML-DSA and want to pause the operation
-/// -- maybe while waiting for slow network IO), you'll need to use [Suspendable].
+/// -- maybe while waiting for slow network IO), you'll need to use [`Suspendable`].
 /// Serialization of the state of an in-progress ML-DSA instance is really just serialization
 /// of the construction of the message representative mu, since no other part of the ML-DSA algorithm
 /// has a pausable state.

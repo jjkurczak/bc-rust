@@ -367,7 +367,7 @@ impl<const k: usize, PK: MLKEMPublicKeyInternalTrait<k, PK_LEN>, const PK_LEN: u
 
 /// An ML-KEM private key.
 ///
-/// This will automatically inherit the [Secret] protections because [Polynomial] wraps the underlying data with [Secret].
+/// This will automatically inherit the [`Secret`] protections because [`Polynomial`] wraps the underlying data with [`Secret`].
 #[derive(Clone)]
 pub struct MLKEMPrivateKey<
     const k: usize,

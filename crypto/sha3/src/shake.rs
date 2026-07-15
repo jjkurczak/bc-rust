@@ -15,7 +15,7 @@ use bouncycastle_utils::{max, min};
 /// provided and NIST-approved parameters.
 ///
 /// Note that even though SHAKE is physically capable of acting as a hash function, and in fact is secure
-/// as such if the provided message includes the requested length, SHAKE does not implement the [Hash] trait.
+/// as such if the provided message includes the requested length, SHAKE does not implement the [`Hash`] trait.
 /// FIPS 202 section 7 states:
 ///
 ///   "SHAKE128 and SHAKE256 are approved XOFs, whose approved uses will be specified in
@@ -192,14 +192,14 @@ impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKEInterna
 }
 
 impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
-    /// Returns a [KeyMaterial].
+    /// Returns a [`KeyMaterial`].
     /// For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
     /// it requires full-entropy input that is at least 2x the bit size (ie 256 bits for SHAKE128, and 512 bits for SHAKE256).
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
-    /// To produce longer keys, use [KDF::derive_key_out].
-    /// To produce shorter keys, either use [KDF::derive_key_out], truncate this result in place with
-    /// [KeyMaterial::set_key_len], or copy it into a smaller [KeyMaterial] with
-    /// [KeyMaterialTrait::truncate].
+    /// To produce longer keys, use [`KDF::derive_key_out`].
+    /// To produce shorter keys, either use [`KDF::derive_key_out`], truncate this result in place with
+    /// [`KeyMaterial::set_key_len`], or copy it into a smaller [`KeyMaterial`] with
+    /// [`KeyMaterialTrait::truncate`].
     fn derive_key(
         mut self,
         key: &impl KeyMaterialTrait,
@@ -221,15 +221,15 @@ impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
         self.derive_key_out_final_internal(additional_input, output_key)
     }
 
-    /// Always returns a full [KeyMaterial]; ie that fills the internal buffer of the
+    /// Always returns a full [`KeyMaterial`]; ie that fills the internal buffer of the
     /// appropriately-sized key material for the underlying cryptographic hash function.
-    /// This can be truncated down in place with [KeyMaterial::set_key_len], or copied into a smaller
-    /// [KeyMaterial] with [KeyMaterialTrait::truncate].
+    /// This can be truncated down in place with [`KeyMaterial::set_key_len`], or copied into a smaller
+    /// [`KeyMaterial`] with [`KeyMaterialTrait::truncate`].
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
-    /// To produce longer keys, use [KDF::derive_key_out].
-    /// To produce shorter keys, either use [KDF::derive_key_out], truncate this result in place with
-    /// [KeyMaterial::set_key_len], or copy it into a smaller [KeyMaterial] with
-    /// [KeyMaterialTrait::truncate].
+    /// To produce longer keys, use [`KDF::derive_key_out`].
+    /// To produce shorter keys, either use [`KDF::derive_key_out`], truncate this result in place with
+    /// [`KeyMaterial::set_key_len`], or copy it into a smaller [`KeyMaterial`] with
+    /// [`KeyMaterialTrait::truncate`].
     fn derive_key_from_multiple(
         mut self,
         keys: &[&impl KeyMaterialTrait],
@@ -275,7 +275,7 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
         self.hash_internal_out(data, output)
     }
 
-    /// This can throw a [HashError::InvalidState] if called after squeezing has begun,
+    /// This can throw a [`HashError::InvalidState`] if called after squeezing has begun,
     /// but is safe to consider infallible otherwise -- IE feel free to use `.unwrap()` or `.expect()`
     /// on the result if you are confident that your code cannot call `absorb` after squeezing.
     ///

@@ -1,4 +1,4 @@
-//! This crate holds Known-Answer-Test (KAT) style frameworks for each trait in the [core].
+//! This crate holds Known-Answer-Test (KAT) style frameworks for each trait in the [`core`].
 //! The idea is that simply providing a set of inputs and outputs to one of these test functions should give mostly complete test coverage for the implementation of a given trait.
 //! Note: the value "DUMMY_SEED" which is 512 bytes \x00..\xFF\x00..\xFF is hardcoded into this crate, and can be referenced by any input string by providing (the non-hex value) "DUMMY_SEED".
 //!

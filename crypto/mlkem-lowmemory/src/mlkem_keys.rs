@@ -336,14 +336,14 @@ pub trait MLKEMPrivateKeyTrait<
     /// Get a ref to the stored public key hash.
     /// Since in this implementation, this requires running the full keygen, this is a lazy evaluation and
     /// will only be computationally heavy the first time it is called for a given key.
-    /// This requires a mutable copy. If you don't have then, then you can compute the full public key via [MLKEMPrivateKeyTrait::pk]
+    /// This requires a mutable copy. If you don't have then, then you can compute the full public key via [`MLKEMPrivateKeyTrait::pk`]
     /// and then get the hash of that.
     fn pk_hash(&mut self) -> &[u8; 32];
     /// This produces the full private key in the encoding specified in FIPS 203 so that it is
     /// compatible with other implementations.
     ///
     /// Note that since this encoding does not include the seed, this is a one-way operation;
-    /// after exporting in this encoding, it will be impossible to re-import it into a [MLKEMSeedPrivateKey].
+    /// after exporting in this encoding, it will be impossible to re-import it into a [`MLKEMSeedPrivateKey`].
     ///
     /// As described on Algorithm 16 line
     ///   3: dk ← (dkPKE ‖ ek ‖ H(ek) ‖ 𝑧)
@@ -352,7 +352,7 @@ pub trait MLKEMPrivateKeyTrait<
     /// compatible with other implementations.
     ///
     /// Note that since this encoding does not include the seed, this is a one-way operation;
-    /// after exporting in this encoding, it will be impossible to re-import it into a [MLKEMSeedPrivateKey].
+    /// after exporting in this encoding, it will be impossible to re-import it into a [`MLKEMSeedPrivateKey`].
     ///
     /// As described on Algorithm 16 line
     ///   3: dk ← (dkPKE ‖ ek ‖ H(ek) ‖ 𝑧)
@@ -423,7 +423,7 @@ impl<
     /// compatible with other implementations.
     ///
     /// Note that since this encoding does not include the seed, this is a one-way operation;
-    /// after exporting in this encoding, it will be impossible to re-import it into a [MLKEMSeedPrivateKey].
+    /// after exporting in this encoding, it will be impossible to re-import it into a [`MLKEMSeedPrivateKey`].
     ///
     /// As described on Algorithm 16 line
     ///   3: dk ← (dkPKE ‖ ek ‖ H(ek) ‖ 𝑧)

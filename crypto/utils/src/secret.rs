@@ -1,4 +1,4 @@
-//! A transparent wrapper type, [Secret], which is a wrapper that holds a secret value and
+//! A transparent wrapper type, [`Secret`], which is a wrapper that holds a secret value and
 //! guarantees it is securely zeroized on drop, and protected from accidintal logging by implementing
 //! redacting `fmt::Debug` and `fmt::Display`.
 //!
@@ -7,14 +7,14 @@
 //! Plain writes such as `slice.fill(0)` are ordinary, non-observable memory accesses. Under
 //! optimization the compiler may prove that a buffer is never read again after it is scrubbed --
 //! precisely the situation just before a drop -- and elide the scrub as a dead store. To prevent
-//! that, [Secret] erases through [core::ptr::write_volatile], whose accesses are defined by the
+//! that, [`Secret`] erases through [`core::ptr::write_volatile`], whose accesses are defined by the
 //! language as observable side effects and therefore may not be elided or coalesced. Each scrub is
-//! followed by a [compiler_fence] with [SeqCst](Ordering::SeqCst) ordering so the volatile
+//! followed by a [`compiler_fence`] with [SeqCst](Ordering::SeqCst) ordering so the volatile
 //! writes are not reordered with respect to later memory operations.
 //!
 //! # Why Sized?
 //!
-//! The [ZeroizablePrimitive] is bounded on [`Sized`], which explicitly forbids
+//! The [`ZeroizablePrimitive`] is bounded on [`Sized`], which explicitly forbids
 //! instantiating `Secret<T>` over something like `Vec<T>` whose size is not known at compile time.
 //!
 //! The reason is that an implementation of `.zeroize()` that is guaranteed not be optimized away
@@ -59,7 +59,7 @@ use core::sync::atomic::{Ordering, compiler_fence};
 //           convenient way to catch that if we in the future do impl_zero_init!(T) for a T that has Drop.
 pub trait ZeroizablePrimitive: Copy + Sized {
     /// The zeroed value of this type.
-    /// This needs to be a valid static instance of Self that [Secret::zeroize] will internally
+    /// This needs to be a valid static instance of Self that [`Secret::zeroize`] will internally
     /// convert into a byte array and use to overwrite the memory location of the given instance of
     /// the primitive.
     const ZEROED: Self;
@@ -109,7 +109,7 @@ impl<T: ZeroizablePrimitive, const N: usize> ZeroizablePrimitive for [T; N] {
 ///
 /// `Secret<i32>` and other scalar types
 ///
-/// [Secret] can wrap any of the following scalar types:
+/// [`Secret`] can wrap any of the following scalar types:
 /// u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, bool, and char.
 ///
 /// ```
@@ -157,7 +157,7 @@ impl<T: ZeroizablePrimitive, const N: usize> ZeroizablePrimitive for [T; N] {
 ///
 /// ## On a custom type
 ///
-/// Since [ZeroizablePrimitive] is a public trait, you can implement it on your own types and then
+/// Since [`ZeroizablePrimitive`] is a public trait, you can implement it on your own types and then
 /// trivially be able to wrap them in a `Secret<T>`. The only requirement is that there is a
 /// well-defined "ZEROED" value for the type.
 ///
@@ -225,11 +225,11 @@ impl<T: ZeroizablePrimitive, const N: usize> ZeroizablePrimitive for [T; N] {
 ///
 /// What this does NOT guarantee:
 ///
-/// [Secret] only guarantees that the *final* scrub of the wrapped value is emitted. It cannot
+/// [`Secret`] only guarantees that the *final* scrub of the wrapped value is emitted. It cannot
 /// recover copies that the compiler or CPU made. To minimize copies of the underlying bytes in memory,
 /// you should be careful with a few things:
 ///
-/// * Create a new [Secret] instance, then get a mut ref to its internal value via [Secret::deref_mut]
+/// * Create a new [`Secret`] instance, then get a mut ref to its internal value via [`Secret::deref_mut`]
 ///   and write to that instead of having a copy in an unprotected variable and then copying it into the Secret.
 /// * Avoid copying out of Secret for the same reason.
 pub struct Secret<T: ZeroizablePrimitive>(T);

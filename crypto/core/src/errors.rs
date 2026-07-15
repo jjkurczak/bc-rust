@@ -1,5 +1,5 @@
 //! Core error types to be used in Result return types.
-//! Errors defined in this module are typically one-to-one with traits defined in [crate::traits].
+//! Errors defined in this module are typically one-to-one with traits defined in [`crate::traits`].
 //!
 //! Most errors are self-explanatory, but additional description is available on some.
 

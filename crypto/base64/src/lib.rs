@@ -1,8 +1,8 @@
 //! Good old fashioned base64 encoder and decoder.
 //!
 //! It should just work the way base64 normally works:
-//! [encode] takes any bytes-like rust type and returns a String,
-//! while [decode] takes a String (which can be in any bytes-like container)
+//! [`encode`] takes any bytes-like rust type and returns a String,
+//! while [`decode`] takes a String (which can be in any bytes-like container)
 //! and returns a `Vec<u8>`.
 //!
 //!```
@@ -32,7 +32,7 @@
 //! Unlike Hex, Base64 does not align cleanly to byte boundaries.
 //! That means that the above one-shot APIs should only be used if you have the entire content to
 //! process at the same time.
-//! In other words, if data is arbitrarily broken into chunks and handed to the one-shot [encode] and [decode] APIs,
+//! In other words, if data is arbitrarily broken into chunks and handed to the one-shot [`encode`] and [`decode`] APIs,
 //! the results obtained will be incorrect.
 //! Whenever it is necessary to process data in chunks, the streaming API that allows repeated calls to `do_update`
 //! must be used. This produces output as it goes, and correctly holds on to the unprocessed
@@ -100,9 +100,9 @@ pub fn decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, Base64Error> {
 /// Return type for errors relating to Base64 encoding and decoding.
 #[derive(Debug)]
 pub enum Base64Error {
-    /// The [Base64Decoder::do_update] method must not be called on a block that contains padding.
+    /// The [`Base64Decoder::do_update`] method must not be called on a block that contains padding.
     /// If this error is returned, then the provided input has not been processed and the caller must instead
-    /// pass the same input to [Base64Decoder::do_final]. Note that do_final() is tolerant of incomplete padding blocks,
+    /// pass the same input to [`Base64Decoder::do_final`]. Note that do_final() is tolerant of incomplete padding blocks,
     /// so even if an additional padding character is contained in the next chunk of input, do_final()
     /// will still produce the correct output -- ie any additional chunks held by the caller can be discarded.
     PaddingEncounteredDuringDoUpdate,

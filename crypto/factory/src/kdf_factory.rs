@@ -1,7 +1,7 @@
-//! KDF factory for creating instances of algorithms that implement the [KDF] trait.
+//! KDF factory for creating instances of algorithms that implement the [`KDF`] trait.
 //!
 //! As with all Factory objects, this implements constructions from strings and defaults, and
-//! returns a [KDFFactory] object which itself implements the [KDF] trait as a pass-through to the underlying algorithm.
+//! returns a [`KDFFactory`] object which itself implements the [`KDF`] trait as a pass-through to the underlying algorithm.
 //!
 //! Example usage:
 //! ```
@@ -58,7 +58,7 @@ use bouncycastle_sha3::{
     SHA3_224_NAME, SHA3_256_NAME, SHA3_384_NAME, SHA3_512_NAME, SHAKE128_NAME, SHAKE256_NAME,
 };
 
-/// Wrapper object for all algorithms that impl [KDF].
+/// Wrapper object for all algorithms that impl [`KDF`].
 pub enum KDFFactory {
     ///
     #[allow(non_camel_case_types)]

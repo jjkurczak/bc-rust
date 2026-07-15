@@ -105,7 +105,7 @@ fn test_working_state_display() {
 
 impl<H: HashDRBG80090AParams> HashDRBG80090A<H> {
     /// Creates a new instance using the local OS RNG as a source of seed entropy.
-    /// Alias for [HashDRBG80090A::new_from_os].
+    /// Alias for [`HashDRBG80090A::new_from_os`].
     pub fn new() -> Self {
         Self::new_from_os()
     }
@@ -160,7 +160,7 @@ impl<H: HashDRBG80090AParams> HashDRBG80090A<H> {
 
 impl<H: HashDRBG80090AParams> Default for HashDRBG80090A<H> {
     /// Creates a new instance using the local OS RNG as a source of seed entropy.
-    /// Alias for [HashDRBG80090A::new_from_os].
+    /// Alias for [`HashDRBG80090A::new_from_os`].
     fn default() -> Self {
         Self::new_from_os()
     }
