@@ -203,6 +203,8 @@ trait SHA3Params: HashAlgParams {
     const STATE_TAG: u8;
 }
 
+// TODO: it would probably be more elegant to macro these.
+
 impl HashAlgParams for SHA3_224 {
     const OUTPUT_LEN: usize = 28;
     // const BLOCK_LEN: usize = 64;

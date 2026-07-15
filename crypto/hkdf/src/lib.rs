@@ -242,9 +242,9 @@ pub type HKDF_SHA512 = HKDF<SHA512>;
 /// Can, in theory, be instantiated with hash functions other than the ones provided by this crate (even custom ones).
 #[derive(Clone)]
 pub struct HKDF<H: Hash + HashAlgParams + Default> {
-    // Optional because we can't construct an HMAC until they give us a key
+    // Optional because an HMAC cannot be constructed until a key is provided
     // to initialize it with.
-    // None should correspond to a state of Uninitialized.
+    // None must correspond to a state of Uninitialized.
     hmac: Option<HMAC<H>>,
     entropy: HkdfEntropyTracker<H>,
     state: HkdfStates,
@@ -319,7 +319,7 @@ impl<H: Hash + HashAlgParams + Default> HkdfEntropyTracker<H> {
     }
 }
 
-// Since I don't want this struct to be public, the tests have to go here.
+// Because this struct is not public, the tests have to go here.
 #[test]
 fn test_entropy_tracker() {
     let mut entropy = HkdfEntropyTracker::<SHA256>::new();
@@ -360,7 +360,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         self.entropy.get_entropy()
     }
 
-    /// Has the entropy input so far met the threshold for this object to be considered fully seeded?
+    /// Check whether the entropy input so far met the threshold for this object to be considered fully seeded
     pub fn is_fully_seeded(&self) -> bool {
         self.entropy.is_fully_seeded()
     }
@@ -480,8 +480,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
 
         // Could potentially speed this up by unrolling T(0) and T(1)
 
-        // We're gonna have to kludge the prk key type to MACKey to make HMAC happy,
-        // but we'll set it back to the original value afterwards.
+        // The prk key type must be temporarily changed to MACKey to satisfy HMAC, then restored afterwards.
         let prk_as_mac_key = KeyMaterial::<MAX_HMAC_OUTPUT_LEN>::from_bytes_as_type(
             prk.ref_to_bytes(),
             KeyType::MACKey,
@@ -512,7 +511,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
             Ok(())
         })?;
 
-        // On the last iteration, we don't take all of the output.
+        // Part of the output is not taken on the last iteration
         let remaining = L - bytes_written;
         let mut hmac = HMAC::<H>::new(&prk_as_mac_key)?;
         hmac.do_update(&T[..t_len]);
@@ -529,8 +528,8 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         })?;
         bytes_written += t_len;
 
-        // set the KeyType of the output
-        // since we've done some computation, the result will not actually be zeroized, even if all input key material was zeroized.
+        // Set the KeyType of the output
+        // Since some computation has been performed, the result will not actually be zeroized, even if all input key material was zeroized.
         key_material::do_hazardous_operations(okm, |okm| {
             if prk.key_type() == KeyType::Zeroized {
                 okm.set_key_type(KeyType::Unknown)?;
@@ -547,6 +546,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
                 )
             }
         })?;
+
         Ok(bytes_written)
     }
 
@@ -581,7 +581,7 @@ impl<H: Hash + HashAlgParams + Default> HKDF<H> {
         };
 
         // Often HMAC is initialized with a zero salt,
-        // So we're gonna ignore key strength errors here
+        // Key strength errors are ignored here.
         // This will all be tabulated correctly via entropy.credit_entropy()
         self.hmac = Some(HMAC::<H>::new_allow_weak_key(salt)?);
 

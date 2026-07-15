@@ -83,9 +83,12 @@ mod tests {
             _ => panic!("Expected KeyMaterialError error"),
         }
 
-        // Skipping tests for max lengths of seeds and personalization strings, because they're in the gigabyte range and that'll blow up the test suite.
+        // Skipping tests for max lengths of seeds and personalization strings 
+        // because they are on the order of a gigabyte in size. 
+        // Testing would blow up the test suite.
 
-        // Error case: security strength requested at init is higher than the underlying hash function's max security strength
+        // Error case: security strength requested at init is higher than the underlying 
+        // hash function's max security strength
         let mut rng = HashDRBG_SHA256::new_unititialized();
         let seed = KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::Seed).unwrap();
         match rng.instantiate(false, seed, &KeyMaterial0::new(), &[], SecurityStrength::_256bit) {
@@ -93,7 +96,8 @@ mod tests {
             _ => panic!("Expected KeyMaterialError error"),
         }
 
-        // Success case: security strength requested at init is lower than the underlying hash function's max security strength
+        // Success case: security strength requested at init is lower than the underlying 
+        // hash function's max security strength
         // ... 112 bit
         let mut rng = HashDRBG_SHA256::new_unititialized();
         let seed = KeyMaterial256::from_bytes_as_type(&DUMMY_SEED[..32], KeyType::Seed).unwrap();
@@ -152,7 +156,10 @@ mod tests {
             _ => panic!("Expected KeyMaterialError error"),
         }
 
-        // Skipping tests for max lengths of seeds and personalization strings, because they're in the gigabyte range and that'll blow up the test suite.
+        // Skipping tests for max lengths of seeds and personalization strings 
+        // because they are on the order of a gigabyte in size. 
+        // Testing would blow up the test suite.
+
     }
 
     #[test]
@@ -187,9 +194,11 @@ mod tests {
             _ => panic!("Expected Uninitialized error"),
         }
 
-        // Skipping tests for max lengths of seeds and personalization strings, because they're in the gigabyte range and that'll blow up the test suite.
+        // Skipping tests for max lengths of seeds and personalization strings 
+        // because they are on the order of a gigabyte in size. 
+        // Testing would blow up the test suite.
 
-        // TODO: tests for ReseedRequired. How do I trigger this? The limits are in the exobyte range.
+        // TODO: Tests for ReseedRequired. Investigate how this gets triggered. The limits are in the exobyte range.
     }
 
     #[test]
@@ -231,9 +240,11 @@ mod tests {
             _ => panic!("Expected Uninitialized error"),
         }
 
-        // Skipping tests for max lengths of seeds and personalization strings, because they're in the gigabyte range and that'll blow up the test suite.
+        // Skipping tests for max lengths of seeds and personalization strings 
+        // because they are on the order of a gigabyte in size. 
+        // Testing would blow up the test suite.
 
-        // TODO: tests for ReseedRequired. How do I trigger this? The limits are in the exobyte range.
+        // TODO: tests for ReseedRequired. Investigate how this gets triggered. The limits are in the exobyte range.
     }
 
     #[test]
@@ -280,9 +291,11 @@ mod tests {
             Ok(_) => panic!("Expected Uninitialized error"),
         }
 
-        // Skipping tests for max lengths of seeds and personalization strings, because they're in the gigabyte range and that'll blow up the test suite.
+        // Skipping tests for max lengths of seeds and personalization strings 
+        // because they are on the order of a gigabyte in size. 
+        // Testing would blow up the test suite.
 
-        // TODO: tests for ReseedRequired. How do I trigger this? The limits are in the exobyte range.
+        // TODO: tests for ReseedRequired. Investigate how this gets triggered. The limits are in the exobyte range.
     }
 
     #[test]

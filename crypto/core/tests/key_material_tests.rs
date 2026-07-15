@@ -26,7 +26,7 @@ mod test_key_material {
             _ => panic!("Expected InvalidLength"),
         }
 
-        // But you can slice it down.
+        // This can be sliced down.
         match KeyMaterial512::from_bytes(&DUMMY_KEY_TOO_LONG[..64]) {
             Ok(key) => assert_eq!(key.key_len(), 64),
             _ => panic!("Expected InvalidLength"),
@@ -47,7 +47,7 @@ mod test_key_material {
                 assert_eq!(key.key_type(), KeyType::Zeroized);
                 assert_eq!(key.key_len(), 16);
 
-                // but it'll allow it within tho do_hazardous closure.
+                // however, it can be forced in a hazardous operations closure.
                 do_hazardous_operations(&mut key, |key| {
                     key.set_key_type(KeyType::Unknown)?;
                     Ok(())
@@ -61,7 +61,7 @@ mod test_key_material {
         assert_eq!(key.key_type(), KeyType::Unknown);
         assert_eq!(key.security_strength(), SecurityStrength::None);
 
-        // but it'll allow it within tho do_hazardous closure.
+        // but it can be enabled within the do_hazardous closure.
         let key_bytes = [0u8; 16];
         let mut key = KeyMaterial256::new();
         do_hazardous_operations(&mut key, |key| {
@@ -101,7 +101,7 @@ mod test_key_material {
         })
         .unwrap();
 
-        // and I can set them
+        // Then they can be set
         do_hazardous_operations(&mut key, |key| {
             key.ref_to_bytes_mut().unwrap().copy_from_slice(&[2u8; 32]);
             key.set_key_len(32)
@@ -178,7 +178,8 @@ mod test_key_material {
         assert_eq!(key1.key_type(), KeyType::MACKey);
         assert_eq!(key1.security_strength(), SecurityStrength::_256bit);
 
-        // success case: same size using default From impl; only works if the sizes are the same (ie the compiler knows that they are the same type.
+        // success case: same size using default From impl;
+        // only works if the sizes are the same (i.e. the compiler knows that they are the same type).
         let key2 = KeyMaterial256::from(key1.clone());
         assert_eq!(key1.key_len(), key2.key_len());
         assert_eq!(key1.key_type(), key2.key_type());
@@ -357,11 +358,7 @@ mod test_key_material {
         assert_eq!(key.key_type(), KeyType::Unknown);
         assert!(!key.is_full_entropy());
 
-        // Note: can't use the usual assert_eq!() here because that requires PartialEq, but we're in a no_std context here.
-        match key.key_type() {
-            KeyType::Unknown => { /* good */ }
-            _ => panic!("Expected BytesLowEntropy"),
-        }
+        assert!(matches!(key.key_type(), KeyType::Unknown));
 
         // This should fail.
         match key.set_key_type(KeyType::CryptographicRandom) {
@@ -452,7 +449,7 @@ mod test_key_material {
         assert_eq!(zero_key.key_len(), 19);
         assert_eq!(zero_key.ref_to_bytes(), &[0u8; 19]);
 
-        // But it's totally fine if you give it non-zero input data.
+        // It is also ok to be given non-zero input data.
         let not_zero_key = KeyMaterial256::from_bytes(&[1u8; 19]).unwrap();
         assert_eq!(not_zero_key.key_type(), KeyType::Unknown);
 
@@ -468,7 +465,7 @@ mod test_key_material {
                 panic!("should have thrown a KeyMaterialError::ActingOnZeroizedKey error.")
             }
         }
-        // but it should still have set the key bytes; it's just giving you a friendly warning
+        // This should still set the key bytes; only giving a friendly warning that the key is zeroized
         assert_eq!(zero_key.key_type(), KeyType::Zeroized);
 
         // ... but will allow it inside a hazop closure
@@ -481,22 +478,22 @@ mod test_key_material {
     }
 
     #[test]
-    /// Tests the conversions that should only be allowed if hazardous_conversions() has been set.
-    fn test_hazardous_conversions_from_bytes() {
+    /// Tests the operation that should only be allowed within a hazardous operations closure.
+    fn test_hazardous_operations_from_bytes() {
         let mut key = KeyMaterial256::from_bytes(&DUMMY_KEY[..32]).unwrap();
         assert_eq!(key.key_type(), KeyType::Unknown);
 
-        /* All the non-hazardous conversions should work. */
+        /* All the non-hazardous operations should work. */
         // ... none
 
-        /* All the hazardous conversions should fail. */
+        /* All the hazardous operations should fail. */
         match key.set_key_type(KeyType::CryptographicRandom) {
             Err(KeyMaterialError::HazardousOperationNotPermitted) => { /* good */ }
-            _ => panic!("Expected HazardousConversion"),
+            _ => panic!("Expected HazardousOperationNotPermitted"),
         }
         match key.set_key_type(KeyType::MACKey) {
             Err(KeyMaterialError::HazardousOperationNotPermitted) => { /* good */ }
-            _ => panic!("Expected HazardousConversion"),
+            _ => panic!("Expected HazardousOperationNotPermitted"),
         }
         match key.set_key_type(KeyType::SymmetricCipherKey) {
             Err(KeyMaterialError::HazardousOperationNotPermitted) => { /* good */ }
@@ -507,7 +504,7 @@ mod test_key_material {
             _ => panic!("Expected HazardousConversion"),
         }
 
-        /* Should work if you allow hazardous conversions. */
+        /* Should work within a hazardous operations closure. */
         key = KeyMaterial256::from_bytes(&DUMMY_KEY[..32]).unwrap();
         do_hazardous_operations(&mut key, |key| key.set_key_type(KeyType::CryptographicRandom))
             .unwrap();
@@ -559,29 +556,28 @@ mod test_key_material {
     }
 
     #[test]
-    /// Not exhaustive, cargo mutants will probably not be satisfied.
-    fn test_hazardous_conversions_cast_types() {
+    fn test_hazardous_operations_cast_types() {
         let mut key = KeyMaterial256::from_bytes(&DUMMY_KEY[..32]).unwrap();
         do_hazardous_operations(&mut key, |key| key.set_key_type(KeyType::MACKey)).unwrap();
 
         // converting to self should work (idempotency)
         key.set_key_type(KeyType::MACKey).unwrap();
 
-        /* All the hazardous conversions should fail. */
+        /* All the hazardous operations should fail. */
         match key.set_key_type(KeyType::CryptographicRandom) {
             Err(KeyMaterialError::HazardousOperationNotPermitted) => { /* good */ }
-            _ => panic!("Expected HazardousConversion"),
+            _ => panic!("Expected HazardousOperationNotPermitted"),
         }
         match key.set_key_type(KeyType::SymmetricCipherKey) {
             Err(KeyMaterialError::HazardousOperationNotPermitted) => { /* good */ }
-            _ => panic!("Expected HazardousConversion"),
+            _ => panic!("Expected HazardousOperationNotPermitted"),
         }
         match key.set_key_type(KeyType::Seed) {
             Err(KeyMaterialError::HazardousOperationNotPermitted) => { /* good */ }
-            _ => panic!("Expected HazardousConversion"),
+            _ => panic!("Expected HazardousOperationNotPermitted"),
         }
 
-        // should work if you allow hazardous conversions.
+        // should work within a hazardous operations closure
         do_hazardous_operations(&mut key, |key| key.set_key_type(KeyType::SymmetricCipherKey))
             .unwrap();
     }
@@ -639,7 +635,7 @@ mod test_key_material {
         assert_eq!(key.key_type(), KeyType::CryptographicRandom);
         assert_eq!(key.security_strength(), SecurityStrength::None);
 
-        // even if it's long enough, BytesLowEntropy or Zeroized always get ::None
+        // even if it's long enough, BytesLowEntropy or Zeroized always get ::None as security strength
         let key = KeyMaterial512::from_bytes_as_type(DUMMY_KEY, KeyType::Unknown).unwrap();
         assert_eq!(key.key_type(), KeyType::Unknown);
         assert_eq!(key.key_len(), 64);
@@ -732,12 +728,6 @@ mod test_key_material {
 
     #[test]
     fn eq() {
-        // For context:
-        // DUMMY_KEY: &[u8; 64] = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\
-        //                           \x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\
-        //                           \x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2A\x2B\x2C\x2D\x2E\x2F\
-        //                           \x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F";
-
         // Same bytes, full capacity. Should be equal.
         let key1 = KeyMaterial256::from_bytes(&DUMMY_KEY[..32]).unwrap();
         let key2 = KeyMaterial256::from_bytes(&DUMMY_KEY[..32]).unwrap();
