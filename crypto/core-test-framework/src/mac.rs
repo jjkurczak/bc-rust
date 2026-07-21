@@ -27,9 +27,11 @@ impl TestFrameworkMAC {
         input: &[u8],
         expected_output: &[u8],
     ) {
-        // Test ::mac()
-        let out = M::new_allow_weak_key(key).unwrap().mac(input);
-        assert_eq!(out, expected_output);
+        #[cfg(feature = "alloc")] {
+            // Test ::mac()
+            let out = M::new_allow_weak_key(key).unwrap().mac(input);
+            assert_eq!(out, expected_output);
+        }
 
         // Test ::mac_out
         let mut out = vec![0u8; expected_output.len()];
@@ -53,16 +55,18 @@ impl TestFrameworkMAC {
         // Test ::verify()
         assert!(M::new_allow_weak_key(key).unwrap().verify(input, expected_output));
 
-        // Test .new(), .do_update(), .do_mac_final()
-        // At the same time, test .output_len()
-        let mut mac = M::new_allow_weak_key(key).unwrap();
-        let output_len = mac.output_len();
-        mac.do_update(input);
-        let out = mac.do_final();
-        assert_eq!(out, expected_output);
+        #[cfg(feature = "alloc")] {
+            // Test .new(), .do_update(), .do_mac_final()
+            // At the same time, test .output_len()
+            let mut mac = M::new_allow_weak_key(key).unwrap();
+            let output_len = mac.output_len();
+            mac.do_update(input);
+            let out = mac.do_final();
+            assert_eq!(out, expected_output);
 
-        // Test .output_len()
-        assert_eq!(output_len, out.len());
+            // Test .output_len()
+            assert_eq!(output_len, out.len());
+        }
 
         // Test ::mac_array() and ::do_final_array() (no_std alternatives).
         // N = 64 is >= every supported MAC output length (and >= the FIPS minimum), so the tag lands
@@ -151,9 +155,11 @@ impl TestFrameworkMAC {
                 )
             }
         }
-        // but fine if you do it with .allow_weak_keys()
-        let mut hmac = M::new_allow_weak_key(&low_security_key).unwrap();
-        hmac.do_update(b"Hi There");
-        hmac.do_final();
+        #[cfg(feature = "alloc")] {
+            // but fine if you do it with .allow_weak_keys()
+            let mut hmac = M::new_allow_weak_key(&low_security_key).unwrap();
+            hmac.do_update(b"Hi There");
+            hmac.do_final();
+        }
     }
 }

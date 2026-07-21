@@ -90,13 +90,14 @@ mod sha2_tests {
         assert_eq!(SHA512::default().max_security_strength(), SecurityStrength::_256bit);
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn suspendable_state() {
         use bouncycastle_core::traits::Suspendable;
         use bouncycastle_core_test_framework::suspendable_state::TestFrameworkSuspendableState;
 
         let str = "Colorless green ideas sleep furiously";
-
+        
         // SHA256
         let mut sha256 = SHA256::new();
         sha256.do_update(str.as_bytes());

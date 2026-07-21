@@ -59,6 +59,8 @@
 //! use bouncycastle_mlkem::{MLKEM768, MLKEMTrait};
 //! use bouncycastle_hex as hex;
 //!
+//! #[cfg(feature = "alloc")]
+//! {
 //! let seed = KeyMaterial512::from_bytes_as_type(
 //!     &hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
 //!                   202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f").unwrap(),
@@ -66,6 +68,7 @@
 //! ).unwrap();
 //!
 //! let (pk, sk) = MLKEM768::keygen_from_seed(&seed).unwrap();
+//! }
 //! ```
 //!
 //! See [`MLKEM`] and [`MLKEM::decaps_from_seed`] for an API that uses a merged

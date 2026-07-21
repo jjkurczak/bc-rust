@@ -1,4 +1,4 @@
-use crate::aux_functions::{byte_decode, byte_encode, expandA};
+ use crate::aux_functions::{byte_decode, byte_encode, expandA};
 use crate::matrix::{Matrix, Vector};
 use crate::mlkem::{H, POLY_BYTES, q};
 use crate::mlkem::{MLKEM512_PK_LEN, MLKEM512_SK_LEN, MLKEM512_k};
@@ -221,7 +221,11 @@ impl<const k: usize, const PK_LEN: usize> Debug for MLKEMPublicKey<k, PK_LEN> {
             4 => ML_KEM_1024_NAME,
             _ => panic!("Unsupported key length"),
         };
-        let hash = SHA3_256::new().hash(&self.encode());
+
+        // let hash = SHA3_256::new().hash(&self.encode());
+        // write!(f, "MLKEMPublicKey {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
+
+        let hash: [u8; PK_LEN] = SHA3_256::new().hash_array(&self.encode());
         write!(f, "MLKEMPublicKey {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
     }
 }
@@ -234,7 +238,10 @@ impl<const k: usize, const PK_LEN: usize> Display for MLKEMPublicKey<k, PK_LEN> 
             4 => ML_KEM_1024_NAME,
             _ => panic!("Unsupported key length"),
         };
-        let hash = SHA3_256::new().hash(&self.encode());
+        // let hash = SHA3_256::new().hash(&self.encode());
+        // write!(f, "MLKEMPublicKey {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
+
+        let hash: [u8; PK_LEN] = SHA3_256::new().hash_array(&self.encode());
         write!(f, "MLKEMPublicKey {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
     }
 }
@@ -315,7 +322,8 @@ impl<const k: usize, PK: MLKEMPublicKeyInternalTrait<k, PK_LEN>, const PK_LEN: u
             4 => ML_KEM_1024_NAME,
             _ => panic!("Unsupported key length"),
         };
-        let hash = SHA3_256::new().hash(&self.encode());
+        // let hash = SHA3_256::new().hash(&self.encode());
+        let hash: [u8; PK_LEN] = SHA3_256::new().hash_array(&self.encode());
         write!(f, "MLKEMPublicKeyExpanded {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
     }
 }
@@ -330,7 +338,8 @@ impl<const k: usize, PK: MLKEMPublicKeyInternalTrait<k, PK_LEN>, const PK_LEN: u
             4 => ML_KEM_1024_NAME,
             _ => panic!("Unsupported key length"),
         };
-        let hash = SHA3_256::new().hash(&self.encode());
+        // let hash = SHA3_256::new().hash(&self.encode());
+        let hash: [u8; PK_LEN] = SHA3_256::new().hash_array(&self.encode());
         write!(f, "MLKEMPublicKeyExpanded {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
     }
 }

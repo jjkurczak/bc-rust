@@ -11,9 +11,10 @@ mod bc_test_data {
     };
     use bouncycastle_hex as hex;
     use bouncycastle_mlkem::{
-        MLKEM512, MLKEM512_PK_LEN, MLKEM512_SK_LEN, MLKEM512PrivateKey, MLKEM512PublicKey,
-        MLKEM768, MLKEM768_PK_LEN, MLKEM768_SK_LEN, MLKEM768PrivateKey, MLKEM768PublicKey,
-        MLKEM1024, MLKEM1024_PK_LEN, MLKEM1024_SK_LEN, MLKEM1024PrivateKey, MLKEM1024PublicKey,
+        MLKEM512, MLKEM512_CT_LEN, MLKEM512_PK_LEN, MLKEM512_SK_LEN, MLKEM512PrivateKey,
+        MLKEM512PublicKey, MLKEM768, MLKEM768_CT_LEN, MLKEM768_PK_LEN, MLKEM768_SK_LEN,
+        MLKEM768PrivateKey, MLKEM768PublicKey, MLKEM1024, MLKEM1024_CT_LEN, MLKEM1024_PK_LEN,
+        MLKEM1024_SK_LEN, MLKEM1024PrivateKey, MLKEM1024PublicKey,
         MLKEMTrait,
     };
     use std::fs;
@@ -150,8 +151,14 @@ mod bc_test_data {
             assert_eq!(self.mode, "keyGen");
 
             let mut seed_bytes = [0u8; 64];
-            seed_bytes[..32].copy_from_slice(&*hex::decode(&self.d).unwrap());
-            seed_bytes[32..].copy_from_slice(&*hex::decode(&self.z).unwrap());
+            /* seed_bytes[..32].copy_from_slice(&*hex::decode(&self.d).unwrap()); */
+            let mut d_bytes = [0u8; 32];
+            let _ = hex::decode_out(&self.d, &mut d_bytes);
+            seed_bytes[..32].copy_from_slice(&d_bytes);
+            /* seed_bytes[32..].copy_from_slice(&*hex::decode(&self.z).unwrap()); */
+            let mut z_bytes = [0u8; 32];
+            let _ = hex::decode_out(&self.z, &mut z_bytes);
+            seed_bytes[32..].copy_from_slice(&z_bytes);
 
             let mut seed = KeyMaterial512::from_bytes_as_type(&seed_bytes, KeyType::Seed).unwrap();
 
@@ -165,29 +172,41 @@ mod bc_test_data {
             match self.parameter_set.as_str() {
                 "ML-KEM-512" => {
                     let (pk, sk) = MLKEM512::keygen_from_seed(&seed).unwrap();
-                    let pk_sized: [u8; MLKEM512_PK_LEN] =
-                        hex::decode(&self.ek).unwrap().try_into().unwrap();
+                    /* let pk_sized: [u8; MLKEM512_PK_LEN] =
+                        hex::decode(&self.ek).unwrap().try_into().unwrap(); */
+                    let mut pk_sized = [0u8; MLKEM512_PK_LEN];
+                    let _ = hex::decode_out(&self.ek, &mut pk_sized);
                     assert_eq!(pk.encode(), pk_sized);
-                    let sk_sized: [u8; MLKEM512_SK_LEN] =
-                        hex::decode(&self.dk).unwrap().try_into().unwrap();
+                    /* let sk_sized: [u8; MLKEM512_SK_LEN] =
+                        hex::decode(&self.dk).unwrap().try_into().unwrap(); */
+                    let mut sk_sized = [0u8; MLKEM512_SK_LEN];
+                    let _ = hex::decode_out(&self.dk, &mut sk_sized);
                     assert_eq!(sk.encode(), sk_sized);
                 }
                 "ML-KEM-768" => {
                     let (pk, sk) = MLKEM768::keygen_from_seed(&seed).unwrap();
-                    let pk_sized: [u8; MLKEM768_PK_LEN] =
-                        hex::decode(&self.ek).unwrap().try_into().unwrap();
+                    /* let pk_sized: [u8; MLKEM768_PK_LEN] =
+                        hex::decode(&self.ek).unwrap().try_into().unwrap(); */
+                    let mut pk_sized = [0u8; MLKEM768_PK_LEN];
+                    let _ = hex::decode_out(&self.ek, &mut pk_sized);
                     assert_eq!(pk.encode(), pk_sized);
-                    let sk_sized: [u8; MLKEM768_SK_LEN] =
-                        hex::decode(&self.dk).unwrap().try_into().unwrap();
+                    /* let sk_sized: [u8; MLKEM768_SK_LEN] =
+                        hex::decode(&self.dk).unwrap().try_into().unwrap(); */
+                    let mut sk_sized = [0u8; MLKEM768_SK_LEN];
+                    let _ = hex::decode_out(&self.dk, &mut sk_sized);
                     assert_eq!(sk.encode(), sk_sized);
                 }
                 "ML-KEM-1024" => {
                     let (pk, sk) = MLKEM1024::keygen_from_seed(&seed).unwrap();
-                    let pk_sized: [u8; MLKEM1024_PK_LEN] =
-                        hex::decode(&self.ek).unwrap().try_into().unwrap();
+                    /* let pk_sized: [u8; MLKEM1024_PK_LEN] =
+                        hex::decode(&self.ek).unwrap().try_into().unwrap(); */
+                    let mut pk_sized = [0u8; MLKEM1024_PK_LEN];
+                    let _ = hex::decode_out(&self.ek, &mut pk_sized);
                     assert_eq!(pk.encode(), pk_sized);
-                    let sk_sized: [u8; MLKEM1024_SK_LEN] =
-                        hex::decode(&self.dk).unwrap().try_into().unwrap();
+                    /* let sk_sized: [u8; MLKEM1024_SK_LEN] =
+                        hex::decode(&self.dk).unwrap().try_into().unwrap(); */
+                    let mut sk_sized = [0u8; MLKEM1024_SK_LEN];
+                    let _ = hex::decode_out(&self.dk, &mut sk_sized);
                     assert_eq!(sk.encode(), sk_sized);
                 }
                 val => panic!("Invalid parameter set: {}", val),
@@ -301,25 +320,41 @@ mod bc_test_data {
                 "ML-KEM-512" => {
                     match self.function.as_str() {
                         "encapsulation" => {
-                            let pk = MLKEM512PublicKey::from_bytes(&hex::decode(&self.ek).unwrap())
-                                .unwrap();
-                            let m: [u8; 32] = hex::decode(&self.m).unwrap().try_into().unwrap();
+                            /* let pk = MLKEM512PublicKey::from_bytes(&hex::decode(&self.ek).unwrap())
+                                .unwrap(); */
+                            let mut pk_bytes = [0u8; MLKEM512_PK_LEN];
+                            let _ = hex::decode_out(&self.ek, &mut pk_bytes);
+                            let pk = MLKEM512PublicKey::from_bytes(&pk_bytes).unwrap();
+                            /* let m: [u8; 32] = hex::decode(&self.m).unwrap().try_into().unwrap(); */
+                            let mut m = [0u8; 32];
+                            let _ = hex::decode_out(&self.m, &mut m);
                             let (ss, ct) = MLKEM512::encaps_internal(&pk, None, m);
 
-                            let expected_ss = hex::decode(&self.k).unwrap();
-                            let expected_ct = hex::decode(&self.c).unwrap();
+                            /* let expected_ss = hex::decode(&self.k).unwrap(); */
+                            let mut expected_ss = [0u8; 32];
+                            let _ = hex::decode_out(&self.k, &mut expected_ss);
+                            /* let expected_ct = hex::decode(&self.c).unwrap(); */
+                            let mut expected_ct = [0u8; MLKEM512_CT_LEN];
+                            let _ = hex::decode_out(&self.c, &mut expected_ct);
 
                             assert_eq!(ss, expected_ss.as_slice());
                             assert_eq!(ct, expected_ct.as_slice());
                         }
                         "decapsulation" => {
-                            let sk =
+                            /* let sk =
                                 MLKEM512PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap())
-                                    .unwrap();
-                            let ct = hex::decode(&self.c).unwrap();
+                                    .unwrap(); */
+                            let mut sk_bytes = [0u8; MLKEM512_SK_LEN];
+                            let _ = hex::decode_out(&self.dk, &mut sk_bytes);
+                            let sk = MLKEM512PrivateKey::from_bytes(&sk_bytes).unwrap();
+                            /* let ct = hex::decode(&self.c).unwrap(); */
+                            let mut ct = [0u8; MLKEM512_CT_LEN];
+                            let _ = hex::decode_out(&self.c, &mut ct);
                             let ss = MLKEM512::decaps(&sk, ct.as_slice()).unwrap();
 
-                            let expected_ss = hex::decode(&self.k).unwrap();
+                            /* let expected_ss = hex::decode(&self.k).unwrap(); */
+                            let mut expected_ss = [0u8; 32];
+                            let _ = hex::decode_out(&self.k, &mut expected_ss);
                             assert_eq!(ss.ref_to_bytes(), expected_ss.as_slice());
                         }
                         _ => panic!("Invalid function: {}", self.function),
@@ -328,25 +363,41 @@ mod bc_test_data {
                 "ML-KEM-768" => {
                     match self.function.as_str() {
                         "encapsulation" => {
-                            let pk = MLKEM768PublicKey::from_bytes(&hex::decode(&self.ek).unwrap())
-                                .unwrap();
-                            let m: [u8; 32] = hex::decode(&self.m).unwrap().try_into().unwrap();
+                            /* let pk = MLKEM768PublicKey::from_bytes(&hex::decode(&self.ek).unwrap())
+                                .unwrap(); */
+                            let mut pk_bytes = [0u8; MLKEM768_PK_LEN];
+                            let _ = hex::decode_out(&self.ek, &mut pk_bytes);
+                            let pk = MLKEM768PublicKey::from_bytes(&pk_bytes).unwrap();
+                            /* let m: [u8; 32] = hex::decode(&self.m).unwrap().try_into().unwrap(); */
+                            let mut m = [0u8; 32];
+                            let _ = hex::decode_out(&self.m, &mut m);
                             let (ss, ct) = MLKEM768::encaps_internal(&pk, None, m);
 
-                            let expected_ss = hex::decode(&self.k).unwrap();
-                            let expected_ct = hex::decode(&self.c).unwrap();
+                            /* let expected_ss = hex::decode(&self.k).unwrap(); */
+                            let mut expected_ss = [0u8; 32];
+                            let _ = hex::decode_out(&self.k, &mut expected_ss);
+                            /* let expected_ct = hex::decode(&self.c).unwrap(); */
+                            let mut expected_ct = [0u8; MLKEM768_CT_LEN];
+                            let _ = hex::decode_out(&self.c, &mut expected_ct);
 
                             assert_eq!(ss, expected_ss.as_slice());
                             assert_eq!(ct, expected_ct.as_slice());
                         }
                         "decapsulation" => {
-                            let sk =
+                            /* let sk =
                                 MLKEM768PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap())
-                                    .unwrap();
-                            let ct = hex::decode(&self.c).unwrap();
+                                    .unwrap(); */
+                            let mut sk_bytes = [0u8; MLKEM768_SK_LEN];
+                            let _ = hex::decode_out(&self.dk, &mut sk_bytes);
+                            let sk = MLKEM768PrivateKey::from_bytes(&sk_bytes).unwrap();
+                            /* let ct = hex::decode(&self.c).unwrap(); */
+                            let mut ct = [0u8; MLKEM768_CT_LEN];
+                            let _ = hex::decode_out(&self.c, &mut ct);
                             let ss = MLKEM768::decaps(&sk, ct.as_slice()).unwrap();
 
-                            let expected_ss = hex::decode(&self.k).unwrap();
+                            /* let expected_ss = hex::decode(&self.k).unwrap(); */
+                            let mut expected_ss = [0u8; 32];
+                            let _ = hex::decode_out(&self.k, &mut expected_ss);
                             assert_eq!(ss.ref_to_bytes(), expected_ss.as_slice());
                         }
                         _ => panic!("Invalid function: {}", self.function),
@@ -355,26 +406,42 @@ mod bc_test_data {
                 "ML-KEM-1024" => {
                     match self.function.as_str() {
                         "encapsulation" => {
-                            let pk =
+                            /* let pk =
                                 MLKEM1024PublicKey::from_bytes(&hex::decode(&self.ek).unwrap())
-                                    .unwrap();
-                            let m: [u8; 32] = hex::decode(&self.m).unwrap().try_into().unwrap();
+                                    .unwrap(); */
+                            let mut pk_bytes = [0u8; MLKEM1024_PK_LEN];
+                            let _ = hex::decode_out(&self.ek, &mut pk_bytes);
+                            let pk = MLKEM1024PublicKey::from_bytes(&pk_bytes).unwrap();
+                            /* let m: [u8; 32] = hex::decode(&self.m).unwrap().try_into().unwrap(); */
+                            let mut m = [0u8; 32];
+                            let _ = hex::decode_out(&self.m, &mut m);
                             let (ss, ct) = MLKEM1024::encaps_internal(&pk, None, m);
 
-                            let expected_ss = hex::decode(&self.k).unwrap();
-                            let expected_ct = hex::decode(&self.c).unwrap();
+                            /* let expected_ss = hex::decode(&self.k).unwrap(); */
+                            let mut expected_ss = [0u8; 32];
+                            let _ = hex::decode_out(&self.k, &mut expected_ss);
+                            /* let expected_ct = hex::decode(&self.c).unwrap(); */
+                            let mut expected_ct = [0u8; MLKEM1024_CT_LEN];
+                            let _ = hex::decode_out(&self.c, &mut expected_ct);
 
                             assert_eq!(ss, expected_ss.as_slice());
                             assert_eq!(ct, expected_ct.as_slice());
                         }
                         "decapsulation" => {
-                            let sk =
+                            /* let sk =
                                 MLKEM1024PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap())
-                                    .unwrap();
-                            let ct = hex::decode(&self.c).unwrap();
+                                    .unwrap(); */
+                            let mut sk_bytes = [0u8; MLKEM1024_SK_LEN];
+                            let _ = hex::decode_out(&self.dk, &mut sk_bytes);
+                            let sk = MLKEM1024PrivateKey::from_bytes(&sk_bytes).unwrap();
+                            /* let ct = hex::decode(&self.c).unwrap(); */
+                            let mut ct = [0u8; MLKEM1024_CT_LEN];
+                            let _ = hex::decode_out(&self.c, &mut ct);
                             let ss = MLKEM1024::decaps(&sk, ct.as_slice()).unwrap();
 
-                            let expected_ss = hex::decode(&self.k).unwrap();
+                            /* let expected_ss = hex::decode(&self.k).unwrap(); */
+                            let mut expected_ss = [0u8; 32];
+                            let _ = hex::decode_out(&self.k, &mut expected_ss);
                             assert_eq!(ss.ref_to_bytes(), expected_ss.as_slice());
                         }
                         _ => panic!("Invalid function: {}", self.function),

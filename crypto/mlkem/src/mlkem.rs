@@ -64,6 +64,8 @@
 //! use bouncycastle_core::key_material::{KeyMaterial512, KeyType};
 //! use bouncycastle_hex as hex;
 //!
+//! #[cfg(feature = "alloc")]
+//! {
 //! let seed = KeyMaterial512::from_bytes_as_type(
 //!     &hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
 //!                   202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f").unwrap(),
@@ -83,6 +85,7 @@
 //! };
 //!
 //! assert_eq!(ss, ss1);
+//! }
 //! ```
 //!
 //! While this is currently only supported when operating from a seed-based private key, something analogous
