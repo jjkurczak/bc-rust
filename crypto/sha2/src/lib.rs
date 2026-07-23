@@ -2,8 +2,8 @@
 //!
 //! # Examples
 //! ## Hash
-//! Hash functionality is accessed via the [bouncycastle_core::traits::Hash] trait,
-//! which is implemented by [SHA224], [SHA256], [SHA384] and [SHA512].
+//! Hash functionality is accessed via the [`bouncycastle_core::traits::Hash`] trait,
+//! which is implemented by [`SHA224`], [`SHA256`], [`SHA384`] and [`SHA512`].
 //!
 //! The simplest usage is via the static functions.
 //! ```
@@ -40,7 +40,7 @@
 //! to a cache and resume it later; for example if waiting for the message to stream over a slow network
 //! connection.
 //!
-//! For this reason, all SHA2 algorithms impl [Suspendable].
+//! For this reason, all SHA2 algorithms impl [`Suspendable`].
 //!
 //! ```rust
 //! use bouncycastle_sha2 as sha2;

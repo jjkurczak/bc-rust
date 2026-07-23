@@ -11,7 +11,7 @@ use bouncycastle_core::key_material::{
 };
 use bouncycastle_core::traits::{Hash, HashAlgParams, RNG, SecurityStrength};
 use bouncycastle_sha2::{SHA256, SHA512};
-use bouncycastle_utils::min;
+use bouncycastle_utils::{min, secret::Secret};
 
 use std::fmt::{Display, Formatter};
 
@@ -61,40 +61,31 @@ impl HashDRBG80090AParams for HashDRBG80090AParams_SHA512 {
     const RESEED_INTERVAL: u64 = 1u64 << 48; // 2^48 requests
 }
 
-// TODO: replace this once the generic_const_exprs feature lands in the stable rust compiler.
+// TODO: replace / simplify this once the generic_const_exprs feature lands in the stable rust compiler.
 const LARGEST_HASHER_OUTPUT_LEN: usize = 64;
 
 #[allow(private_bounds)]
 /// Implementation of the Hash_DRBG algorithm as specified in NIST SP 800-90Ar1.
 pub struct HashDRBG80090A<H: HashDRBG80090AParams> {
     _phantom: core::marker::PhantomData<H>,
-    // TODO: replace this once the generic_const_exprs feature lands in the stable rust compiler.
-    // state: WorkingState<H::SEED_LEN>,
+    // TODO: replace / simplify this once the generic_const_exprs feature lands in the stable rust compiler.
+    //  state: WorkingState<H::SEED_LEN>,
     state: WorkingState<LARGEST_HASHER_OUTPUT_LEN>,
     admin_info: AdministrativeInfo,
 }
 
 struct WorkingState<const SEED_LEN: usize> {
-    v: [u8; SEED_LEN],
-    c: [u8; SEED_LEN],
+    v: Secret<[u8; SEED_LEN]>,
+    c: Secret<[u8; SEED_LEN]>,
 
     /// s 8.3: "A count of the number of requests produced since the instantiation was seeded or reseeded."
-    reseed_counter: u64,
+    reseed_counter: Secret<u64>,
 }
 
 struct AdministrativeInfo {
     strength: SecurityStrength,
     prediction_resistance: bool,
     instantiated: bool,
-}
-
-impl<const SEED_LEN: usize> Drop for WorkingState<SEED_LEN> {
-    fn drop(&mut self) {
-        // zeroize
-        self.v.fill(0u8);
-        self.c.fill(0u8);
-        self.reseed_counter = 0;
-    }
 }
 
 /// Explicit implementation of Display that prevents auto-generated ones from accidentally leaking secrets.
@@ -107,13 +98,14 @@ impl<const SEED_LEN: usize> Display for WorkingState<SEED_LEN> {
 #[test]
 /// impl Display to not print the state data.
 fn test_working_state_display() {
-    let ws = WorkingState::<32> { v: [0u8; 32], c: [0u8; 32], reseed_counter: 0 };
+    let ws =
+        WorkingState::<32> { v: Secret::new(), c: Secret::new(), reseed_counter: Secret::new() };
     assert_eq!(format!("{}", ws), "HashDRBG80090A::WorkingState::<32>");
 }
 
 impl<H: HashDRBG80090AParams> HashDRBG80090A<H> {
     /// Creates a new instance using the local OS RNG as a source of seed entropy.
-    /// Alias for [HashDRBG80090A::new_from_os].
+    /// Alias for [`HashDRBG80090A::new_from_os`].
     pub fn new() -> Self {
         Self::new_from_os()
     }
@@ -126,9 +118,9 @@ impl<H: HashDRBG80090AParams> HashDRBG80090A<H> {
         Self {
             _phantom: core::marker::PhantomData,
             state: WorkingState::<LARGEST_HASHER_OUTPUT_LEN> {
-                v: [0u8; LARGEST_HASHER_OUTPUT_LEN],
-                c: [0u8; LARGEST_HASHER_OUTPUT_LEN],
-                reseed_counter: 0,
+                v: Secret::<[u8; LARGEST_HASHER_OUTPUT_LEN]>::new(),
+                c: Secret::<[u8; LARGEST_HASHER_OUTPUT_LEN]>::new(),
+                reseed_counter: Secret::new(),
             },
             admin_info: AdministrativeInfo {
                 strength: H::MAX_SECURITY_STRENGTH,
@@ -168,7 +160,7 @@ impl<H: HashDRBG80090AParams> HashDRBG80090A<H> {
 
 impl<H: HashDRBG80090AParams> Default for HashDRBG80090A<H> {
     /// Creates a new instance using the local OS RNG as a source of seed entropy.
-    /// Alias for [HashDRBG80090A::new_from_os].
+    /// Alias for [`HashDRBG80090A::new_from_os`].
     fn default() -> Self {
         Self::new_from_os()
     }
@@ -199,7 +191,7 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
             ));
         }
 
-        // todo: take this out once supported
+        // TODO: take this out once supported
         if prediction_resistance {
             todo!("Prediction resistance is not yet supported by Hash_DRBG80090A.")
         }
@@ -224,7 +216,8 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
                 "Provided seed exceeds the maximum seed length.",
             ))?;
         }
-        // On purpose not checking the SecurityStrength field of the seed, because we assume it's pure entropy and hasn't been touched by any actual algoritms yet.
+        // On purpose not checking the SecurityStrength field of the seed, 
+        // because we assume it's pure entropy and hasn't been touched by any actual algoritms yet.
         if security_strength > H::MAX_SECURITY_STRENGTH {
             return Err(KeyMaterialError::SecurityStrength(
                 "Requested security strength exceeds the maximum strength that this DRBG instance can provide.",
@@ -240,29 +233,29 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
                 nonce.ref_to_bytes(),
                 personalization_string,
                 &[0u8; 0],
-                &mut self.state.v,
+                &mut *self.state.v,
             ),
             SupportedHash::SHA512 => hash_df::<SHA512>(
                 seed.ref_to_bytes(),
                 nonce.ref_to_bytes(),
                 personalization_string,
                 &[0u8; 0],
-                &mut self.state.v,
+                &mut *self.state.v,
             ),
         }
 
         // 4. C = Hash_df ((0x00 || V), seedlen). Comment: Precede V with a byte of zeros.
         match H::HASH {
             SupportedHash::SHA256 => {
-                hash_df::<SHA256>(&[0u8], &self.state.v, &[0u8; 0], &[0u8; 0], &mut self.state.c)
+                hash_df::<SHA256>(&[0u8], &*self.state.v, &[0u8; 0], &[0u8; 0], &mut *self.state.c)
             }
             SupportedHash::SHA512 => {
-                hash_df::<SHA512>(&[0u8], &self.state.v, &[0u8; 0], &[0u8; 0], &mut self.state.c)
+                hash_df::<SHA512>(&[0u8], &*self.state.v, &[0u8; 0], &[0u8; 0], &mut *self.state.c)
             }
         }
 
         // 5. reseed_counter = 1.
-        self.state.reseed_counter = 1;
+        *self.state.reseed_counter = 1;
         self.admin_info.strength = min(&security_strength, &H::MAX_SECURITY_STRENGTH).clone();
         self.admin_info.prediction_resistance = prediction_resistance;
         self.admin_info.instantiated = true;
@@ -317,32 +310,32 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
         match H::HASH {
             SupportedHash::SHA256 => hash_df::<SHA256>(
                 &[0x01],
-                &self.state.v.clone(),
+                &*self.state.v.clone(),
                 seed.ref_to_bytes(),
                 additional_input,
-                &mut self.state.v,
+                &mut *self.state.v,
             ),
             SupportedHash::SHA512 => hash_df::<SHA512>(
                 &[0x01],
-                &self.state.v.clone(),
+                &*self.state.v.clone(),
                 seed.ref_to_bytes(),
                 additional_input,
-                &mut self.state.v,
+                &mut *self.state.v,
             ),
         }
 
         // 4. C = Hash_df ((0x00 || V), seedlen). Comment: Preceed with a byte of all zeros.
         match H::HASH {
             SupportedHash::SHA256 => {
-                hash_df::<SHA256>(&[0u8], &self.state.v, &[0u8; 0], &[0u8; 0], &mut self.state.c)
+                hash_df::<SHA256>(&[0u8], &*self.state.v, &[0u8; 0], &[0u8; 0], &mut *self.state.c)
             }
             SupportedHash::SHA512 => {
-                hash_df::<SHA512>(&[0u8], &self.state.v, &[0u8; 0], &[0u8; 0], &mut self.state.c)
+                hash_df::<SHA512>(&[0u8], &*self.state.v, &[0u8; 0], &[0u8; 0], &mut *self.state.c)
             }
         }
 
         // 5. reseed_counter = 1.
-        self.state.reseed_counter = 1;
+        *self.state.reseed_counter = 1;
 
         // 6. Return (V, C, and reseed_counter).
         Ok(())
@@ -381,7 +374,7 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
         }
 
         // 1. If reseed_counter > reseed_interval, then return an indication that a reseed is required.
-        if self.state.reseed_counter > H::RESEED_INTERVAL {
+        if *self.state.reseed_counter > H::RESEED_INTERVAL {
             return Err(RNGError::ReseedRequired);
         }
 
@@ -395,22 +388,22 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
                 SupportedHash::SHA256 => {
                     let mut h = SHA256::new();
                     h.do_update(&[0x02]);
-                    h.do_update(&self.state.v);
+                    h.do_update(&*self.state.v);
                     h.do_update(additional_input);
 
                     let mut w = [0u8; SHA256::OUTPUT_LEN];
                     h.do_final_out(&mut w);
-                    add_to_array(&mut self.state.v, &w);
+                    add_to_array(&mut *self.state.v, &w);
                 }
                 SupportedHash::SHA512 => {
                     let mut h = SHA512::new();
                     h.do_update(&[0x02]);
-                    h.do_update(&self.state.v);
+                    h.do_update(&*self.state.v);
                     h.do_update(additional_input);
 
                     let mut w = [0u8; SHA512::OUTPUT_LEN];
                     h.do_final_out(&mut w);
-                    add_to_array(&mut self.state.v, &w);
+                    add_to_array(&mut *self.state.v, &w);
                 }
             }
         }
@@ -422,10 +415,10 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
             // But we do want to continue below to roll the state and increment the request counter.
             match H::HASH {
                 SupportedHash::SHA256 => {
-                    hashgen::<SHA256>(&self.state.v, out);
+                    hashgen::<SHA256>(&*self.state.v, out);
                 }
                 SupportedHash::SHA512 => {
-                    hashgen::<SHA512>(&self.state.v, out);
+                    hashgen::<SHA512>(&*self.state.v, out);
                 }
             }
         }
@@ -437,24 +430,24 @@ impl<H: HashDRBG80090AParams> Sp80090ADrbg for HashDRBG80090A<H> {
             SupportedHash::SHA256 => {
                 let mut sha = SHA256::default();
                 sha.do_update(&[0x03]);
-                sha.do_update(&self.state.v);
+                sha.do_update(&*self.state.v);
                 sha.do_final_out(&mut h);
             }
             SupportedHash::SHA512 => {
                 let mut sha = SHA512::default();
                 sha.do_update(&[0x03]);
-                sha.do_update(&self.state.v);
+                sha.do_update(&*self.state.v);
                 sha.do_final_out(&mut h);
             }
         };
 
         // 5. V = (V + H + C + reseed_counter) mod 2^seedlen.
-        add_to_array(&mut self.state.v, &h);
-        add_to_array(&mut self.state.v, &self.state.c);
-        add_to_array(&mut self.state.v, &self.state.reseed_counter.to_le_bytes());
+        add_to_array(&mut *self.state.v, &h);
+        add_to_array(&mut *self.state.v, &*self.state.c);
+        add_to_array(&mut *self.state.v, &self.state.reseed_counter.to_le_bytes());
 
         // 6. reseed_counter = reseed_counter + 1.
-        self.state.reseed_counter += 1;
+        *self.state.reseed_counter += 1;
 
         // 7. Return (SUCCESS, returned_bits, V, C, reseed_counter).
         Ok(out.len())
@@ -534,7 +527,8 @@ impl<H: HashDRBG80090AParams> RNG for HashDRBG80090A<H> {
 
 /// the hash_df function as defined in SP 800-90Ar1 section 10.3.1.
 /// no_of_bits_to_return is the length of the provided output buffer.
-/// Because array concatenation is not available in a no_std / no_alloc build, this takes many input parameters. To leave a parameter unused, simply provide an empty array &[0u8;0]
+/// Because array concatenation is not available in a no_std / no_alloc build, this takes many input parameters. 
+// To leave a parameter unused, simply provide an empty array &[0u8;0]
 fn hash_df<H: Hash + HashAlgParams + Default>(
     in1: &[u8],
     in2: &[u8],
@@ -544,7 +538,7 @@ fn hash_df<H: Hash + HashAlgParams + Default>(
 ) {
     // Note: all lengths here are in bytes, whereas the spec uses bits.
 
-    // // I'm gonna panic! here because this is private and shouldn't get into weird inputs.
+    // The implementation panic! here because this is private and shouldn't get into weird inputs.
     if out.len() > 255 * H::OUTPUT_LEN {
         panic!("hash_df can't produce that much output!")
     }
@@ -556,8 +550,8 @@ fn hash_df<H: Hash + HashAlgParams + Default>(
     let len = u32::div_ceil(out.len() as u32, H::OUTPUT_LEN as u32);
     let mut counter: u8 = 0x01;
 
-    // note: this could probably be performance optimized a tiny bit by pulling no_of_bits_to_return.to_le_bytes() out of the loop
-    // and by merging i and counter into the same variable.
+    // note: this could probably be performance optimized a tiny bit by pulling no_of_bits_to_return.to_le_bytes() 
+    // out of the loop and by merging i and counter into the same variable.
     for i in 1..len {
         let mut h = H::default();
         h.do_update(&counter.to_le_bytes());
@@ -572,7 +566,8 @@ fn hash_df<H: Hash + HashAlgParams + Default>(
     }
 
     // Handle the last block separately since not all of it will fit in the output buffer.
-    // First, do we even need to do a last block, or was the requested number of bits already a multiple of the output length?
+    // TODO: Check whether it is necessary to do a last block, 
+    // or was the requested number of bits already a multiple of the output length
     let bytes_written = (len - 1) as usize * H::OUTPUT_LEN;
     let remainder = out.len() - bytes_written;
     if remainder != 0 {
@@ -584,7 +579,6 @@ fn hash_df<H: Hash + HashAlgParams + Default>(
         h.do_update(in3);
         h.do_update(in4);
 
-        // I don't understand rust
         // let mut temp = [0u8; H::OUTPUT_LEN];
         let mut temp = [0u8; 64];
         h.do_final_out(&mut temp);
@@ -679,11 +673,11 @@ fn hashgen<H: Hash + HashAlgParams + Default>(v: &[u8], out: &mut [u8]) {
     }
 
     // Handle the last block separately since not all of it will fit in the output buffer.
-    // First, do we even need to do a last block, or was the requested number of bits already a multiple of the output length?
+    // TODO: Check whether it is necessary to do a last block, 
+    // or was the requested number of bits already a multiple of the output length
     let bytes_written = (m - 1) as usize * H::OUTPUT_LEN;
     let remainder = out.len() - bytes_written;
     if remainder != 0 {
-        // I don't understand rust
         // let mut temp = [0u8; H::OUTPUT_LEN];
         let mut temp = [0u8; 64];
         H::default().hash_out(&data, &mut temp);

@@ -9,7 +9,7 @@
 //!
 //! This page gives examples of simple usage for generating keys and signatures, and verifying signatures.
 //!
-//! More examples on advanced usage can be found on the [mldsa] and [hash_mldsa] pages.
+//! More examples on advanced usage can be found on the [`mldsa`] and [`hash_mldsa`] pages.
 //!
 //! ## Generating Keys
 //!
@@ -21,7 +21,7 @@
 //! That's it. That will use the library's default OS-backend RNG.
 //!
 //! Commonly with the ML-DSA algorithm, a 32-byte seed is used as the private key, and expanded into
-//! a full private key as needed. This is offered through the library's [KeyMaterialTrait] object:
+//! a full private key as needed. This is offered through the library's [`KeyMaterialTrait`] object:
 //!
 //! ```rust
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType, KeyMaterialTrait};
@@ -36,9 +36,9 @@
 //! let (pk, sk) = MLDSA65::keygen_from_seed(&seed).unwrap();
 //! ```
 //!
-//! See [MLDSATrait] and [MLDSATrait::sign_mu_deterministic_from_seed] for an API flow that uses a merged
+//! See [`MLDSATrait`] and [`MLDSATrait::sign_mu_deterministic_from_seed`] for an API flow that uses a merged
 //! keygen-and-sign function to provide improved speed and memory performance compared with making
-//! separate calls to [MLDSATrait::keygen_from_seed] followed by [Signer::sign].
+//! separate calls to [`MLDSATrait::keygen_from_seed`] followed by [`Signer::sign`].
 //!
 //! ## Generating and Verifying Signatures
 //!
@@ -88,39 +88,49 @@
 //! Values in parentheses are the usual sizes in our un-optimized implementation in the \[bouncycastle_mldsa] crate.
 //!
 //!
-//! # Security
-//! All functionality exposed by this crate is considered secure to use.
-//! In other words, this crate does not contain any "hazmat" except for the obvious points about
-//! handling your private keys properly: if you post your private key to github, or you generate
-//! production keys from a weak seed, I can't help you, that's on you.
-//! It is worth mentioning, however, that if using a [MLDSA::keygen_from_seed], then it is your
-//! responsibility to ensure that the seed is cryptographically random and unpredictable.
+//! # 🚨 Security 🚨
 //!
-//! While the full formulation of the ML-DSA and HashML-DSA algorithms look complex with parameters
-//! like `seed`, `mu`, `ph`, `ctx`, and `rnd`, rest assured that use (or misuse) of these parameters
-//! do not really affect security of the algorithm; they just mean that you might produce a signature
-//! that nobody else can verify.
+//! This crate intends to expose only APIs that are secure to use.
+//! There are, however, a few exceptions that are worth mentioning.
 //!
-//! A note about cryptographic side-channel attacks: considerable effort has been expended to attempt
-//! to make this implementation constant-time, which generally means that the core mathematical algorithm
-//! code that handles secret data uses bitshift-and-xor type constructions instead of if-and-loop
-//! constructions. That should give this implementation reasonably good resistance to timing and
-//! power analysis key extraction attacks, however: A) this is a "best-effort" and not formally verified,
-//! and B) the Rust compiler does not guarantee constant-time behaviour no matter how clever your code,
-//! so like all Safe Rust code (ie Rust code that does not include inline assembly), we are at the mercy
-//! of the Rust compiler's optimizer for whether our bitshift-and-xor code actually remains
-//! constant-time after compilation.
+//! If using a [`MLDSA::keygen_from_seed`], then it is your responsibility to ensure that the seed is
+//! cryptographically random and unpredictable at a security strength that matches the MLDSA parameter set.
+//!
+//! ML-DSA and HashML-DSA take several parameters: `seed`, `mu`, `ph`, `ctx`, and `rnd`.
+//! They fall into two groups with very different failure modes.
+//!
+//!
+//! `seed` and `rnd`, however, are secret/entropy inputs and must be handled with care:
+//!
+//! - `seed` *is* the private key, i.e. the entire key is derived from it. It must be generated
+//!   with a strong cryptographically secure PRNG, it must be kept secret, and it must never reused.
+//!   A low-entropy, predictable, or disclosed seed yields a full key compromise,
+//!   not merely an unverifiable signature.
+//!
+//! - `rnd` is the signing randomizer. ML-DSA is designed to be nonce-misuse-resistant, i.e. the
+//!   signing mask is derived from a secret key value together with `rnd` and `mu`, so
+//!   reusing `rnd`, or using the all-zero "deterministic" mode, does NOT
+//!   leak the private key (unlike ECDSA). Deterministic signing is FIPS-approved and safe. The randomized
+//!   mode exists to add resistance to fault and side-channel attacks, so `rnd`
+//!   should come from a good RNG when that threat model applies.
+//!
+//! `mu`, `ph`, and `ctx` are binding values that the verifier must reproduce. This means that getting
+//! them wrong does not compromise security, it just yields a signature the intended
+//! verifier won't accept (a correctness/interoperability failure). 
+//! One caveat: `ctx` can still be security-relevant at the protocol level (domain separation, replay and
+//! cross-protocol binding), so choosing it incorrectly can weaken those properties.
+
 
 #![no_std]
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
-// These are because I'm matching variable names exactly against FIPS 204, for example both 'K' and 'k',
+// These are because the code is matching variable names exactly against FIPS 204, for example both 'K' and 'k',
 // or 'A' and 'a' are used and have specific meanings.
 // But need to tell the rust linter to not care.
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
-// so I can use private traits to hide internal stuff that needs to be generic within the
-// MLDSA implementation, but I don't want accessed from outside, such as FIPS-internal functions.
+// so that private traits can be used to hide internal stuff that needs to be generic within the
+// MLDSA implementation, but should not get accessed from outside, such as FIPS-internal functions.
 #![allow(private_bounds)]
 #![allow(private_interfaces)]
 // Used in HashMLDSA for oid: &'static [u8] params.

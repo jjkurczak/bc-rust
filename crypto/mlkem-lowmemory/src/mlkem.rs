@@ -22,8 +22,8 @@ use bouncycastle_core::traits::{
 use bouncycastle_rng::HashDRBG_SHA512;
 use bouncycastle_sha3::{SHA3_256, SHA3_512, SHAKE256};
 use bouncycastle_utils::ct::{conditional_copy_bytes, ct_eq_bytes};
+use bouncycastle_utils::secret::Secret;
 use core::marker::PhantomData;
-
 /*** Constants ***/
 
 ///
@@ -200,8 +200,9 @@ impl AlgorithmOID for MLKEM1024 {
 }
 
 /// The core internal implementation of the ML-KEM algorithm.
-/// This needs to be public for the compiler to be able to find it, but you shouldn't ever
-/// need to use this directly. Please use the named public types.
+/// This needs to be public for the compiler to be able to find it,
+/// but is shouldn't ever need to be used directly.
+/// Please use the named public types.
 pub struct MLKEM<
     const PK_LEN: usize,
     const SK_LEN: usize,
@@ -258,10 +259,11 @@ impl<
     /// Performs the first step of key generation to transform the single provided seed into a set of internal intermediate seeds.
     ///
     /// Unlike other interfaces across the library that take an &impl KeyMaterial, this one
-    /// specifically takes a 64-byte [KeyMaterial512] and checks that it has [KeyType::Seed] and
-    /// the appropriate [SecurityStrength] for the requested ML-KEM parameter set.
-    /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it using
-    /// [KeyMaterial::from_key].
+    /// specifically takes a 64-byte [`KeyMaterial512`] and checks that it has [`KeyType::Seed`] and
+    /// the appropriate [`SecurityStrength`] for the requested ML-KEM parameter set.
+    ///
+    /// If you happen to have your seed in a larger KeyMaterial, you'll have to copy it into a
+    /// correctly-sized [`KeyMaterial512`] using [`KeyMaterialTrait::truncate`].
     pub(crate) fn keygen_internal(seed: &KeyMaterial<64>) -> Result<(PK, SK), KEMError> {
         let sk = SK::from_keymaterial(seed)?;
         let pk = sk.pk();
@@ -284,7 +286,7 @@ impl<
         let mut ct = [0u8; CT_LEN];
 
         // 1: 𝑁 ← 0
-        //  since the number of loops here is static; we can hard-code the N values rather than using a counter
+        //  since the number of loops here is static; the N values can be hard-coded rather than using a counter
 
         // 2: 𝐭 ← ByteDecode12(ekPKE[0 ∶ 384𝑘])
         // 3: 𝜌 ← ekPKE[384𝑘 ∶ 384𝑘 + 32]
@@ -293,8 +295,8 @@ impl<
         // 19: 𝐮 ← NTT−1(𝐀_hat^⊺ ∘ 𝐲_hat) + 𝐞1
         // 22: 𝑐1 ← ByteEncode_𝑑𝑢(Compress_𝑑𝑢(𝐮))
 
-        // Note: you need y_hat twice: once here at line 19, and again at line 21.
-        //  We'll just generate it twice to save the memory of holding on to it.
+        // Note: y_hat is needed twice: once here at line 19, and again at line 21.
+        // Here it is generated each time it is needed in order to save memory.
         for i in 0..k {
             let mut u_i = compute_A_hat_dot_y_hat::<k, eta1>(rho, &r, i);
 
@@ -348,18 +350,22 @@ impl<
     /// Output: shared secret key 𝐾 ∈ 𝔹32 .
     /// Output: ciphertext 𝑐 ∈ 𝔹32(𝑑𝑢𝑘+𝑑𝑣).
     ///
-    /// Unlike the more public function exposed by [KEMEncapsulator::encaps], this returns the shared secret as raw bytes
-    /// instead of wrapped in an appropriately-set [KeyMaterialTrait], so you're on your own for handling it properly.
+    /// Unlike the more public function exposed by [`KEMEncapsulator::encaps`], this returns the shared secret as raw bytes
+    /// instead of wrapped in an appropriately-set [`KeyMaterialTrait`].
+    /// Proper handling is up to the user's own judgement.
     ///
     /// Note: this is an internal function that allows the caller to specify the encapsulation
     /// randomness (which is the message `m` to be encrypted by the underlying PKE scheme).
-    /// This function should not be used directly unless you really have a
-    /// good reason. [KEMEncapsulator::encaps] should be used in 99.9% of cases.
-    /// The reason this is exposed publicly is: A) for unit testing that requires access
-    /// to the deterministically reproducible function, and B) for operational environments
-    /// that wish to provide randomness from their own source instead of the built-in RNG in bc-rust.
-    /// If you think you will be clever and invent some scheme that uses a deterministic KEM,
-    /// then you will almost certainly end up with security problems. Please don't do this.
+    /// This function should not be used directly unless there is a good reason to do so.
+    /// [`KEMEncapsulator::encaps`] should be used in 99.9% of cases.
+    /// The reason this is exposed publicly is:
+    ///     A) for unit testing that requires access to the deterministically reproducible function, and
+    ///     B) for operational environments that wish to provide randomness from their own source instead
+    ///        of the built-in RNG in bc-rust.
+    /// As a reminder, any deterministic KEM (or any encryption mechanism) fails to satisfy any security
+    /// notion involving indistinguishability (e.g. IND-CPA, IND-CCA2, etc.).
+    /// Failing to use this properly will result in catastrophic vulnerabilities.
+    /// Please don't do it.
     pub fn encaps_internal(ek: &PK, m: [u8; 32]) -> ([u8; 32], [u8; CT_LEN]) {
         debug_assert_eq!(CT_LEN, 32 * ((du as usize) * k + (dv as usize)));
 
@@ -396,7 +402,7 @@ impl<
         // 3: 𝐮′ ← Decompress_𝑑𝑢(ByteDecode_𝑑𝑢(𝑐1))
 
         // 5: 𝐬_hat ← ByteDecode12(dkPKE)
-        //   Unnecessary here because we're gonna re-compute them row-by-row
+        //   Unnecessary here because they are re-computed row-by-row
 
         // first half of
         // 6: 𝑤 ← 𝑣′ − NTT−1(𝐬_hat^T ∘ NTT(𝐮′))
@@ -467,35 +473,37 @@ impl<
 
         // Compute the trial shared secret key
         // 6: (𝐾′, 𝑟′) ← G(𝑚′‖ℎ)̄
-        let K_prime: [u8; MLKEM_SS_LEN];
+        let K_prime: Secret<[u8; MLKEM_SS_LEN]>;
         let r_prime: [u8; 32];
         (K_prime, r_prime) = {
+            let mut buf: Secret<[u8; 64]> = Secret::new();
             let mut g = G::new();
             g.do_update(&m_prime);
             g.do_update(&dk.pk().compute_hash());
-            let mut buf = [0u8; 64];
-            let bytes_written = g.do_final_out(&mut buf);
+            let bytes_written = g.do_final_out(&mut *buf);
             debug_assert_eq!(bytes_written, 64);
 
-            (buf[..32].try_into().unwrap(), buf[32..64].try_into().unwrap())
+            let mut K_prime: Secret<[u8; MLKEM_SS_LEN]> = Secret::new();
+            K_prime.copy_from_slice(&buf[..32]);
+            (K_prime, buf[32..64].try_into().unwrap())
         };
 
         // 7: 𝐾_bar ← J(𝑧‖𝑐)
         //   Compute the rejection sampling key.
         //   Note to future optimizers: this needs to be computed outside of the if at line 9 below
         //   because if its computation is conditional on the Fujisaki-Okamoto check failing, then
-        //   you'll have a timing difference between success and failure.
+        //   there will be a timing difference between success and failure.
 
-        let K_bar: [u8; MLKEM_SS_LEN];
+        let K_bar: Secret<[u8; MLKEM_SS_LEN]>;
         K_bar = {
+            let mut K_bar: Secret<[u8; MLKEM_SS_LEN]> = Secret::new();
             let mut j = J::new();
             j.absorb(dk.z()).expect("absorb before squeeze is infallible");
             j.absorb(&c).expect("absorb before squeeze is infallible");
-            let mut buf = [0u8; MLKEM_SS_LEN];
-            let bytes_written = j.squeeze_out(&mut buf);
+            let bytes_written = j.squeeze_out(&mut *K_bar);
             debug_assert_eq!(bytes_written, MLKEM_SS_LEN);
 
-            buf
+            K_bar
         };
 
         // 8: 𝑐′ ← K-PKE.Encrypt(ekPKE, 𝑚′, 𝑟′)
@@ -511,8 +519,8 @@ impl<
         K_out
     }
 
-    /// Alternative initialization of the streaming signer where you have your private key
-    /// as a seed and you want to delay its expansion as late as possible for memory-usage reasons.
+    /// Alternative initialization of the streaming signer where there is a private key
+    /// as a seed and its expansion should be delayed as late as possible to reduce memory-usage.
     pub fn decaps_from_seed(
         seed: &KeyMaterial<64>,
         ct: &[u8],
@@ -603,7 +611,7 @@ impl<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [KEMError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError> {
         let derived_pk = sk.pk();
         if derived_pk.compute_hash() == pk.compute_hash() {
@@ -668,7 +676,7 @@ pub trait MLKEMTrait<
     /// the two pk's are encoded and compared for byte equality), or if `sk` contains a seed
     /// (in which case a keygen_from_seed is run and then the pk's compared).
     ///
-    /// Returns either `()` or [KEMError::ConsistencyCheckFailed].
+    /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError>;
 }
 

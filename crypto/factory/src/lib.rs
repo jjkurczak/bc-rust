@@ -1,9 +1,9 @@
 //! Factory crate for creating instances of different types.
 //! Factory objects behave like other crypto providers in that they take an algorithm by string name and return an instance of the corresponding type.
-//! Generally, there is one factory for each trait in [bouncycastle_core::traits].
+//! Generally, there is one factory for each trait in [`bouncycastle_core::traits`].
 //!
-//! All factories are based on the rust enum factory pattern where, for example, the [hash_factory::HashFactory]
-//! can hold any Hash type in the library, and [hash_factory::HashFactory] itself impls [bouncycastle_core::traits::Hash]
+//! All factories are based on the rust enum factory pattern where, for example, the [`hash_factory::HashFactory`]
+//! can hold any Hash type in the library, and [`hash_factory::HashFactory`] itself impls [`bouncycastle_core::traits::Hash`]
 //! and so can be called directly as if it is a hash.
 //!
 //! Example usage:
@@ -20,9 +20,9 @@
 //!
 //! All other factory types similarly implement their underlying trait and thus behave the same way.
 //!
-//! Additionally, all factory types implement [AlgorithmFactory] which exposes functions to
+//! Additionally, all factory types implement [`AlgorithmFactory`] which exposes functions to
 //! get the either the default algorithm or the default algorithm at the 128-bit or 256-bit security level.
-//! It also exposes [AlgorithmFactory::new] which can be used to create an instance of the algorithm
+//! It also exposes [`AlgorithmFactory::new`] which can be used to create an instance of the algorithm
 //! by string name according to the string constants associated with the respective factory type.
 //!
 //! This crate compiles with STD; ie it is explicitly not tagged as `no_std` and it makes use of `Vec` and other

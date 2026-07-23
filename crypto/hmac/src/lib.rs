@@ -4,25 +4,25 @@
 //!
 //! # Usage
 //!
-//! The HMAC object (and the [MAC] trait in general) is designed in three phases:
+//! The HMAC object (and the [`MAC`] trait in general) is designed in three phases:
 //!
 //! * The initialization phase where you specify the underlying hash function and the key material.
 //! * The update phase where you feed in the content being MAC'd, either in one-shot or in chunks.
 //! * The finalization phase where you either obtain the MAC value or verify an existing MAC value.
 //!
-//! The initialization phase is primarily performed via the [MAC::new] function which performs
-//! checks on the provided key to ensure that it is of the correct type [KeyType::MACKey] and tagged
+//! The initialization phase is primarily performed via the [`MAC::new`] function which performs
+//! checks on the provided key to ensure that it is of the correct type [`KeyType::MACKey`] and tagged
 //! at the correct security level for the chosen hash function. In cases where you need to use HMAC
 //! with an intentially week key (such as an all-zero salt), the alternative constructor
-//! [MAC::new_allow_weak_key] can be used.
+//! [`MAC::new_allow_weak_key`] can be used.
 //!
-//! The update phase supports streaming of the content via the repeated calls to the [MAC::do_update] function.
+//! The update phase supports streaming of the content via the repeated calls to the [`MAC::do_update`] function.
 //! One-shot APIs are provided that combine the update and finalization phases into a single function call.
 //!
 //!
 //! # Examples
 //!
-//! Instantation of an HMAC object is straightforward:
+//! Instantiation of an HMAC object is straightforward:
 //!
 //! ```
 //! use bouncycastle_hmac::HMAC_SHA256;
@@ -50,7 +50,7 @@
 //! ```
 //!
 //! ## Computing a MAC
-//! MAC functionality is accessed via the [MAC] trait.
+//! MAC functionality is accessed via the [`MAC`] trait.
 //!
 //! The simplest usage is via the one-shot functions.
 //! ```
@@ -82,7 +82,7 @@
 //! ```
 //!
 //! ## Verifying a MAC
-//! MAC functionality is accessed via the [MAC] trait which provides functions for MAC verification.
+//! MAC functionality is accessed via the [`MAC`] trait which provides functions for MAC verification.
 //! The built-in verification functions use constant-time comparisons and so are *strongly recommended*
 //! rather than re-computing the MAC value and comparing it yourself.
 //!
@@ -113,7 +113,7 @@
 //! ```
 //!
 //! Similarly, a streaming version is available, which is identical to the streaming interface for
-//! computing a mac value, but calls [MAC::do_verify_final] instead of [MAC::do_final].
+//! computing a mac value, but calls [`MAC::do_verify_final`] instead of [`MAC::do_final`].
 //!
 //! ```
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
@@ -141,7 +141,7 @@
 //!
 //! When MAC'ing a large message, it can be advantageous to be able to suspend the operation
 //! to a cache and resume it later; for example if waiting for the message to stream over a slow network
-//! connection. For this reason, all HMAC algorithms impl [SuspendableKeyed].
+//! connection. For this reason, all HMAC algorithms impl [`SuspendableKeyed`].
 //!
 //! Note that since HMAC is a keyed
 //! algorithm and we do not want to serialize the private key into the state, the trait structure forces you to
@@ -186,15 +186,14 @@
 use bouncycastle_core::errors::{KeyMaterialError, MACError, RNGError, SuspendableError};
 use bouncycastle_core::key_material::{KeyMaterial, KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{
-    Algorithm, AlgorithmOID, Hash, MAC, RNG, Secret, SecurityStrength, Suspendable,
-    SuspendableKeyed,
+    Algorithm, AlgorithmOID, Hash, MAC, RNG, SecurityStrength, Suspendable, SuspendableKeyed,
 };
 use bouncycastle_rng::{HashDRBG_SHA256, HashDRBG_SHA512};
 use bouncycastle_sha2::{
     SHA224, SHA256, SHA384, SHA512, SUSPENDED_SHA256_STATE_LEN, SUSPENDED_SHA512_STATE_LEN,
 };
 use bouncycastle_sha3::{SHA3_224, SHA3_256, SHA3_384, SHA3_512, SUSPENDED_SHA3_STATE_LEN};
-use bouncycastle_utils::ct;
+use bouncycastle_utils::{ct, secret::Secret};
 use core::fmt::{Debug, Display, Formatter};
 
 /*** String constants ***/
@@ -342,18 +341,8 @@ pub struct HMAC<HASH: Hash + Default, const KEY_BUF_LEN: usize = LARGEST_HASHER_
     hasher: HASH,
     // todo: once rust stable merges generic_const_exprs, we can remove this hack and delete the KEY_BUF_LEN param.
     // key: [u8; HASH::OUTPUT_LEN];
-    key: [u8; KEY_BUF_LEN],
-    key_len: usize, // Doing it this way to avoid needing a vec, so that this can be made no_std friendly.
-}
-
-// Because the HMAC struct contains a copy of the long-term key
-impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Secret for HMAC<HASH, KEY_BUF_LEN> {}
-
-impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Drop for HMAC<HASH, KEY_BUF_LEN> {
-    fn drop(&mut self) {
-        self.key.fill(0);
-        self.key_len = 0;
-    }
+    key: Secret<[u8; KEY_BUF_LEN]>,
+    key_len: Secret<usize>, // Doing it this way to avoid needing a vec, so that this can be made no_std friendly.
 }
 
 impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> Debug for HMAC<HASH, KEY_BUF_LEN> {
@@ -390,7 +379,7 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
         // TODO: make this no_std-friendly
         let mut padded = vec![0u8; self.hasher.block_bitlen() / 8];
 
-        padded[..self.key_len].copy_from_slice(&self.key[..self.key_len]);
+        padded[..*self.key_len].copy_from_slice(&self.key[..*self.key_len]);
 
         // XXX: easier way to xor over Vec?
         for entry in &mut padded {
@@ -405,20 +394,20 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
     /// Per RFC 2104 Section 2, if the application key exceeds the block
     /// length of the underlying hashes algorithm, we apply a hash invocation
     /// over the key first.
-    /// This does NOT absorb the key into the hasher; that is done separately via [HMAC::pad_key_into_hasher].
+    /// This does NOT absorb the key into the hasher; that is done separately via [`HMAC::pad_key_into_hasher`].
     fn load_key_material(&mut self, key_bytes: &[u8]) {
         if key_bytes.len() > self.hasher.block_bitlen() / 8 {
             // then we have to pre-hash it -- use a new instance of the hasher rather than the internal one
             HASH::default().hash_out(key_bytes, &mut self.key[..self.hasher.output_len()]);
-            self.key_len = self.hasher.output_len();
+            *self.key_len = self.hasher.output_len();
         } else {
             self.key[..key_bytes.len()].copy_from_slice(key_bytes);
-            self.key_len = key_bytes.len();
+            *self.key_len = key_bytes.len();
         }
 
         // Just as a sanity-check.
         assert!(
-            self.key_len <= KEY_BUF_LEN,
+            *self.key_len <= KEY_BUF_LEN,
             "Fatal error: Key length exceeds HMAC internal buffer length"
         );
     }
@@ -491,13 +480,13 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> HMAC<HASH, KEY_BUF_LEN> {
 
 impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> MAC for HMAC<HASH, KEY_BUF_LEN> {
     fn new(key: &impl KeyMaterialTrait) -> Result<Self, MACError> {
-        let mut hmac = Self { hasher: HASH::default(), key: [0u8; KEY_BUF_LEN], key_len: 0 };
+        let mut hmac = Self { hasher: HASH::default(), key: Secret::new(), key_len: Secret::new() };
         hmac.init(key, false)?;
         Ok(hmac)
     }
 
     fn new_allow_weak_key(key: &impl KeyMaterialTrait) -> Result<Self, MACError> {
-        let mut hmac = Self { hasher: HASH::default(), key: [0u8; KEY_BUF_LEN], key_len: 0 };
+        let mut hmac = Self { hasher: HASH::default(), key: Secret::new(), key_len: Secret::new() };
         hmac.init(key, true)?;
         Ok(hmac)
     }
@@ -557,31 +546,31 @@ impl<HASH: Hash + Default, const KEY_BUF_LEN: usize> MAC for HMAC<HASH, KEY_BUF_
 /* SerializedState */
 
 /*** Serialized-state length constants ***/
-/// Length in bytes of the serialized state of [HMAC_SHA224].
+/// Length in bytes of the serialized state of [`HMAC_SHA224`].
 pub const SUSPENDED_HMAC_SHA224_STATE_LEN: usize = SUSPENDED_SHA256_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA256].
+/// Length in bytes of the serialized state of [`HMAC_SHA256`].
 pub const SUSPENDED_HMAC_SHA256_STATE_LEN: usize = SUSPENDED_SHA256_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA384].
+/// Length in bytes of the serialized state of [`HMAC_SHA384`].
 pub const SUSPENDED_HMAC_SHA384_STATE_LEN: usize = SUSPENDED_SHA512_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA512].
+/// Length in bytes of the serialized state of [`HMAC_SHA512`].
 pub const SUSPENDED_HMAC_SHA512_STATE_LEN: usize = SUSPENDED_SHA512_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA3_224].
+/// Length in bytes of the serialized state of [`HMAC_SHA3_224`].
 pub const SUSPENDED_HMAC_SHA3_224_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA3_256].
+/// Length in bytes of the serialized state of [`HMAC_SHA3_256`].
 pub const SUSPENDED_HMAC_SHA3_256_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA3_384].
+/// Length in bytes of the serialized state of [`HMAC_SHA3_384`].
 pub const SUSPENDED_HMAC_SHA3_384_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
-/// Length in bytes of the serialized state of [HMAC_SHA3_512].
+/// Length in bytes of the serialized state of [`HMAC_SHA3_512`].
 pub const SUSPENDED_HMAC_SHA3_512_STATE_LEN: usize = SUSPENDED_SHA3_STATE_LEN;
 
-/// HMAC is a keyed algorithm, so it implements [SuspendableKeyed] (rather than
-/// [Suspendable]) for suspending and resuming in-progress operations.
+/// HMAC is a keyed algorithm, so it implements [`SuspendableKeyed`] (rather than
+/// [`Suspendable`]) for suspending and resuming in-progress operations.
 /// The key is deliberately NOT written into the serialized
 /// bytes and must be re-supplied at deserialization.
 ///
 /// The serialized state is exactly the inner hasher's state (which has already absorbed `K ⊕ ipad`
 /// and any message chunks provided so far) — so this is a straight passthrough to the underlying hash's
-/// [Suspendable] impl. The re-supplied key is needed to reconstruct the material for the outer
+/// [`Suspendable`] impl. The re-supplied key is needed to reconstruct the material for the outer
 /// (`K ⊕ opad`) step at finalization.
 ///
 /// There is no way to detect a mismatched key on
@@ -616,7 +605,7 @@ impl<
         // Re-load the key material exactly as `new()` did (pre-hashing an over-length key), but do
         // NOT re-absorb `K ⊕ ipad` — the deserialized hasher already contains it. The key is only
         // needed for the outer `K ⊕ opad` step at finalization.
-        let mut hmac = HMAC { hasher, key: [0u8; KEY_BUF_LEN], key_len: 0 };
+        let mut hmac = HMAC { hasher, key: Secret::new(), key_len: Secret::new() };
         hmac.load_key_material(key.ref_to_bytes());
 
         Ok(hmac)

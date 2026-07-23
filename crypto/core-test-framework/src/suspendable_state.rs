@@ -1,4 +1,4 @@
-//! Generic behaviour tests for anything that implements [Suspendable] and [SuspendableKeyed].
+//! Generic behaviour tests for anything that implements [`Suspendable`] and [`SuspendableKeyed`].
 
 use bouncycastle_core::errors::SuspendableError;
 use bouncycastle_core::suspendable_state::{LIB_VERSION, SemVer};

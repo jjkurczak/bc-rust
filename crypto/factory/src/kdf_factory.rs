@@ -1,7 +1,7 @@
-//! KDF factory for creating instances of algorithms that implement the [KDF] trait.
+//! KDF factory for creating instances of algorithms that implement the [`KDF`] trait.
 //!
 //! As with all Factory objects, this implements constructions from strings and defaults, and
-//! returns a [KDFFactory] object which itself implements the [KDF] trait as a pass-through to the underlying algorithm.
+//! returns a [`KDFFactory`] object which itself implements the [`KDF`] trait as a pass-through to the underlying algorithm.
 //!
 //! Example usage:
 //! ```
@@ -9,7 +9,7 @@
 //! use bouncycastle_core::traits::KDF;
 //! use bouncycastle_factory::AlgorithmFactory;
 //!
-//! // get your key material from a secure place; here we'll use the default RNG, seeded from the OS
+//! // Obtain key material from a secure place; here the default RNG is used, seeded from the OS is used
 //! let seed_key = KeyMaterial256::from_rng(&mut bouncycastle_rng::DefaultRNG::default()).unwrap();
 //! let additional_input: &[u8] = b"some additional input";
 //!
@@ -17,14 +17,14 @@
 //! let new_key = h.derive_key(&seed_key, additional_input).unwrap();
 //! ```
 //!
-//! You can equivalently invoke this by string instead of using the constant:
+//! Equivalently, it may be invoked by passing a string instead of using the constant:
 //!
 //! ```
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //! use bouncycastle_core::traits::KDF;
 //! use bouncycastle_factory::AlgorithmFactory;
 //!
-//! // get your key material from a secure place; here we'll use the default RNG, seeded from the OS
+//! // Obtain key material from a secure place; here the default RNG is used, seeded from the OS is used
 //! let seed_key = KeyMaterial256::from_rng(&mut bouncycastle_rng::DefaultRNG::default()).unwrap();
 //! let additional_input: &[u8] = b"some additional input";
 //!
@@ -32,14 +32,14 @@
 //! let new_key = h.derive_key(&seed_key, additional_input).unwrap();
 //! ```
 //!
-//! Or if you don't particularly care which algorithm is used, you can use the built-in default:
+//! If the algorithm used is not particularly important, the built-in default may be used:
 //!
 //! ```
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
 //! use bouncycastle_core::traits::KDF;
 //! use bouncycastle_factory::AlgorithmFactory;
 //!
-//! // get your key material from a secure place; here we'll use the default RNG, seeded from the OS
+//! // Obtain key material from a secure place; here the default RNG is used, seeded from the OS is used
 //! let seed_key = KeyMaterial256::from_rng(&mut bouncycastle_rng::DefaultRNG::default()).unwrap();
 //! let additional_input: &[u8] = b"some additional input";
 //!
@@ -58,7 +58,7 @@ use bouncycastle_sha3::{
     SHA3_224_NAME, SHA3_256_NAME, SHA3_384_NAME, SHA3_512_NAME, SHAKE128_NAME, SHAKE256_NAME,
 };
 
-/// Wrapper object for all algorithms that impl [KDF].
+/// Wrapper object for all algorithms that impl [`KDF`].
 pub enum KDFFactory {
     ///
     #[allow(non_camel_case_types)]

@@ -1,15 +1,15 @@
-//! A deterministic fake [RNG] for reproducible tests.
+//! A deterministic fake [`RNG`] for reproducible tests.
 
 use bouncycastle_core::errors::{KeyMaterialError, RNGError};
 use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{RNG, SecurityStrength};
 
-/// A test-only fake [RNG] that produces a fixed, fully deterministic byte stream.
+/// A test-only fake [`RNG`] that produces a fixed, fully deterministic byte stream.
 ///
 /// The stream is the `SEED_LEN`-byte seed repeated indefinitely. A single internal counter is
-/// shared across every [RNG] method, so each byte handed out — whether through
-/// [RNG::next_bytes_out], [RNG::next_bytes], [RNG::next_int], or [RNG::fill_keymaterial_out] —
+/// shared across every [`RNG`] method, so each byte handed out — whether through
+/// [`RNG::next_bytes_out`], [`RNG::next_bytes`], [`RNG::next_int`], or [`RNG::fill_keymaterial_out`] —
 /// advances the same stream. Two instances built from the same seed therefore emit identical
 /// streams, which is what makes RNG-driven operations reproducible (and comparable against their
 /// seed/`m`-driven internal counterparts) in tests.

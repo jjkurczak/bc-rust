@@ -36,8 +36,8 @@ where
 impl<T> Condition<T> where MaskType<T>: SupportedMaskType {}
 
 impl Condition<i64> {
-    // MikeO: TODO: there are a bunch of impls in here that seem to be generic and not related to i64,
-    // MikeO: TODO: could those be moved to a generic impl<T> for Condition<T> ?
+    // TODO: there are a bunch of impls in here that seem to be generic and not related to i64,
+    //       could those be moved to a generic impl<T> for Condition<T> ?
 
     /// TRUE is the bit vector of all 1's
     pub const TRUE: Self = Self(-1);
@@ -76,7 +76,7 @@ impl Condition<i64> {
         Self::is_negative(x - y)
     }
     ///
-    // Note: haven't found a clever way to make this const, since it either needs a (non-const) not (!) or a boolean OR is_zero.
+    // Note: this cannot currently be marked as const, since it either needs a (non-const) not (!) or a boolean OR is_zero.
     pub fn is_lte(x: i64, y: i64) -> Self {
         !Self::is_gt(x, y)
     }
@@ -85,7 +85,7 @@ impl Condition<i64> {
         Self::is_lt(y, x)
     }
     ///
-    // Note: haven't found a clever way to make this const, since it either needs a (non-const) not (!) or a boolean OR is_zero.
+    // Note: this cannot currently be marked as const, since it either needs a (non-const) not (!) or a boolean OR is_zero.
     pub fn is_gte(x: i64, y: i64) -> Self {
         !Self::is_lt(x, y)
     }
@@ -132,7 +132,7 @@ impl Condition<i64> {
     ///
     /// As a result, `1`, which is the negation of `-1`, should be returned, but `-3` is output.
     ///
-    /// Therefore, if the [Self::TRUE] constant value of the i64 [Condition] implementation is changed to `-1`,
+    /// Therefore, if the [`Self::TRUE`] constant value of the i64 [`Condition`] implementation is changed to `-1`,
     /// the test also runs normally.
     pub const fn negate(self, value: i64) -> i64 {
         (value ^ self.0).wrapping_sub(self.0)
@@ -156,9 +156,9 @@ impl Condition<i64> {
 }
 
 // TODO: We should do Condition<u8>.
-// TODO: then and change Hex and Base64 to use this.
-// TODO: (there's probably no noticeable performance difference u8 and u64 bit ops on a 64-bit machine,
-// TODO:  but there would be on a 8, 16, or 32-bit machine.)
+//       then and change Hex and Base64 to use this.
+//       (there's probably no noticeable performance difference u8 and u64 bit ops on a 64-bit machine,
+//       but there would be on a 8, 16, or 32-bit machine.)
 impl Condition<u64> {
     /// TRUE is the bit vector of all 1's
     pub const TRUE: Self = Self(u64::MAX);
@@ -174,7 +174,7 @@ impl Condition<u64> {
         Self(0u64.wrapping_sub(VALUE as u64))
     }
     /// impl the select function manually for u64
-    ///    although a fully generic impl<T> would be the ultimate long-term goal
+    ///    although a fully generic `impl<T>` would be the ultimate long-term goal
     pub fn select(self, a: u64, b: u64) -> u64 {
         let mask = self.0;
         (a & mask) | (b & !mask)
@@ -260,24 +260,24 @@ where
 }
 
 /// Rust doesn't guarantee that anything can truly be constant-time under all compilation targets
-/// and optimization levels, but we'll try.
+/// and optimization levels. The following presents the standard constant-time shape.
 pub fn ct_eq_bytes(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
     let mut result = 0u8;
     for i in 0..a.len() {
-        result |= std::hint::black_box(a[i] ^ b[i]);
+        result |= core::hint::black_box(a[i] ^ b[i]);
     }
     result == 0
 }
 
 /// Rust doesn't guarantee that anything can truly be constant-time under all compilation targets
-/// and optimization levels, but we'll try.
+/// and optimization levels. The following presents the standard constant-time shape.
 pub fn ct_eq_zero_bytes(a: &[u8]) -> bool {
     let mut result = 0u8;
     for i in 0..a.len() {
-        result |= std::hint::black_box(a[i]);
+        result |= core::hint::black_box(a[i]);
     }
     result == 0
 }
@@ -305,6 +305,6 @@ pub fn conditional_copy_bytes<const LEN: usize>(
     debug_assert_eq!(mask, if take_a { 0xFF } else { 0x00 });
 
     for i in 0..LEN {
-        out[i] = std::hint::black_box(a[i] & mask) | std::hint::black_box(b[i] & !mask);
+        out[i] = core::hint::black_box(a[i] & mask) | core::hint::black_box(b[i] & !mask);
     }
 }

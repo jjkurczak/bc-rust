@@ -1,4 +1,4 @@
-//! Generic behaviour tests for anything that implements [KDF].
+//! Generic behaviour tests for anything that implements [`KDF`].
 
 use bouncycastle_core::key_material::{
     KeyMaterial, KeyMaterial256, KeyMaterial512, KeyMaterialTrait, KeyType,

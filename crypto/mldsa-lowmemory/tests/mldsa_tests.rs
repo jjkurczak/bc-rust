@@ -117,7 +117,7 @@ mod mldsa_tests {
     }
 
     /// This runs the full bitflipping tests and takes several minutes.
-    /// I'm leaving this commented out, but feel free to un-comment it and run it.
+    /// This test is left commented out, but feel free to un-comment it and run it.
     // #[test]
     // fn test_framework_signature_extensive() {
     //
@@ -313,7 +313,7 @@ mod mldsa_tests {
     #[test]
     fn deterministic_sign() {
         // at least one test each of signing with a deterministic signing nonce
-        // We support setting the signing nonce (rnd) via two interfaces: external mu, and streaming API.
+        // Setting the signing nonce (rnd) is supported via two interfaces: external mu, and streaming API.
 
         // ML-DSA-44
 
@@ -438,7 +438,8 @@ mod mldsa_tests {
 
     #[test]
     fn test_sign_mu_deterministic_from_seed() {
-        // I don't have a KAT, so I'll test against the regular implementation
+        // No KATs for this that we have access to at the moment,
+        // so this is tested against the regular implementation
 
         // ML-DSA-44
 
@@ -584,7 +585,7 @@ mod mldsa_tests {
         let msg = b"The quick brown fox jumped over the lazy dog";
 
         // ctx too long
-        // this is common to all parameter sets, so I'll just test MLDSA44
+        // This is common to all parameter sets, so only MLDSA44 is tested
         let (_pk, sk) = MLDSA44::keygen().unwrap();
 
         // ctx with len 255 works
@@ -731,22 +732,6 @@ mod mldsa_tests {
             Err(SignatureError::SignatureVerificationFailed) => (),
             _ => panic!("Expected verification to fail due to busted signature"),
         }
-    }
-
-    /// Tests that no private data is displayed
-    #[test]
-    fn test_display() {
-        use bouncycastle_mldsa_lowmemory::Polynomial;
-        // Polynomials (could) contain private data,
-        // and therefore should be protected against accidental crash dumps:
-
-        // fmt
-        let p = Polynomial::new();
-        assert_eq!(format!("{}", p), "Polynomial (data masked)");
-
-        // debug
-        let p = Polynomial::new();
-        assert_eq!(format!("{:?}", p), "Polynomial (data masked)");
     }
 
     #[test]

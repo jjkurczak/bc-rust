@@ -5,6 +5,7 @@ use crate::aux_functions::multiply_ntt;
 use crate::mldsa::H;
 use crate::polynomial::Polynomial;
 use bouncycastle_core::traits::XOF;
+use bouncycastle_utils::secret::ZeroizablePrimitive;
 use core::ops::{Index, IndexMut};
 
 /// A matrix over the ML-DSA ring.
@@ -58,17 +59,13 @@ impl<const k: usize, const l: usize> Matrix<k, l> {
     }
 }
 
-// Matrix and Vector do not need to impl Secret because the actual data is in the polynomials, which have their own zeroizing drop.
-// Technically all matrices and some vectors are only part of the public key and might not need to be zeroized,
-// but I'll leave it zeroizing for now and leave this as a potential future optimization.
-
-#[derive(Clone)]
-pub(crate) struct Vector<const k: usize> {
-    pub(crate) vec: [Polynomial; k],
+#[derive(Clone, Copy)]
+pub(crate) struct Vector<const LEN: usize> {
+    pub(crate) vec: [Polynomial; LEN],
 }
 
 /// Convenience function to avoid ".0" all over the place.
-impl<const k: usize> Index<usize> for Vector<k> {
+impl<const LEN: usize> Index<usize> for Vector<LEN> {
     type Output = Polynomial;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -76,15 +73,19 @@ impl<const k: usize> Index<usize> for Vector<k> {
     }
 }
 /// Convenience function to avoid ".0" all over the place.
-impl<const k: usize> IndexMut<usize> for Vector<k> {
+impl<const LEN: usize> IndexMut<usize> for Vector<LEN> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.vec[index]
     }
 }
 
+impl<const LEN: usize> ZeroizablePrimitive for Vector<LEN> {
+    const ZEROED: Self = Self::new();
+}
+
 impl<const LEN: usize> Vector<LEN> {
-    pub(crate) fn new() -> Self {
-        Self { vec: [(); LEN].map(|_| Polynomial::new()) }
+    pub(crate) const fn new() -> Self {
+        Self { vec: [Polynomial::new(); LEN] }
     }
 
     /// Algorithm 46 AddVectorNTT(𝐯, 𝐰)̂
@@ -190,7 +191,7 @@ impl<const LEN: usize> Vector<LEN> {
     /// Optimized from FIPS 204 to feed into the hash one row at a time to reduce overall memory footprint.
     pub(crate) fn w1_encode_and_hash<const POLY_W1_PACKED_LEN: usize>(&self, h: &mut H) {
         // 1: 𝐰̃1 ← ()
-        // don't need to allocate anything since we're feeding it into the hash row-wise
+        // Nothing needs to be allocated since it is being fed into the hash row-wise
 
         // 2: for 𝑖 from 0 to 𝑘 − 1 do
         // 3:   𝐰̃1 ← 𝐰̃1 || SimpleBitPack (𝐰1[𝑖], (𝑞 − 1)/(2𝛾2) − 1)

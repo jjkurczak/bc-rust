@@ -1,4 +1,4 @@
-//! Provides simplified abstracted APIs over classes of cryptigraphic primitives, such as Hash, KDF, etc.
+//! Provides simplified abstracted APIs over classes of cryptographic primitives, such as Hash, KDF, etc.
 
 use crate::errors::*;
 use crate::key_material::KeyMaterialTrait;
@@ -36,12 +36,10 @@ pub trait AlgorithmOID {
 /// ciphertexts that are incompatible with other implementations as ciphers in more complex modes, such
 /// as AEADs or stream ciphers may need to stick extra data either at the beginning or end of the ciphertext.
 /// See the documentation of the underlying implementation for more details.
-pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>:
-    Algorithm + Secret
-{
+pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>: Algorithm {
     #[cfg(feature = "std")]
     /// A one-shot API to encrypt some plaintext with the given key.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// Returns a tuple containing the initialization data and the ciphertext.
     /// This is not available if building for no_std.
     fn encrypt(
@@ -61,7 +59,7 @@ pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>:
     ) -> Result<([u8; INIT_DATA_LEN], usize), SymmetricCipherError>;
     #[cfg(feature = "std")]
     /// A one-shot API to decrypt some ciphertext with the given key.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// This is not available if building for no_std.
     fn decrypt(
         key: &KeyMaterial<KEY_LEN>,
@@ -137,7 +135,7 @@ pub trait BlockCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize, const BL
         plaintext: &mut [u8; BLOCK_LEN],
     ) -> Result<usize, SymmetricCipherError>;
     /// Decrypts the final block of ciphertext.
-    /// This is the decryption counterpart to [BlockCipher::do_encrypt_final] and is where an
+    /// This is the decryption counterpart to [`BlockCipher::do_encrypt_final`] and is where an
     /// implementation validates and strips any padding (or otherwise finalizes the flow).
     fn do_decrypt_final(
         &mut self,
@@ -160,7 +158,7 @@ pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN
     /// A distinguishing feature of AEAD ciphers is the ability to provide additional authenticated data (AAD)
     /// that is not encrypted but is protected by the authentication tag; ie it can be sent along with the ciphertext
     /// and any tampering with it will result in the decryption operation failing the tag check.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// Returns a tuple containing a generated nonce, the ciphertext and the tag.
     fn aead_encrypt(
         key: &KeyMaterial<KEY_LEN>,
@@ -172,22 +170,22 @@ pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN
     /// that is not encrypted but is protected by the authentication tag; ie it can be sent along with the ciphertext
     /// and any tampering with it will result in the decryption operation failing the tag check.
     /// Returns a tuple containing the randomly-generated nonce, number of bytes written to the ciphertext buffer, and the tag.
-    /// If you need a deterministic mode where you feed in the nonce, use the streaming API of [BlockCipher]
-    /// or [StreamCipher] as appropriate and feed the nonce into the IV field.
+    /// If you need a deterministic mode where you feed in the nonce, use the streaming API of [`BlockCipher`]
+    /// or [`StreamCipher`] as appropriate and feed the nonce into the IV field.
     fn aead_encrypt_out(
         key: &KeyMaterial<KEY_LEN>,
         aad: &[u8],
         plaintext: &[u8],
         ciphertext: &mut [u8],
     ) -> Result<([u8; NONCE_LEN], usize, [u8; TAG_LEN]), SymmetricCipherError>;
-    /// All AEAD ciphers will also be either a [BlockCipher] or a [StreamCipher], and so will already
+    /// All AEAD ciphers will also be either a [`BlockCipher`] or a [`StreamCipher`], and so will already
     /// have a streaming API.
     /// This allows you to finish either style of streaming API flow with AEAD specific do_final()
     /// that computes and returns the authentication tag.
     fn do_aead_encrypt_final(self) -> Result<[u8; TAG_LEN], SymmetricCipherError>;
     #[cfg(feature = "std")]
     /// A one-shot API to decrypt some ciphertext with the given key.
-    /// This function returns the ciphertext as a Vec<u8>, and therefore is only available when compiling with std.
+    /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     fn aead_decrypt(
         key: &KeyMaterial<KEY_LEN>,
         nonce: &[u8; NONCE_LEN],
@@ -209,7 +207,7 @@ pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN
         tag: &[u8; TAG_LEN],
         plaintext: &mut [u8],
     ) -> Result<usize, SymmetricCipherError>;
-    /// All AEAD ciphers will also be either a [BlockCipher] or a [StreamCipher], and so will already
+    /// All AEAD ciphers will also be either a [`BlockCipher`] or a [`StreamCipher`], and so will already
     /// have a streaming API.
     /// This allows you to finish either style of streaming API flow with AEAD specific do_final()
     /// that computes and returns the authentication tag.
@@ -304,14 +302,14 @@ pub trait Hash: Algorithm + Default {
     ///
     /// If the provided buffer is smaller than the hash's output length, the output will be truncated.
     /// If the provided buffer is larger than the hash's output length, the output  will be placed in
-    /// the first [Hash::output_len] bytes.
+    /// the first [`Hash::output_len`] bytes.
     /// The entire output buffer is zeroized before the hash output is written, so any bytes past
-    /// [Hash::output_len] will be 0.
+    /// [`Hash::output_len`] will be 0.
     ///
     /// The return value is the number of bytes written.
     fn do_final_out(self, output: &mut [u8]) -> usize;
 
-    /// The same as [Hash::do_final], but allows for supplying a partial byte as the last input.
+    /// The same as [`Hash::do_final`], but allows for supplying a partial byte as the last input.
     /// Assumes that the input is in the least significant bits (big endian).
     fn do_final_partial_bits(
         self,
@@ -319,9 +317,9 @@ pub trait Hash: Algorithm + Default {
         num_partial_bits: usize,
     ) -> Result<Vec<u8>, HashError>;
 
-    /// The same as [Hash::do_final_out], but allows for supplying a partial byte as the last input.
+    /// The same as [`Hash::do_final_out`], but allows for supplying a partial byte as the last input.
     /// Assumes that the input is in the least significant bits (big endian).
-    /// will be placed in the first [Hash::output_len] bytes.
+    /// will be placed in the first [`Hash::output_len`] bytes.
     /// The entire output buffer is zeroized before the hash output is written.
     /// The return value is the number of bytes written.
     fn do_final_partial_bits_out(
@@ -352,27 +350,27 @@ pub trait KDF: Default {
     /// assuming that they have been properly initialized.
     ///
     /// # Entropy Conversion rules
-    /// Implementations SHOULD act on a KeyMaterial of any [KeyType] and will generally
+    /// Implementations SHOULD act on a KeyMaterial of any [`KeyType`] and will generally
     /// return a KeyMaterial of the same type
     ///
     /// ex.:
     ///
-    ///   * [KeyType::Unknown] -> [KeyType::Unknown])
-    ///   * [KeyType::CryptographicRandom] -> [KeyType::CryptographicRandom])
-    ///   * [KeyType::SymmetricCipherKey] -> [KeyType::SymmetricCipherKey])
+    ///   * [`KeyType::Unknown`] -> [`KeyType::Unknown`])
+    ///   * [`KeyType::CryptographicRandom`] -> [`KeyType::CryptographicRandom`])
+    ///   * [`KeyType::SymmetricCipherKey`] -> [`KeyType::SymmetricCipherKey`])
     ///
-    /// If provided with an input key, even if it is [KeyType::CryptographicRandom], but that
+    /// If provided with an input key, even if it is [`KeyType::CryptographicRandom`], but that
     /// contains less key material than the internal block size of the KDF, then the KDF
-    /// will not be considered properly seeded, and the output [KeyMaterial] will be set to
-    /// [KeyType::Unknown] -- for example, seeding SHA3-256 with a [KeyMaterial] containing
+    /// will not be considered properly seeded, and the output [`KeyMaterial`] will be set to
+    /// [`KeyType::Unknown`] -- for example, seeding SHA3-256 with a [`KeyMaterial`] containing
     /// only 128 bits of key material.
     ///
-    /// An implement can, and in most cases SHOULD, return a [HashError] if provided
-    /// with a [KeyMaterial] of type [KeyType::Zeroized].
+    /// An implementation can, and in most cases SHOULD, return a [`HashError`] if provided
+    /// with a [`KeyMaterial`] of type [`KeyType::Zeroized`].
     ///
     /// # Additional Input
     /// The `additional_input` parameter is used in deriving the key, but is not credited with any entropy,
-    /// and therefore does not affect the type of the output [KeyMaterial].
+    /// and therefore does not affect the type of the output [`KeyMaterial`].
     /// This corresponds directly to `FixedInfo` as defined in NIST SP 800-56C.
     /// The `additional_input` parameter can be empty by passing in `&[0u8; 0]`.
     ///
@@ -384,12 +382,12 @@ pub trait KDF: Default {
         additional_input: &[u8],
     ) -> Result<Box<dyn KeyMaterialTrait>, KDFError>;
 
-    /// Same as [KDF::derive_key], but fills the provided output [KeyMaterial].
+    /// Same as [`KDF::derive_key`], but fills the provided output [`KeyMaterial`].
     ///
     /// Output length: this function will behave differently depending on the underlying hash primitive;
     /// some, such as SHA2 or SHA3 will produce a fixed-length output, while others, such as SHAKE or HKDF,
     /// will fill the provided KeyMaterial to capacity and require you to truncate it afterward
-    /// using [KeyMaterialTrait::set_key_len].
+    /// using [`KeyMaterialTrait::set_key_len`].
     fn derive_key_out(
         self,
         key: &impl KeyMaterialTrait,
@@ -409,12 +407,12 @@ pub trait KDF: Default {
     /// a KDF that is only full-entropy when keyed in the first input SHOULD return a full entropy key
     /// only if the first input is full entropy.
     ///
-    /// Implementations can, and in most cases SHOULD, return a [KeyMaterial] of the same type as the
-    /// strongest key, and SHOULD throw a [HashError] if all input keys are zeroized.
-    /// For example output a [KeyType::CryptographicRandom] key whenever any one of
-    /// the input keys is a [KeyType::CryptographicRandom] key.
-    /// As another example, combining a [KeyType::Unknown] key with a [KeyType::MACKey] key
-    /// should return a [KeyType::MACKey].
+    /// Implementations can, and in most cases SHOULD, return a [`KeyMaterial`] of the same type as the
+    /// strongest key, and SHOULD throw a [`HashError`] if all input keys are zeroized.
+    /// For example output a [`KeyType::CryptographicRandom`] key whenever any one of
+    /// the input keys is a [`KeyType::CryptographicRandom`] key.
+    /// As another example, combining a [`KeyType::Unknown`] key with a [`KeyType::MACKey`] key
+    /// should return a [`KeyType::MACKey`].
     ///
     /// Output length: this function will create a KeyMaterial populated with the default output length
     /// of the underlying hash primitive.
@@ -424,12 +422,12 @@ pub trait KDF: Default {
         additional_input: &[u8],
     ) -> Result<Box<dyn KeyMaterialTrait>, KDFError>;
 
-    /// Same as [KDF::derive_key], but fills the provided output [KeyMaterial].
+    /// Same as [`KDF::derive_key`], but fills the provided output [`KeyMaterial`].
     ///
     /// Output length: this function will behave differently depending on the underlying hash primitive;
     /// some, such as SHA2 or SHA3 will produce a fixed-length output, while others, such as SHAKE or HKDF,
     /// will fill the provided KeyMaterial to capacity and require you to truncate it afterward
-    /// by using [KeyMaterialTrait::set_key_len].
+    /// by using [`KeyMaterialTrait::set_key_len`].
     fn derive_key_from_multiple_out(
         self,
         keys: &[&impl KeyMaterialTrait],
@@ -445,7 +443,7 @@ pub trait KDF: Default {
 /// key generation, encapsulation, and decapsulation.
 ///
 /// This trait represents the encapsulation operation performed by the holder of the public key.
-/// Decapsulation operations are performed by the corresponding [KEMDecapsulator] trait, and key
+/// Decapsulation operations are performed by the corresponding [`KEMDecapsulator`] trait, and key
 /// generation is provided as an inherent associated function directly on the algorithm struct.
 /// There are several reasons for this split: first is architectural; some complex algorithms may
 /// benefit from having the encapsulation and decapsulation implementations split into separate modules.
@@ -481,7 +479,7 @@ pub trait KEMEncapsulator<
 /// key generation, encapsulation, and decapsulation.
 ///
 /// This trait represents the decapsulation operation performed by the holder of the private key.
-/// Encapsulation operations are performed by the corresponding [KEMEncapsulator] trait, and key
+/// Encapsulation operations are performed by the corresponding [`KEMEncapsulator`] trait, and key
 /// generation is provided as an inherent associated function directly on the algorithm struct.
 /// There are several reasons for this split: first is architectural; some complex algorithms may
 /// benefit from having the encapsulation and decapsulation implementations split into separate modules.
@@ -522,7 +520,7 @@ pub trait KEMPublicKey<const PK_LEN: usize>:
 }
 
 /// A private key for a KEM algorithm, often denoted "sk" (for "secret key").
-pub trait KEMPrivateKey<const SK_LEN: usize>: PartialEq + Eq + Clone + Secret + Sized {
+pub trait KEMPrivateKey<const SK_LEN: usize>: PartialEq + Eq + Clone + Sized {
     /// Write it out to bytes in its standard encoding.
     fn encode(&self) -> [u8; SK_LEN];
     /// Write it out to bytes in its standard encoding.
@@ -536,16 +534,16 @@ pub trait KEMPrivateKey<const SK_LEN: usize>: PartialEq + Eq + Clone + Secret + 
 /// A MAC algorithm takes in a key and some data, and produces a MAC (message authentication code) that
 /// can be used to verify the integrity of data.
 ///
-/// This trait provides one-shot functions [MAC::mac], [MAC::mac_out], and [MAC::verify].
-/// It also provides streaming functions [MAC::do_update], [MAC::do_final], [MAC::do_final_out],
-/// and [MAC::do_verify_final].
-/// The workflow is that a MAC object is initialized with a key with [MAC::new] -- or [MAC::new_allow_weak_key] if you
+/// This trait provides one-shot functions [`MAC::mac`], [`MAC::mac_out`], and [`MAC::verify`].
+/// It also provides streaming functions [`MAC::do_update`], [`MAC::do_final`], [`MAC::do_final_out`],
+/// and [`MAC::do_verify_final`].
+/// The workflow is that a MAC object is initialized with a key with [`MAC::new`] -- or [`MAC::new_allow_weak_key`] if you
 /// need to disable the library's safety mechanism to prevent the use of weak keys -- then data is
-/// processed into one or more calls to [MAC::do_update],
-/// after that the object can either create a MAC with [MAC::do_final] or [MAC::do_final_out] (which are final functions, and so consume the object),
+/// processed into one or more calls to [`MAC::do_update`],
+/// after that the object can either create a MAC with [`MAC::do_final`] or [`MAC::do_final_out`] (which are final functions, and so consume the object),
 /// or the object can be used to verify a MAC.
 ///
-/// For varifying an existing MAC, it is functionally equivalent to use the provided [MAC::verify] and [MAC::do_verify_final]
+/// For varifying an existing MAC, it is functionally equivalent to use the provided [`MAC::verify`] and [`MAC::do_verify_final`]
 /// function or to compute a new MAC and compare it to the existing MAC, however the provided verification functions
 /// use constant-time comparison to avoid cryptographic timing attacks whereby an attacker could learn
 /// the bytes of the MAC value under some conditions. Therefore, it is highly recommended to use the provided verification functions.
@@ -563,18 +561,18 @@ pub trait MAC: Sized {
     /// the capacity is irrelevant, so KeyMateriol256::new() or KeyMaterial_internal::<0>::new() would both count as an absent salt.
     ///
     /// # Note about the security strength of the provided key:
-    /// If you initialize the MAC with a key that is tagged at a lower [SecurityStrength] than the
-    /// underlying hash function then [MAC::new] will fail with the following error:
+    /// If you initialize the MAC with a key that is tagged at a lower [`SecurityStrength`] than the
+    /// underlying hash function then [`MAC::new`] will fail with the following error:
     /// ```text
     /// MACError::KeyMaterialError(KeyMaterialError::SecurityStrength("HMAC::init(): provided key has a lower security strength than the instantiated HMAC")
     /// ```
     /// There are situations in which it is completely reasonable and secure to provide low-entropy
-    /// (and sometimes all-zero) keys / salts; for these cases we have provided [MAC::new_allow_weak_key].
+    /// (and sometimes all-zero) keys / salts; for these cases we have provided [`MAC::new_allow_weak_key`].
     fn new(key: &impl KeyMaterialTrait) -> Result<Self, MACError>;
 
     /// Create a new HMAC instance with the given key.
     ///
-    /// This constructor completely ignores the [SecurityStrength] tag on the input key and will "just work".
+    /// This constructor completely ignores the [`SecurityStrength`] tag on the input key and will "just work".
     /// This should be used if you really do need to use a weak key, such as an all-zero salt,
     /// but use of this constructor is discouraged and you should really be asking yourself why you need it;
     /// in most cases it indicates that your key is not long enough to support the security level of this
@@ -588,7 +586,7 @@ pub trait MAC: Sized {
     /// `data` can be of any length, including zero bytes.
     ///
     /// Note about the security strength of the provided key:
-    /// If the provided key is tagged at a lower [SecurityStrength] than the instantiated MAC algorithm,
+    /// If the provided key is tagged at a lower [`SecurityStrength`] than the instantiated MAC algorithm,
     /// this will fail with an error:
     /// ```text
     /// MACError::KeyMaterialError(KeyMaterialError::SecurityStrength("HMAC::init(): provided key has a lower security strength than the instantiated HMAC")
@@ -600,7 +598,7 @@ pub trait MAC: Sized {
     ///
     /// Depending on the underlying MAC implementation, NIST may require that the library enforce
     /// a minimum length on the mac output value. See documentation for the underlying implementation
-    /// to see conditions under which it throws [MACError::InvalidLength].
+    /// to see conditions under which it throws [`MACError::InvalidLength`].
     ///
     /// The entire output buffer is zeroized before the MAC value is written.
     fn mac_out(self, data: &[u8], out: &mut [u8]) -> Result<usize, MACError>;
@@ -628,7 +626,7 @@ pub trait MAC: Sized {
 
     /// Depending on the underlying MAC implementation, NIST may require that the library enforce
     /// a minimum length on the mac output value. See documentation for the underlying implementation
-    /// to see conditions under which it throws [MACError::InvalidLength].
+    /// to see conditions under which it throws [`MACError::InvalidLength`].
     ///
     /// The entire output buffer is zeroized before the MAC value is written.
     fn do_final_out(self, out: &mut [u8]) -> Result<usize, MACError>;
@@ -679,7 +677,7 @@ pub enum SecurityStrength {
 impl TryFrom<u8> for SecurityStrength {
     type Error = SuspendableError;
 
-    /// Inverse of `self as u8`; rejects unrecognized discriminants with [SuspendableError::InvalidData].
+    /// Inverse of `self as u8`; rejects unrecognized discriminants with [`SuspendableError::InvalidData`].
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::None,
@@ -732,9 +730,9 @@ impl SecurityStrength {
 /// `rng` crate, but that one should
 /// be used by applications that intend to submit to FIPS certification as it more closely aligns with the
 /// requirements of SP 800-90A.
-/// Note: this interface produces bytes. If you want a [KeyMaterialTrait], then use [KeyMaterial::from_rng].
+/// Note: this interface produces bytes. If you want a [`KeyMaterialTrait`], then use [`KeyMaterial::from_rng`].
 ///
-/// Implementors are expected to also implement [Default] (default-construction should produce a
+/// Implementors are expected to also implement [`Default`] (default-construction should produce a
 /// securely OS-seeded instance), but this is intentionally *not* a supertrait bound: requiring
 /// `Default` would make `RNG` not dyn-compatible, and `&mut dyn RNG` is needed so RNG instances
 /// can be handed around as trait objects.
@@ -759,7 +757,7 @@ pub trait RNG {
     /// The entire output buffer is zeroized before the random bytes are written.
     fn next_bytes_out(&mut self, out: &mut [u8]) -> Result<usize, RNGError>;
 
-    /// Fill the provided [KeyMaterial] with random bytes.
+    /// Fill the provided [`KeyMaterial`] with random bytes.
     fn fill_keymaterial_out(&mut self, out: &mut dyn KeyMaterialTrait) -> Result<usize, RNGError>;
 
     /// Returns the Security Strength of this RNG.
@@ -767,14 +765,6 @@ pub trait RNG {
     //      then have `RNG: Algorithm`, then delete this function.
     fn security_strength(&self) -> SecurityStrength;
 }
-
-/// A trait that forces an object to implement a zeroizing Drop() as well as Debug and Display that
-/// will not log the sensitive contents, even in error or crash-dump scenarios.
-// Since rust auto-implements Drop, there's a lint that explicitly bounding on Drop is useless.
-// I disagree because I want to force things that are secrets to manually implement Drop that zeroizes the data.
-// So I'm turning off this lint.
-#[allow(drop_bounds)]
-pub trait Secret: Drop + Debug + Display {}
 
 /// Allows a stateful object to suspend its operation by serializing its state into a byte array
 ///so that it can be resumed later, potentially from a different host.
@@ -789,7 +779,7 @@ pub trait Secret: Drop + Debug + Display {}
 /// The serialized state MAY contain short-term sensitive values such as nonces or IVs,
 /// but it MUST NOT include a serialized private key.
 /// Keyed algorithms MUST instead impl
-/// [SuspendableKeyed] which requires the key to be supplied independently at the time of deserialization.
+/// [`SuspendableKeyed`] which requires the key to be supplied independently at the time of deserialization.
 pub trait Suspendable<const SERIALIZED_STATE_LEN: usize>: Sized {
     /// Suspend operation by serializing out the state of the object.
     ///
@@ -808,7 +798,7 @@ pub trait Suspendable<const SERIALIZED_STATE_LEN: usize>: Sized {
     fn from_suspended(state: [u8; SERIALIZED_STATE_LEN]) -> Result<Self, SuspendableError>;
 }
 
-/// Similar to [Suspendable] in that it allows a stateful object to suspend its operation by
+/// Similar to [`Suspendable`] in that it allows a stateful object to suspend its operation by
 /// serializing its state into a byte array so that it can be resumed later, potentially from a different host.
 ///
 /// The difference is that this trait is for keyed algorithms -- MACs, symmetric ciphers, signatures, etc --
@@ -839,7 +829,7 @@ pub trait SuspendableKeyed<const SERIALIZED_STATE_LEN: usize>: Sized {
     ) -> Result<Self, SuspendableError>;
 }
 
-/// Pre-Hashed Signer is an extension to [Signer] that adds functionality specific to signature
+/// Pre-Hashed Signer is an extension to [`Signer`] that adds functionality specific to signature
 /// primatives that can operate on a pre-hashed message instead of the full message.
 pub trait PHSigner<
     PK: SignaturePublicKey<PK_LEN>,
@@ -889,7 +879,7 @@ pub trait PHSigner<
     ) -> Result<usize, SignatureError>;
 }
 
-/// Pre-Hashed Signature Verifier is an extension to [SignatureVerifier] that adds functionality specific to signature
+/// Pre-Hashed Signature Verifier is an extension to [`SignatureVerifier`] that adds functionality specific to signature
 /// primatives that can operate on a pre-hashed message instead of the full message.
 pub trait PHSignatureVerifier<
     PK: SignaturePublicKey<PK_LEN>,
@@ -899,7 +889,7 @@ pub trait PHSignatureVerifier<
 >: SignatureVerifier<PK, PK_LEN, SIG_LEN>
 {
     /// On success, returns Ok(())
-    /// On failure, returns Err([SignatureError::SignatureVerificationFailed]); may also return other types of [SignatureError] as appropriate (such as for invalid-length inputs).
+    /// On failure, returns Err([`SignatureError::SignatureVerificationFailed`]); may also return other types of [`SignatureError`] as appropriate (such as for invalid-length inputs).
     fn verify_ph(
         pk: &PK,
         ph: &[u8; PH_LEN],
@@ -925,9 +915,7 @@ pub trait SignaturePublicKey<const PK_LEN: usize>:
 }
 
 /// A private key for a signature algorithm, often denoted "sk" (for "secret key").
-pub trait SignaturePrivateKey<const SK_LEN: usize>:
-    PartialEq + Eq + Clone + Secret + Sized
-{
+pub trait SignaturePrivateKey<const SK_LEN: usize>: PartialEq + Eq + Clone + Sized {
     /// Write it out to bytes in its standard encoding.
     fn encode(&self) -> [u8; SK_LEN];
     /// Write it out to bytes in its standard encoding.
@@ -942,7 +930,7 @@ pub trait SignaturePrivateKey<const SK_LEN: usize>:
 ///
 /// This trait represents the operations performed by the holder of the signing private key:
 /// which include signing and key generation. Verification operations are performed by the corresponding
-/// [SignatureVerifier] trait.
+/// [`SignatureVerifier`] trait.
 /// There are several reasons for this split: first is architectural; some complex algorithms may
 /// benefit from having the signature generation and verification implementations split into separate modules.
 /// Second is for compliance: sometimes a policy soft-deprecates an algorithm so that new signatures
@@ -1016,7 +1004,7 @@ pub trait Signer<SK: SignaturePrivateKey<SK_LEN>, const SK_LEN: usize, const SIG
 /// key generation, signing, and verification.
 ///
 /// This trait represents the verification operations performed by the holder of the verification public key.
-/// Keygen and signing operations are performed by the corresponding [Signer] trait.
+/// Keygen and signing operations are performed by the corresponding [`Signer`] trait.
 /// There are several reasons for this split: first is architectural; some complex algorithms may
 /// benefit from having the signature generation and verification implementations split into separate modules.
 /// Second is for compliance: sometimes a policy soft-deprecates an algorithm so that new signatures
@@ -1034,7 +1022,7 @@ pub trait SignatureVerifier<
 >: Sized
 {
     /// On success, returns Ok(())
-    /// On failure, returns Err([SignatureError::SignatureVerificationFailed]); may also return other types of [SignatureError] as appropriate (such as for invalid-length inputs).
+    /// On failure, returns Err([`SignatureError::SignatureVerificationFailed`]); may also return other types of [`SignatureError`] as appropriate (such as for invalid-length inputs).
     fn verify(pk: &PK, msg: &[u8], ctx: Option<&[u8]>, sig: &[u8]) -> Result<(), SignatureError>;
 
     /// streaming verification API
@@ -1046,7 +1034,7 @@ pub trait SignatureVerifier<
     fn verify_update(&mut self, msg_chunk: &[u8]);
 
     /// On success, returns Ok(())
-    /// On failure, returns Err([SignatureError::SignatureVerificationFailed]); may also return other types of [SignatureError] as appropriate (such as for invalid-length inputs).
+    /// On failure, returns Err([`SignatureError::SignatureVerificationFailed`]); may also return other types of [`SignatureError`] as appropriate (such as for invalid-length inputs).
     fn verify_final(self, sig: &[u8]) -> Result<(), SignatureError>;
 }
 
@@ -1100,7 +1088,7 @@ pub trait XOF: Default {
     /// This is a final call and consumes self.
     fn squeeze_partial_byte_final(self, num_bits: usize) -> Result<u8, HashError>;
 
-    /// The same as [XOF::squeeze_partial_byte_final], but writes into the provided output byte.
+    /// The same as [`XOF::squeeze_partial_byte_final`], but writes into the provided output byte.
     /// The output byte is zeroized before the result is written.
     fn squeeze_partial_byte_final_out(
         self,

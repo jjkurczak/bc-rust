@@ -14,10 +14,8 @@ use bouncycastle_utils::{max, min};
 /// This uses a private bound so that you cannot instantiate it directly and have to use the
 /// provided and NIST-approved parameters.
 ///
-///
-///
 /// Note that even though SHAKE is physically capable of acting as a hash function, and in fact is secure
-/// as such if the provided message includes the requested length, SHAKE does not implement the [Hash] trait.
+/// as such if the provided message includes the requested length, SHAKE does not implement the [`Hash`] trait.
 /// FIPS 202 section 7 states:
 ///
 ///   "SHAKE128 and SHAKE256 are approved XOFs, whose approved uses will be specified in
@@ -37,8 +35,6 @@ pub struct SHAKEInternal<PARAMS: SHAKEParams> {
     kdf_security_strength: SecurityStrength,
     kdf_entropy: usize,
 }
-
-// Note: don't need a zeroizing Drop here because all the sensitive info is in KeccakDigest, which has one.
 
 impl<PARAMS: SHAKEParams> Algorithm for SHAKEInternal<PARAMS> {
     const ALG_NAME: &'static str = PARAMS::ALG_NAME;
@@ -96,8 +92,7 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
         mut self,
         additional_input: &[u8],
     ) -> Result<Box<dyn KeyMaterialTrait>, KDFError> {
-        // It's unfortunate to return an oversized KeyMaterial most of the time, but I've had enough
-        // of fighting with Rust traits for now ...
+        // At the moment, oversized KeyMaterial is returned for most cases. 
         let mut output_key = KeyMaterial::<64>::new();
         self.derive_key_out_final_internal(additional_input, &mut output_key)?;
 
@@ -118,9 +113,9 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
     ) -> Result<usize, KDFError> {
         // For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
         // it requires full-entropy input that is at least 2x the bit size (ie 256 bits for SHAKE128, and 512 bits for SHAKE256).
-        // TODO: citation needed, which NIST spec did I get this from?
-        // TODO: intuitivitely this makes sense since SHAKE256 and SHA3-256 are both KECCAK[512], and SHAKE128 is KECCAK[256],
-        // TODO: but I would rather find an actual reference for this "fully-seeded" threshold.
+        // TODO: citation needed (NIST)
+        // TODO: The intuition behind this is that SHAKE256 and SHA3-256 are both KECCAK[512], and SHAKE128 is KECCAK[256],
+        // TODO: However, it is necessary to find an actual reference for this "fully-seeded" threshold.
         if self.kdf_entropy < 2 * (PARAMS::SIZE as usize) / 8 {
             self.kdf_key_type = min(&self.kdf_key_type, &KeyType::Unknown).clone();
             self.kdf_security_strength = SecurityStrength::None; // BytesLowEntropy can't have a securtiy level.
@@ -138,7 +133,7 @@ impl<PARAMS: SHAKEParams> SHAKEInternal<PARAMS> {
             output_key.set_key_len(bytes_written)
         })?;
 
-        // since we've done some computation, the result will not actually be zeroized, even if all input key material was zeroized.
+        // since computation has been performed, the result will not actually be zeroized, even if all input key material was zeroized.
         if self.kdf_key_type == KeyType::Zeroized {
             self.kdf_key_type = KeyType::Unknown;
         }
@@ -197,13 +192,14 @@ impl<PARAMS: SHAKEParams> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHAKEInterna
 }
 
 impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
-    /// Returns a [KeyMaterial].
+    /// Returns a [`KeyMaterial`].
     /// For the KDF to be considered "fully-seeded" and be capable of outputting full-entropy KeyMaterials,
     /// it requires full-entropy input that is at least 2x the bit size (ie 256 bits for SHAKE128, and 512 bits for SHAKE256).
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
-    /// To produce longer keys, use [KDF::derive_key_out].
-    /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with
-    /// [KeyMaterial::set_key_len].
+    /// To produce longer keys, use [`KDF::derive_key_out`].
+    /// To produce shorter keys, either use [`KDF::derive_key_out`], truncate this result in place with
+    /// [`KeyMaterial::set_key_len`], or copy it into a smaller [`KeyMaterial`] with
+    /// [`KeyMaterialTrait::truncate`].
     fn derive_key(
         mut self,
         key: &impl KeyMaterialTrait,
@@ -225,13 +221,15 @@ impl<PARAMS: SHAKEParams> KDF for SHAKEInternal<PARAMS> {
         self.derive_key_out_final_internal(additional_input, output_key)
     }
 
-    /// Always returns a full [KeyMaterial]; ie that fills the internal buffer of the
+    /// Always returns a full [`KeyMaterial`]; ie that fills the internal buffer of the
     /// appropriately-sized key material for the underlying cryptographic hash function.
-    /// This can be truncated down with [KeyMaterial::set_key_len].
+    /// This can be truncated down in place with [`KeyMaterial::set_key_len`], or copied into a smaller
+    /// [`KeyMaterial`] with [`KeyMaterialTrait::truncate`].
     /// Returns a 32 byte key for SHAKE128 and a 64 byte key for SHAKE256.
-    /// To produce longer keys, use [KDF::derive_key_out].
-    /// To produce shorter keys, either use [KDF::derive_key_out] or truncate this result down with
-    /// [KeyMaterial::set_key_len].
+    /// To produce longer keys, use [`KDF::derive_key_out`].
+    /// To produce shorter keys, either use [`KDF::derive_key_out`], truncate this result in place with
+    /// [`KeyMaterial::set_key_len`], or copy it into a smaller [`KeyMaterial`] with
+    /// [`KeyMaterialTrait::truncate`].
     fn derive_key_from_multiple(
         mut self,
         keys: &[&impl KeyMaterialTrait],
@@ -277,7 +275,7 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
         self.hash_internal_out(data, output)
     }
 
-    /// This can throw a [HashError::InvalidState] if called after squeezing has begun,
+    /// This can throw a [`HashError::InvalidState`] if called after squeezing has begun,
     /// but is safe to consider infallible otherwise -- IE feel free to use `.unwrap()` or `.expect()`
     /// on the result if you are confident that your code cannot call `absorb` after squeezing.
     ///
@@ -309,7 +307,8 @@ impl<PARAMS: SHAKEParams> XOF for SHAKEInternal<PARAMS> {
         if !(1..=7).contains(&num_partial_bits) {
             return Err(HashError::InvalidLength("must be in the range [0,7]"));
         }
-        // Mutants note: yep, this is just bit-setting into empty space, so it doesn't matter whether it's OR or XOR.
+        // Mutants note: This is just bit-setting into empty space. 
+        // It works the same regardless of whether it's OR or XOR.
         let mut final_input: u16 =
             ((partial_byte as u16) & ((1 << num_partial_bits) - 1)) | (0x0F << num_partial_bits);
         let mut final_bits = num_partial_bits + 4;

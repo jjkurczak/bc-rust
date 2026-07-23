@@ -1,7 +1,7 @@
-//! RNG factory for creating instances of algorithms that implement the [RNG] trait.
+//! RNG factory for creating instances of algorithms that implement the [`RNG`] trait.
 //!
 //! As with all Factory objects, this implements constructions from strings and defaults, and
-//! returns a [RNGFactory] object which itself implements the [RNG] trait as a pass-through to the underlying algorithm.
+//! returns a [`RNGFactory`] object which itself implements the [`RNG`] trait as a pass-through to the underlying algorithm.
 //!
 //! A quick note about cryptographic random number generators (RNGs), which are also sometimes
 //! cryptographically secure random number generators (CSRNGs) or pseudorandom number generators (PRNGS)).
@@ -9,13 +9,13 @@
 //! deterministic random bit generators (DRBGs), which, always produce the same output for the same seed value.
 //! Meaning that they are only as cryptographically strong and unique as their seed.
 //!
-//! All RNGs exposed through the [RNGFactory] are seeded from the underlying operating system's entropy pool,
+//! All RNGs exposed through the [`RNGFactory`] are seeded from the underlying operating system's entropy pool,
 //! and therefore should be sufficient for most cryptographic use. Additional entropy can be added via the
-//! [RNG::add_seed_keymaterial] function.
+//! [`RNG::add_seed_keymaterial`] function.
 //!
 //! Applications that require direct control over the seed material, for example in order to deterministically
 //! re-generate a key stream from a private seed, or in order to use a specific approved entropy source should
-//! instead use the objects in the [rng] crate, which expose more instantiation functionality.
+//! instead use the objects in the [`rng`] crate, which expose more instantiation functionality.
 //!
 //!
 //! Example usage:
@@ -29,8 +29,8 @@
 //! let h = bouncycastle_factory::hash_factory::HashFactory::new(sha3::SHA3_256_NAME).unwrap();
 //! let output: Vec<u8> = h.hash(data);
 //! ```
-//! You can equivalently invoke this by string instead of using the constant:
-//!
+//! Equivalently, it may be invoked by passing a string instead of using the constant:
+//! 
 //! ```
 //! use bouncycastle_factory::AlgorithmFactory;
 //! use bouncycastle_core::traits::Hash;
@@ -50,7 +50,7 @@ use bouncycastle_core::traits::{RNG, SecurityStrength};
 use bouncycastle_rng as rng;
 use bouncycastle_rng::{HASH_DRBG_SHA256_NAME, HASH_DRBG_SHA512_NAME};
 
-/// Wrapper object for all algorithms that impl [RNG].
+/// Wrapper object for all algorithms that impl [`RNG`].
 pub enum RNGFactory {
     ///
     #[allow(non_camel_case_types)]

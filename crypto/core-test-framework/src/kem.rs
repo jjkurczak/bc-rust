@@ -1,4 +1,4 @@
-//! Generic behaviour tests for anything that implements [KEMEncapsulator] and [KEMDecapsulator].
+//! Generic behaviour tests for anything that implements [`KEMEncapsulator`] and [`KEMDecapsulator`].
 
 use crate::FixedSeedRNG;
 use bouncycastle_core::errors::KEMError;
@@ -23,7 +23,7 @@ impl TestFrameworkKEM {
         Self { alg_is_deterministic, is_implicitly_rejecting }
     }
 
-    /// Test all the members of traits [KEMEncapsulator] and [KEMDecapsulator] against the given input-output pair.
+    /// Test all the members of traits [`KEMEncapsulator`] and [`KEMDecapsulator`] against the given input-output pair.
     /// This gives good baseline test coverage, but is not exhaustive.
     ///
     /// Since key generation is not part of either KEM trait, the caller supplies a

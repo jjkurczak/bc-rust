@@ -1,7 +1,7 @@
-//! XOF factory for creating instances of algorithms that implement the [XOF] trait.
+//! XOF factory for creating instances of algorithms that implement the [`XOF`] trait.
 //!
 //! As with all Factory objects, this implements constructions from strings and defaults, and
-//! returns a [XOFFactory] object which itself implements the [XOF] trait as a pass-through to the underlying algorithm.
+//! returns a [`XOFFactory`] object which itself implements the [`XOF`] trait as a pass-through to the underlying algorithm.
 //!
 //! Example usage:
 //! ```
@@ -16,7 +16,7 @@
 //! h.absorb(data);
 //! let output: Vec<u8> = h.squeeze(16);
 //! ```
-//! You can equivalently invoke this by string instead of using the constant:
+//! Equivalently, it may be invoked by passing a string instead of using the constant:
 //!
 //! ```
 //! use bouncycastle_factory::AlgorithmFactory;
@@ -24,8 +24,7 @@
 //!
 //! let mut h = XOFFactory::new("SHAKE128");
 //! ```
-//!
-//! Or, if you don't particularly care which algorithm you get, you can use the configured default:
+//! If the algorithm used is not particularly important, the configured default may be used:
 //!
 //! ```
 //! use bouncycastle_factory::AlgorithmFactory;
@@ -48,7 +47,7 @@ pub const DEFAULT_128BIT_XOF_NAME: &str = SHAKE128_NAME;
 ///
 pub const DEFAULT_256BIT_XOF_NAME: &str = SHAKE256_NAME;
 
-/// Wrapper object for all algorithms that impl [XOF].
+/// Wrapper object for all algorithms that impl [`XOF`].
 pub enum XOFFactory {
     ///
     SHAKE128(sha3::SHAKE128),

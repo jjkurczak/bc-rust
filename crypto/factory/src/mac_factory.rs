@@ -1,7 +1,7 @@
-//! MAC factory for creating instances of algorithms that implement the [MAC] trait.
+//! MAC factory for creating instances of algorithms that implement the [`MAC`] trait.
 //!
 //! As with all Factory objects, this implements constructions from strings and defaults, and
-//! returns a [MACFactory] object which itself implements the [MAC] trait as a pass-through to the underlying algorithm.
+//! returns a [`MACFactory`] object which itself implements the [`MAC`] trait as a pass-through to the underlying algorithm.
 //!
 //! Example usage:
 //! Generating and verifying a MAC value for a given piece of data:
@@ -34,7 +34,7 @@
 //! }
 //! ```
 //!
-//! You can equivalently construct an instance of [MACFactory] by string instead of using the constant:
+//! Equivalently, an instance of [`MACFactory`] may be constructed by string instead of using the constant:
 //!
 //! ```
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
@@ -52,7 +52,7 @@
 //! let hmac = MACFactory::new("HMAC-SHA256", &key).unwrap();
 //! ```
 //!
-//! Or if you don't particularly care which algorithm is used, you can use the built-in default:
+//! If the algorithm used is not particularly important, the built-in default may be used:
 //!
 //! ```
 //! use bouncycastle_core::key_material::{KeyMaterial256, KeyType};
@@ -92,9 +92,9 @@ pub const DEFAULT_256BIT_MAC_NAME: &str = HMAC_SHA256_NAME;
 
 #[allow(non_camel_case_types)]
 
-/// Wrapper object for all algorithms that impl [MAC].
+/// Wrapper object for all algorithms that impl [`MAC`].
 /// MACFactory deviates from the usual AlgorithmFactory trait because MAC objects do not have a no-arg constructor;
-/// instead they have a constructor that takes a [KeyMaterialTrait] and can return an error.
+/// instead they have a constructor that takes a [`KeyMaterialTrait`] and can return an error.
 pub enum MACFactory {
     ///
     HMAC_SHA224(hmac::HMAC<sha2::SHA224>),
@@ -150,12 +150,12 @@ impl MACFactory {
 }
 
 impl MAC for MACFactory {
-    /// This is a dummy function, required by the [MAC] trait. Don't call it, it doesn't do anything.
+    /// This is a dummy function, required by the [`MAC`] trait. DO NOT call it, it does not do anything.
     fn new(_key: &impl KeyMaterialTrait) -> Result<Self, MACError> {
         unimplemented!()
     }
 
-    /// This is a dummy function, required by the [MAC] trait. Don't call it, it doesn't do anything.
+    /// This is a dummy function, required by the [`MAC`] trait. DO NOT call it, it does not do anything.
     fn new_allow_weak_key(_key: &impl KeyMaterialTrait) -> Result<Self, MACError> {
         unimplemented!()
     }
