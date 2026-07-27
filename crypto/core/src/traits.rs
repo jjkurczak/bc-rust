@@ -45,7 +45,7 @@ pub trait AlgorithmOID {
 /// as AEADs or stream ciphers may need to stick extra data either at the beginning or end of the ciphertext.
 /// See the documentation of the underlying implementation for more details.
 pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>: Algorithm {
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     /// A one-shot API to encrypt some plaintext with the given key.
     /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// Returns a tuple containing the initialization data and the ciphertext.
@@ -65,7 +65,7 @@ pub trait SymmetricCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize>: Alg
         plaintext: &[u8],
         ciphertext: &mut [u8],
     ) -> Result<([u8; INIT_DATA_LEN], usize), SymmetricCipherError>;
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     /// A one-shot API to decrypt some ciphertext with the given key.
     /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     /// This is not available if building for no_std.
@@ -161,7 +161,7 @@ pub trait BlockCipher<const KEY_LEN: usize, const INIT_DATA_LEN: usize, const BL
 pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN: usize>:
     SymmetricCipher<KEY_LEN, NONCE_LEN> + Sized
 {
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     /// A one-shot API to encrypt some plaintext with the given key.
     /// A distinguishing feature of AEAD ciphers is the ability to provide additional authenticated data (AAD)
     /// that is not encrypted but is protected by the authentication tag; ie it can be sent along with the ciphertext
@@ -191,7 +191,7 @@ pub trait AEADCipher<const KEY_LEN: usize, const NONCE_LEN: usize, const TAG_LEN
     /// This allows you to finish either style of streaming API flow with AEAD specific do_final()
     /// that computes and returns the authentication tag.
     fn do_aead_encrypt_final(self) -> Result<[u8; TAG_LEN], SymmetricCipherError>;
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     /// A one-shot API to decrypt some ciphertext with the given key.
     /// This function returns the ciphertext as a `Vec<u8>`, and therefore is only available when compiling with std.
     fn aead_decrypt(
@@ -700,6 +700,7 @@ pub trait MAC: Sized {
     /// do_update() is intended to be used as part of a streaming interface, and so may by called multiple times.
     fn do_update(&mut self, data: &[u8]);
 
+    /// Finish absorbing input and produce the MAC value.
     #[cfg(feature = "alloc")]
     fn do_final(self) -> Vec<u8>;
 

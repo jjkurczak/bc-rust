@@ -24,7 +24,7 @@ bouncycastle-utils.workspace = true
 bouncycastle-core-test-framework.workspace = true
 criterion.workspace = true
 bouncycastle-rng.workspace = true
-bouncycastle-hex.workspace = true
+bouncycastle-hex = { workspace = true, features = ["alloc"] } #.workspace = true
 
 [[bench]]
 name = "hkdf_benches"

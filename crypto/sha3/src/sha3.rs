@@ -21,7 +21,7 @@ use alloc::{boxed::Box, vec, vec::Vec};
 /// provided and NIST-approved parameters.
 #[derive(Clone)]
 pub struct SHA3Internal<PARAMS: SHA3Params> {
-    _params: std::marker::PhantomData<PARAMS>,
+    _params: core::marker::PhantomData<PARAMS>,
     keccak: KeccakInternal,
     kdf_key_type: KeyType,
     kdf_security_strength: SecurityStrength,
@@ -34,7 +34,7 @@ impl<PARAMS: SHA3Params> SHA3Internal<PARAMS> {
     /// Get a new SHA3 instance, ready for use.
     pub fn new() -> Self {
         Self {
-            _params: std::marker::PhantomData,
+            _params: core::marker::PhantomData,
             keccak: KeccakInternal::new(PARAMS::SIZE),
             kdf_key_type: KeyType::Zeroized,
             kdf_security_strength: SecurityStrength::None,
@@ -333,7 +333,7 @@ impl<PARAMS: SHA3Params> Suspendable<SUSPENDED_SHA3_STATE_LEN> for SHA3Internal<
             deserialize_sha3_family_state(input, PARAMS::STATE_TAG, rate)?;
 
         Ok(SHA3Internal {
-            _params: std::marker::PhantomData,
+            _params: core::marker::PhantomData,
             keccak,
             kdf_key_type,
             kdf_security_strength,

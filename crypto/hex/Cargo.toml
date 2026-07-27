@@ -2,6 +2,7 @@
 name = "bouncycastle-hex"
 version = "0.1.2"
 edition.workspace = true
+resolver = "2"
 
 [features]
 # `alloc` enables the `String`-returning `encode` and `Vec`-returning `decode`. The allocation-free

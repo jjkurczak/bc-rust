@@ -27,7 +27,7 @@ bouncycastle-utils.workspace = true
 [dev-dependencies]
 bouncycastle-core-test-framework.workspace = true
 criterion.workspace = true
-bouncycastle-hex.workspace = true
+bouncycastle-hex = { workspace = true, features = ["alloc"] } #.workspace = true
 
 [[bench]]
 name = "hmac_benches"

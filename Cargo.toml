@@ -1,5 +1,6 @@
 [workspace]
 members = ["cli", "crypto/*", "mem_usage_benches"]
+resolver = "2"
 
 [workspace.package]
 edition = "2024"

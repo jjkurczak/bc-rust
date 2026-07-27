@@ -65,7 +65,7 @@ fn theta1(x: u64) -> u64 {
 // #[derive(Clone, Copy)]
 #[derive(Clone)]
 pub(crate) struct Sha512State<PARAMS: SHA2Params> {
-    _params: std::marker::PhantomData<PARAMS>,
+    _params: core::marker::PhantomData<PARAMS>,
     h: Secret<[u64; 8]>,
 }
 
@@ -78,14 +78,14 @@ impl<PARAMS: SHA2Params> Sha512State<PARAMS> {
                     0xCBBB9D5DC1059ED8, 0x629A292A367CD507, 0x9159015A3070DD17, 0x152FECD8F70E5939,
                     0x67332667FFC00B31, 0x8EB44A8768581511, 0xDB0C2E0D64F98FA7, 0x47B5481DBEFA4FA4,
                 ]);
-                Self { _params: std::marker::PhantomData, h }
+                Self { _params: core::marker::PhantomData, h }
             }
             512 => {
                 h.copy_from_slice(&[
                     0x6A09E667F3BCC908, 0xBB67AE8584CAA73B, 0x3C6EF372FE94F82B, 0xA54FF53A5F1D36F1,
                     0x510E527FADE682D1, 0x9B05688C2B3E6C1F, 0x1F83D9ABFB41BD6B, 0x5BE0CD19137E2179,
                 ]);
-                Self { _params: std::marker::PhantomData, h }
+                Self { _params: core::marker::PhantomData, h }
             }
             _ => panic!("Invalid SHA-2 bit size"),
         }
