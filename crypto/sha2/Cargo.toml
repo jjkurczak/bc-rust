@@ -8,7 +8,11 @@ edition.workspace = true
 # bouncycastle-core). On by default; disable with `default-features = false` for `no_std` use.
 default = ["alloc"]
 # enable `alloc` in bouncycastle-core if enabled here
-alloc = ["bouncycastle-core/alloc", "bouncycastle-rng/alloc"]
+alloc = [
+    "bouncycastle-core/alloc",
+    "bouncycastle-rng/alloc",
+    "bouncycastle-core-test-framework/alloc",
+]
 
 [dependencies]
 bouncycastle-core = { workspace = true, default-features = false }
@@ -16,7 +20,7 @@ bouncycastle-utils.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
-bouncycastle-core-test-framework.workspace = true
+bouncycastle-core-test-framework = { workspace = true, default-features = false }
 bouncycastle-rng = { workspace = true, default-features = false }
 
 [[bench]]

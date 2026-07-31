@@ -16,7 +16,8 @@ alloc = [
     "bouncycastle-sha2/alloc",
     "bouncycastle-sha3/alloc",
     "bouncycastle-rng/alloc",
-    "bouncycastle-hex/alloc"
+    "bouncycastle-hex/alloc",
+    "bouncycastle-core-test-framework/alloc",
 ]
 
 [dependencies]
@@ -27,7 +28,7 @@ bouncycastle-sha3 = { workspace = true, default-features = false }
 bouncycastle-utils.workspace = true
 
 [dev-dependencies]
-bouncycastle-core-test-framework.workspace = true
+bouncycastle-core-test-framework = { workspace = true, default-features = false }
 criterion.workspace = true
 bouncycastle-hex = { workspace = true, default-features = false }
 
