@@ -25,8 +25,11 @@ use bouncycastle_core::key_material::{KeyMaterial512, KeyMaterialTrait, KeyType}
 use bouncycastle_core::traits::{KEMDecapsulator, KEMPrivateKey, KEMPublicKey, SecurityStrength};
 use bouncycastle_hex as hex;
 use bouncycastle_mlkem::{
-    MLKEM512, MLKEM512PrivateKey, MLKEM512PublicKey, MLKEM768, MLKEM768PrivateKey,
-    MLKEM768PublicKey, MLKEM1024, MLKEM1024PrivateKey, MLKEM1024PublicKey, MLKEMTrait,
+    MLKEM512, MLKEM512_CT_LEN, MLKEM512_PK_LEN, MLKEM512_SK_LEN, MLKEM512PrivateKey,
+    MLKEM512PublicKey, MLKEM768, MLKEM768_CT_LEN, MLKEM768_PK_LEN, MLKEM768_SK_LEN,
+    MLKEM768PrivateKey, MLKEM768PublicKey, MLKEM1024, MLKEM1024_CT_LEN, MLKEM1024_PK_LEN,
+    MLKEM1024_SK_LEN, MLKEM1024PrivateKey, MLKEM1024PublicKey, MLKEMTrait, MLKEM_SEED_LEN,
+    MLKEM_SS_LEN,
 };
 
 #[cfg(test)]
@@ -347,7 +350,7 @@ impl MLKEMEncapsTestCase {
 
         /* Load the key */
 
-        let ek = match MLKEM512PublicKey::from_bytes(&hex::decode(&self.ek).unwrap()) {
+        let ek = match MLKEM512PublicKey::from_bytes(&hex::decode_array::<MLKEM512_PK_LEN>(&self.ek)) {
             Err(e) => {
                 if self.result == "invalid" {
                     /* good */
@@ -362,11 +365,11 @@ impl MLKEMEncapsTestCase {
         /* Perform the deterministic encaps and compare results */
 
         let (k, ct) =
-            MLKEM512::encaps_internal(&ek, None, hex::decode(&self.m).unwrap().try_into().unwrap());
+            MLKEM512::encaps_internal(&ek, None, hex::decode_array(&self.m));
 
         if self.result == "valid" {
-            assert_eq!(k, hex::decode(&self.k).unwrap().as_slice());
-            assert_eq!(ct, hex::decode(&self.c).unwrap().as_slice());
+            assert_eq!(k, hex::decode_array::<MLKEM_SS_LEN>(&self.k).as_slice());
+            assert_eq!(ct, hex::decode_array::<MLKEM512_CT_LEN>(&self.c).as_slice());
         } else {
             // is there anything to test here?
         }
@@ -377,7 +380,7 @@ impl MLKEMEncapsTestCase {
 
         /* Load the key */
 
-        let ek = match MLKEM768PublicKey::from_bytes(&hex::decode(&self.ek).unwrap()) {
+        let ek = match MLKEM768PublicKey::from_bytes(&hex::decode_array::<MLKEM768_PK_LEN>(&self.ek)) {
             Err(e) => {
                 if self.result == "invalid" {
                     /* good */
@@ -392,11 +395,11 @@ impl MLKEMEncapsTestCase {
         /* Perform the deterministic encaps and compare results */
 
         let (k, ct) =
-            MLKEM768::encaps_internal(&ek, None, hex::decode(&self.m).unwrap().try_into().unwrap());
+            MLKEM768::encaps_internal(&ek, None, hex::decode_array(&self.m));
 
         if self.result == "valid" {
-            assert_eq!(k, hex::decode(&self.k).unwrap().as_slice());
-            assert_eq!(ct, hex::decode(&self.c).unwrap().as_slice());
+            assert_eq!(k, hex::decode_array::<MLKEM_SS_LEN>(&self.k).as_slice());
+            assert_eq!(ct, hex::decode_array::<MLKEM768_CT_LEN>(&self.c).as_slice());
         } else {
             // is there anything to test here?
         }
@@ -407,7 +410,7 @@ impl MLKEMEncapsTestCase {
 
         /* Load the key */
 
-        let ek = match MLKEM1024PublicKey::from_bytes(&hex::decode(&self.ek).unwrap()) {
+        let ek = match MLKEM1024PublicKey::from_bytes(&hex::decode_array::<MLKEM1024_PK_LEN>(&self.ek)) {
             Err(e) => {
                 if self.result == "invalid" {
                     /* good */
@@ -424,12 +427,12 @@ impl MLKEMEncapsTestCase {
         let (k, ct) = MLKEM1024::encaps_internal(
             &ek,
             None,
-            hex::decode(&self.m).unwrap().try_into().unwrap(),
+            hex::decode_array(&self.m),
         );
 
         if self.result == "valid" {
-            assert_eq!(k, hex::decode(&self.k).unwrap().as_slice());
-            assert_eq!(ct, hex::decode(&self.c).unwrap().as_slice());
+            assert_eq!(k, hex::decode_array::<MLKEM_SS_LEN>(&self.k).as_slice());
+            assert_eq!(ct, hex::decode_array::<MLKEM1024_CT_LEN>(&self.c).as_slice());
         } else {
             // is there anything to test here?
         }
@@ -491,16 +494,16 @@ impl MLKEMKeygenSeedTestCase {
         // currently, the wycheproof tests contain only valid tests, so just run them; no errors to check
 
         let seed =
-            KeyMaterial512::from_bytes_as_type(&hex::decode(&self.seed).unwrap(), KeyType::Seed)
+            KeyMaterial512::from_bytes_as_type(&hex::decode_array::<MLKEM_SEED_LEN>(&self.seed), KeyType::Seed)
                 .unwrap();
 
         let (ek, dk) = MLKEM512::keygen_from_seed(&seed).unwrap();
 
-        assert_eq!(ek, MLKEM512PublicKey::from_bytes(&hex::decode(&self.ek).unwrap()).unwrap());
-        assert_eq!(&ek.encode(), hex::decode(&self.ek).unwrap().as_slice());
+        assert_eq!(ek, MLKEM512PublicKey::from_bytes(&hex::decode_array::<MLKEM512_PK_LEN>(&self.ek)).unwrap());
+        assert_eq!(&ek.encode(), hex::decode_array::<MLKEM512_PK_LEN>(&self.ek).as_slice());
 
-        assert_eq!(dk, MLKEM512PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap()).unwrap());
-        assert_eq!(&dk.encode(), hex::decode(&self.dk).unwrap().as_slice());
+        assert_eq!(dk, MLKEM512PrivateKey::from_bytes(&hex::decode_array::<MLKEM512_SK_LEN>(&self.dk)).unwrap());
+        assert_eq!(&dk.encode(), hex::decode_array::<MLKEM512_SK_LEN>(&self.dk).as_slice());
     }
 
     fn run_mlkem768(&self) {
@@ -509,16 +512,16 @@ impl MLKEMKeygenSeedTestCase {
         // currently, the wycheproof tests contain only valid tests, so just run them; no errors to check
 
         let seed =
-            KeyMaterial512::from_bytes_as_type(&hex::decode(&self.seed).unwrap(), KeyType::Seed)
+            KeyMaterial512::from_bytes_as_type(&hex::decode_array::<MLKEM_SEED_LEN>(&self.seed), KeyType::Seed)
                 .unwrap();
 
         let (ek, dk) = MLKEM768::keygen_from_seed(&seed).unwrap();
 
-        assert_eq!(ek, MLKEM768PublicKey::from_bytes(&hex::decode(&self.ek).unwrap()).unwrap());
-        assert_eq!(&ek.encode(), hex::decode(&self.ek).unwrap().as_slice());
+        assert_eq!(ek, MLKEM768PublicKey::from_bytes(&hex::decode_array::<MLKEM768_PK_LEN>(&self.ek)).unwrap());
+        assert_eq!(&ek.encode(), hex::decode_array::<MLKEM768_PK_LEN>(&self.ek).as_slice());
 
-        assert_eq!(dk, MLKEM768PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap()).unwrap());
-        assert_eq!(&dk.encode(), hex::decode(&self.dk).unwrap().as_slice());
+        assert_eq!(dk, MLKEM768PrivateKey::from_bytes(&hex::decode_array::<MLKEM768_SK_LEN>(&self.dk)).unwrap());
+        assert_eq!(&dk.encode(), hex::decode_array::<MLKEM768_SK_LEN>(&self.dk).as_slice());
     }
 
     fn run_mlkem1024(&self) {
@@ -527,16 +530,16 @@ impl MLKEMKeygenSeedTestCase {
         // currently, the wycheproof tests contain only valid tests, so just run them; no errors to check
 
         let seed =
-            KeyMaterial512::from_bytes_as_type(&hex::decode(&self.seed).unwrap(), KeyType::Seed)
+            KeyMaterial512::from_bytes_as_type(&hex::decode_array::<MLKEM_SEED_LEN>(&self.seed), KeyType::Seed)
                 .unwrap();
 
         let (ek, dk) = MLKEM1024::keygen_from_seed(&seed).unwrap();
 
-        assert_eq!(ek, MLKEM1024PublicKey::from_bytes(&hex::decode(&self.ek).unwrap()).unwrap());
-        assert_eq!(&ek.encode(), hex::decode(&self.ek).unwrap().as_slice());
+        assert_eq!(ek, MLKEM1024PublicKey::from_bytes(&hex::decode_array::<MLKEM1024_PK_LEN>(&self.ek)).unwrap());
+        assert_eq!(&ek.encode(), hex::decode_array::<MLKEM1024_PK_LEN>(&self.ek).as_slice());
 
-        assert_eq!(dk, MLKEM1024PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap()).unwrap());
-        assert_eq!(&dk.encode(), hex::decode(&self.dk).unwrap().as_slice());
+        assert_eq!(dk, MLKEM1024PrivateKey::from_bytes(&hex::decode_array::<MLKEM1024_SK_LEN>(&self.dk)).unwrap());
+        assert_eq!(&dk.encode(), hex::decode_array::<MLKEM1024_SK_LEN>(&self.dk).as_slice());
     }
 }
 
@@ -590,7 +593,7 @@ impl MLKEMSemiExpandedDecapsTestCase {
         assert_eq!(self.parameter_set, ParameterSet::Mlkem512);
 
         /* Load the private key */
-        let _dk = match MLKEM512PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap()) {
+        let _dk = match MLKEM512PrivateKey::from_bytes(&hex::decode_array::<MLKEM512_SK_LEN>(&self.dk)) {
             Ok(dk) => dk,
             Err(e) => {
                 if self.result == "invalid" {
@@ -610,7 +613,7 @@ impl MLKEMSemiExpandedDecapsTestCase {
         assert_eq!(self.parameter_set, ParameterSet::Mlkem768);
 
         /* Load the private key */
-        let _dk = match MLKEM768PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap()) {
+        let _dk = match MLKEM768PrivateKey::from_bytes(&hex::decode_array::<MLKEM768_SK_LEN>(&self.dk)) {
             Ok(dk) => dk,
             Err(e) => {
                 if self.result == "invalid" {
@@ -630,7 +633,7 @@ impl MLKEMSemiExpandedDecapsTestCase {
         assert_eq!(self.parameter_set, ParameterSet::Mlkem1024);
 
         /* Load the private key */
-        let _dk = match MLKEM1024PrivateKey::from_bytes(&hex::decode(&self.dk).unwrap()) {
+        let _dk = match MLKEM1024PrivateKey::from_bytes(&hex::decode_array::<MLKEM1024_SK_LEN>(&self.dk)) {
             Ok(dk) => dk,
             Err(e) => {
                 if self.result == "invalid" {
@@ -704,7 +707,7 @@ impl MLKEMTestCase {
 
         /* Load the private key */
         let mut seed = match KeyMaterial512::from_bytes_as_type(
-            &hex::decode(&self.seed).unwrap(),
+            &hex::decode_array::<MLKEM_SEED_LEN>(&self.seed),
             KeyType::Seed,
         ) {
             Ok(seed) => seed,
@@ -746,12 +749,12 @@ impl MLKEMTestCase {
         };
 
         // check that the derived ek matches the provided one
-        assert_eq!(&ek.encode(), &hex::decode(&self.ek).unwrap().as_slice());
+        assert_eq!(&ek.encode(), &hex::decode_array::<MLKEM512_PK_LEN>(&self.ek).as_slice());
 
         // these tests don't provide m, so can't test deterministic encaps
 
         // test decaps
-        let k = match MLKEM512::decaps(&dk, &hex::decode(&self.c).unwrap().as_slice()) {
+        let k = match MLKEM512::decaps(&dk, &hex::decode_array::<MLKEM512_CT_LEN>(&self.c)) {
             Ok(k) => k,
             Err(e) => {
                 if self.result == "invalid" {
@@ -762,7 +765,7 @@ impl MLKEMTestCase {
             }
         };
 
-        assert_eq!(k.ref_to_bytes(), hex::decode(&self.k).unwrap().as_slice());
+        assert_eq!(k.ref_to_bytes(), hex::decode_array::<MLKEM_SS_LEN>(&self.k).as_slice());
     }
 
     fn run_mlkem768(&self) {
@@ -770,7 +773,7 @@ impl MLKEMTestCase {
 
         /* Load the private key */
         let mut seed = match KeyMaterial512::from_bytes_as_type(
-            &hex::decode(&self.seed).unwrap(),
+            &hex::decode_array::<MLKEM_SEED_LEN>(&self.seed),
             KeyType::Seed,
         ) {
             Ok(seed) => seed,
@@ -812,12 +815,12 @@ impl MLKEMTestCase {
         };
 
         // check that the derived ek matches the provided one
-        assert_eq!(&ek.encode(), &hex::decode(&self.ek).unwrap().as_slice());
+        assert_eq!(&ek.encode(), &hex::decode_array::<MLKEM768_PK_LEN>(&self.ek).as_slice());
 
         // these tests don't provide m, so can't test deterministic encaps
 
         // test decaps
-        let k = match MLKEM768::decaps(&dk, &hex::decode(&self.c).unwrap().as_slice()) {
+        let k = match MLKEM768::decaps(&dk, &hex::decode_array::<MLKEM768_CT_LEN>(&self.c)) {
             Ok(k) => k,
             Err(e) => {
                 if self.result == "invalid" {
@@ -828,7 +831,7 @@ impl MLKEMTestCase {
             }
         };
 
-        assert_eq!(k.ref_to_bytes(), hex::decode(&self.k).unwrap().as_slice());
+        assert_eq!(k.ref_to_bytes(), hex::decode_array::<MLKEM_SS_LEN>(&self.k).as_slice());
     }
 
     fn run_mlkem1024(&self) {
@@ -836,7 +839,7 @@ impl MLKEMTestCase {
 
         /* Load the private key */
         let mut seed = match KeyMaterial512::from_bytes_as_type(
-            &hex::decode(&self.seed).unwrap(),
+            &hex::decode_array::<MLKEM_SEED_LEN>(&self.seed),
             KeyType::Seed,
         ) {
             Ok(seed) => seed,
@@ -878,12 +881,12 @@ impl MLKEMTestCase {
         };
 
         // check that the derived ek matches the provided one
-        assert_eq!(&ek.encode(), &hex::decode(&self.ek).unwrap().as_slice());
+        assert_eq!(&ek.encode(), &hex::decode_array::<MLKEM1024_PK_LEN>(&self.ek).as_slice());
 
         // these tests don't provide m, so can't test deterministic encaps
 
         // test decaps
-        let k = match MLKEM1024::decaps(&dk, &hex::decode(&self.c).unwrap().as_slice()) {
+        let k = match MLKEM1024::decaps(&dk, &hex::decode_array::<MLKEM1024_CT_LEN>(&self.c)) {
             Ok(k) => k,
             Err(e) => {
                 if self.result == "invalid" {
@@ -894,6 +897,6 @@ impl MLKEMTestCase {
             }
         };
 
-        assert_eq!(k.ref_to_bytes(), hex::decode(&self.k).unwrap().as_slice());
+        assert_eq!(k.ref_to_bytes(), hex::decode_array::<MLKEM_SS_LEN>(&self.k).as_slice());
     }
 }

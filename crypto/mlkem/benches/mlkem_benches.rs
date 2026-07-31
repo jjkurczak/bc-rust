@@ -2,8 +2,8 @@ use bouncycastle_core::key_material::{KeyMaterial512, KeyType};
 use bouncycastle_core::traits::KEMDecapsulator;
 use bouncycastle_hex as hex;
 use bouncycastle_mlkem::{
-    MLKEM_RND_LEN, MLKEM512, MLKEM512_CT_LEN, MLKEM512PrivateKeyExpanded, MLKEM768,
-    MLKEM768_CT_LEN, MLKEM768PrivateKeyExpanded, MLKEM1024, MLKEM1024_CT_LEN,
+    MLKEM_RND_LEN, MLKEM_SEED_LEN, MLKEM512, MLKEM512_CT_LEN, MLKEM512PrivateKeyExpanded,
+    MLKEM768, MLKEM768_CT_LEN, MLKEM768PrivateKeyExpanded, MLKEM1024, MLKEM1024_CT_LEN,
     MLKEM1024PrivateKeyExpanded, MLKEMPublicKeyTrait, MLKEMTrait,
 };
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -96,13 +96,7 @@ fn bench_mlkem_encaps(c: &mut Criterion) {
     // Set up the seeds outside of the timing loop
     // Doing different seeds so that the CPU does not cache them or do too much branch prediction
     let seed = KeyMaterial512::from_bytes_as_type(
-        &hex::decode(
-            "000102030405060708090a0b0c0d0e0f
-                            101112131415161718191a1b1c1d1e1f
-                            202122232425262728292a2b2c2d2e2f
-                            303132333435363738393a3b3c3d3e3f",
-        )
-        .unwrap(),
+        &hex::decode_array::<MLKEM_SEED_LEN>("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"),
         KeyType::Seed,
     )
     .unwrap();
@@ -162,13 +156,7 @@ fn bench_mlkem_encaps_for_expanded(c: &mut Criterion) {
     // Set up the seeds outside of the timing loop
     // Doing different seeds so that the CPU does not cache them or do too much branch prediction
     let seed = KeyMaterial512::from_bytes_as_type(
-        &hex::decode(
-            "000102030405060708090a0b0c0d0e0f
-                            101112131415161718191a1b1c1d1e1f
-                            202122232425262728292a2b2c2d2e2f
-                            303132333435363738393a3b3c3d3e3f",
-        )
-        .unwrap(),
+        &hex::decode_array::<MLKEM_SEED_LEN>("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"),
         KeyType::Seed,
     )
     .unwrap();
@@ -231,13 +219,7 @@ fn bench_mlkem_decaps(c: &mut Criterion) {
     // Set up the seeds outside of the timing loop
     // Doing different seeds so that the CPU does not cache them or do too much branch prediction
     let seed = KeyMaterial512::from_bytes_as_type(
-        &hex::decode(
-            "000102030405060708090a0b0c0d0e0f
-                            101112131415161718191a1b1c1d1e1f
-                            202122232425262728292a2b2c2d2e2f
-                            303132333435363738393a3b3c3d3e3f",
-        )
-        .unwrap(),
+        &hex::decode_array::<MLKEM_SEED_LEN>("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"),
         KeyType::Seed,
     )
     .unwrap();
@@ -316,13 +298,7 @@ fn bench_mlkem_decaps_with_expanded_key(c: &mut Criterion) {
     // Set up the seeds outside of the timing loop
     // Doing different seeds so that the CPU does not cache them or do too much branch prediction
     let seed = KeyMaterial512::from_bytes_as_type(
-        &hex::decode(
-            "000102030405060708090a0b0c0d0e0f
-                            101112131415161718191a1b1c1d1e1f
-                            202122232425262728292a2b2c2d2e2f
-                            303132333435363738393a3b3c3d3e3f",
-        )
-        .unwrap(),
+        &hex::decode_array::<MLKEM_SEED_LEN>("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"),
         KeyType::Seed,
     )
     .unwrap();
@@ -404,13 +380,7 @@ fn bench_mlkem_decaps_from_seed(c: &mut Criterion) {
     // Set up the seeds outside of the timing loop
     // Doing different seeds so that the CPU does not cache them or do too much branch prediction
     let seed = KeyMaterial512::from_bytes_as_type(
-        &hex::decode(
-            "000102030405060708090a0b0c0d0e0f
-                            101112131415161718191a1b1c1d1e1f
-                            202122232425262728292a2b2c2d2e2f
-                            303132333435363738393a3b3c3d3e3f",
-        )
-        .unwrap(),
+        &hex::decode_array::<MLKEM_SEED_LEN>("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"),
         KeyType::Seed,
     )
     .unwrap();
