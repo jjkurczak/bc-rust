@@ -153,8 +153,8 @@ mod bc_test_data {
             assert_eq!(self.mode, "keyGen");
 
             let mut seed_bytes = [0u8; 64];
-            seed_bytes[..32].copy_from_slice(&*hex::decode(&self.d).unwrap());
-            seed_bytes[32..].copy_from_slice(&*hex::decode(&self.z).unwrap());
+            seed_bytes[..32].copy_from_slice(&hex::decode_array::<32>(&self.d));
+            seed_bytes[32..].copy_from_slice(&hex::decode_array::<32>(&self.z));
 
             let mut seed = KeyMaterial512::from_bytes_as_type(&seed_bytes, KeyType::Seed).unwrap();
 
@@ -168,29 +168,23 @@ mod bc_test_data {
             match self.parameter_set.as_str() {
                 "ML-KEM-512" => {
                     let (pk, sk) = MLKEM512::keygen_from_seed(&seed).unwrap();
-                    let pk_sized: [u8; MLKEM512_PK_LEN] =
-                        hex::decode(&self.ek).unwrap().try_into().unwrap();
+                    let pk_sized: [u8; MLKEM512_PK_LEN] = hex::decode_array(&self.ek);
                     assert_eq!(pk.encode(), pk_sized);
-                    let sk_sized: [u8; MLKEM512_FULL_SK_LEN] =
-                        hex::decode(&self.dk).unwrap().try_into().unwrap();
+                    let sk_sized: [u8; MLKEM512_FULL_SK_LEN] = hex::decode_array(&self.dk);
                     assert_eq!(sk.encode_full_sk(), sk_sized);
                 }
                 "ML-KEM-768" => {
                     let (pk, sk) = MLKEM768::keygen_from_seed(&seed).unwrap();
-                    let pk_sized: [u8; MLKEM768_PK_LEN] =
-                        hex::decode(&self.ek).unwrap().try_into().unwrap();
+                    let pk_sized: [u8; MLKEM768_PK_LEN] = hex::decode_array(&self.ek);
                     assert_eq!(pk.encode(), pk_sized);
-                    let sk_sized: [u8; MLKEM768_FULL_SK_LEN] =
-                        hex::decode(&self.dk).unwrap().try_into().unwrap();
+                    let sk_sized: [u8; MLKEM768_FULL_SK_LEN] = hex::decode_array(&self.dk);
                     assert_eq!(sk.encode_full_sk(), sk_sized);
                 }
                 "ML-KEM-1024" => {
                     let (pk, sk) = MLKEM1024::keygen_from_seed(&seed).unwrap();
-                    let pk_sized: [u8; MLKEM1024_PK_LEN] =
-                        hex::decode(&self.ek).unwrap().try_into().unwrap();
+                    let pk_sized: [u8; MLKEM1024_PK_LEN] = hex::decode_array(&self.ek);
                     assert_eq!(pk.encode(), pk_sized);
-                    let sk_sized: [u8; MLKEM1024_FULL_SK_LEN] =
-                        hex::decode(&self.dk).unwrap().try_into().unwrap();
+                    let sk_sized: [u8; MLKEM1024_FULL_SK_LEN] = hex::decode_array(&self.dk);
                     assert_eq!(sk.encode_full_sk(), sk_sized);
                 }
                 val => panic!("Invalid parameter set: {}", val),

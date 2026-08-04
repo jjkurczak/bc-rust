@@ -217,7 +217,7 @@ impl<const k: usize, const PK_LEN: usize, const T_PACKED_LEN: usize> Debug
             4 => ML_KEM_1024_NAME,
             _ => panic!("Unsupported key length"),
         };
-        let hash = SHA3_256::new().hash(&self.encode());
+        let hash: [u8; PK_LEN] = SHA3_256::new().hash_array(&self.encode());
         write!(f, "MLKEMPublicKey {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
     }
 }
@@ -232,7 +232,7 @@ impl<const k: usize, const PK_LEN: usize, const T_PACKED_LEN: usize> Display
             4 => ML_KEM_1024_NAME,
             _ => panic!("Unsupported key length"),
         };
-        let hash = SHA3_256::new().hash(&self.encode());
+        let hash: [u8; PK_LEN] = SHA3_256::new().hash_array(&self.encode());
         write!(f, "MLKEMPublicKey {{ alg: {}, pub_key_hash: {:x?} }}", alg, hash)
     }
 }
