@@ -104,7 +104,7 @@
 //!   all-zero salt, and the extract phase accepts one, but a salt that the caller believes to be
 //!   random and is not provides none of the benefit the recommendation is aimed at.
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(feature = "alloc"), no_std)]
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
 

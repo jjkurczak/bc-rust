@@ -87,7 +87,7 @@
 //! * The key buffer is held in [`bouncycastle_utils::secret::Secret`] and zeroized on drop. The
 //!   `K ⊕ ipad` / `K ⊕ opad` blocks are transient stack allocations and are not zeroized.
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(feature = "alloc"), no_std)]
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
 

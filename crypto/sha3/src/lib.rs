@@ -18,6 +18,7 @@
 //! use bouncycastle_sha3 as sha3;
 //!
 //! let data: &[u8] = b"Hello, world!";
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = sha3::SHA3_256::new().hash(data);
 //! ```
 //!
@@ -37,7 +38,8 @@
 //! for chunk in data.chunks(16) {
 //!     sha3.do_update(chunk);
 //! }
-//!
+//! 
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = sha3.do_final();
 //! ```
 //!
@@ -51,6 +53,7 @@
 //! let mut sha3 = sha3::SHA3_256::new();
 //! sha3.do_update(&data[..data.len()-1]);
 //! let final_byte = data[data.len()-1];
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = sha3.do_final_partial_bits(final_byte, 3).expect("Failed to finalize hash state.");
 //! ```
 //!
@@ -65,7 +68,9 @@
 //! use bouncycastle_sha3 as sha3;
 //!
 //! let data: &[u8] = b"Hello, world!";
+//! #[cfg(feature = "alloc")]
 //! let output_16byte: Vec<u8> = sha3::SHAKE128::new().hash_xof(data, 16);
+//! #[cfg(feature = "alloc")]
 //! let output_16KiB: Vec<u8> = sha3::SHAKE128::new().hash_xof(data, 16 * 1024);
 //! ```
 //!
@@ -83,10 +88,12 @@
 //! let data: &[u8] = b"Hello, world!";
 //! let mut shake = sha3::SHAKE128::new();
 //! shake.absorb(data).expect("infallible before squeeze");
+//! #[cfg(feature = "alloc")]
 //! let output_16byte: Vec<u8> = shake.squeeze(16);
 //!
 //! let mut shake = sha3::SHAKE128::new();
 //! let mut output_16KiB: Vec<u8> = vec![];
+//! #[cfg(feature = "alloc")]
 //! for i in 0..16 { output_16KiB.extend_from_slice(&shake.squeeze(1024)) }
 //! ```
 //!
@@ -106,6 +113,7 @@
 //! use bouncycastle_sha3 as sha3;
 //!
 //! let input_key = KeyMaterial256::from_bytes(b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F").unwrap();
+//! #[cfg(feature = "alloc")]
 //! let output_key = sha3::SHA3_256::new().derive_key(&input_key, b"Additional input").unwrap();
 //!```
 //! In the previous example, since [`KeyMaterial::from_bytes`] cannot know the amount of entropy in the input data,
@@ -146,6 +154,7 @@
 //! // ... later, possibly on another host: resume from the serialized state.
 //! let mut sha3_resumed = sha3::SHA3_256::from_suspended(serialized_state).unwrap();
 //! sha3_resumed.do_update(msg_part2);
+//! #[cfg(feature = "alloc")]
 //! let h: Vec<u8> = sha3_resumed.do_final();
 //! ```
 //!
@@ -174,7 +183,7 @@
 //! * The sponge state and queue are held in [`bouncycastle_utils::secret::Secret`] and zeroized on
 //!   drop.
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(feature = "alloc"), no_std)]
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
 #![allow(private_bounds)]

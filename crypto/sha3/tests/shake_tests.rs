@@ -13,6 +13,8 @@ mod shake_tests {
     use bouncycastle_core_test_framework::xof::TestFrameworkXOF;
     use bouncycastle_sha3::{SHA3_256, SHAKE128, SHAKE256};
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_xof_partial_bit_output() {
         // The 4th ([3]) byte of the output of SHA128(\x00\x01\x02\x03\x04) is known to be 0xFF
@@ -137,6 +139,8 @@ mod shake_tests {
     /// single function of the whole message). Both absorb entry points must reject a post-squeeze call
     /// with `HashError::InvalidState` rather than panicking, and a rejected call must leave the sponge
     /// untouched so the output stream continues consistently.
+    /// // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn absorb_after_squeeze_is_rejected() {
         use bouncycastle_core::errors::HashError;
@@ -169,6 +173,8 @@ mod shake_tests {
         assert_eq!(second.as_slice(), &clean[16..]);
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_update_bytes() {
         for tc in read_test_vectors("SHAKETestVectors.txt") {
@@ -191,32 +197,36 @@ mod shake_tests {
         let key_material = KeyMaterial256::from_bytes(&DUMMY_SEED[..32]).unwrap();
         // println!("{:x?}", &DUMMY_SEED[..32]);
 
-        // Without additional input -- SHAKE128
-        let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
-        assert_eq!(derived_key.key_len(), 32);
-        let expected_key = KeyMaterial256::from_bytes(b"\x06\x6a\x36\x1d\xc6\x75\xf8\x56\xce\xcd\xc0\x2b\x25\x21\x8a\x10\xce\xc0\xce\xcf\x79\x85\x9e\xc0\xfe\xc3\xd4\x09\xe5\x84\x7a\x92").unwrap();
-        assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
-        testframework.test_kdf_single_key::<SHAKE128>(&key_material, &[0u8; 0], &expected_key);
+        // todo: may require no_std equivalent
+        #[cfg(feature = "alloc")]
+        {
+            // Without additional input -- SHAKE128
+            let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 0]).unwrap();
+            assert_eq!(derived_key.key_len(), 32);
+            let expected_key = KeyMaterial256::from_bytes(b"\x06\x6a\x36\x1d\xc6\x75\xf8\x56\xce\xcd\xc0\x2b\x25\x21\x8a\x10\xce\xc0\xce\xcf\x79\x85\x9e\xc0\xfe\xc3\xd4\x09\xe5\x84\x7a\x92").unwrap();
+            assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
+            testframework.test_kdf_single_key::<SHAKE128>(&key_material, &[0u8; 0], &expected_key);
 
-        // Without additional input -- SHAKE256
-        let derived_key = SHAKE256::new().derive_key(&key_material, &[0u8; 0]).unwrap();
-        assert_eq!(derived_key.key_len(), 64);
-        let expected_key = KeyMaterial512::from_bytes(b"\x69\xf0\x7c\x88\x40\xce\x80\x02\x4d\xb3\x09\x39\x88\x2c\x3d\x5b\xbc\x9c\x98\xb3\xe3\x1e\x45\x13\xeb\xd2\xca\x9b\x45\x03\xcd\xd3\xc9\xc9\x07\x42\x45\x2c\x71\x73\xd4\xa7\x5a\xc4\x91\x63\xe1\x4e\xe0\xcc\x24\xef\x70\x35\xb2\x72\xd1\x9a\x7a\xf1\x09\x9b\x33\x3f").unwrap();
-        assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
-        testframework.test_kdf_single_key::<SHAKE256>(&key_material, &[0u8; 0], &expected_key);
+            // Without additional input -- SHAKE256
+            let derived_key = SHAKE256::new().derive_key(&key_material, &[0u8; 0]).unwrap();
+            assert_eq!(derived_key.key_len(), 64);
+            let expected_key = KeyMaterial512::from_bytes(b"\x69\xf0\x7c\x88\x40\xce\x80\x02\x4d\xb3\x09\x39\x88\x2c\x3d\x5b\xbc\x9c\x98\xb3\xe3\x1e\x45\x13\xeb\xd2\xca\x9b\x45\x03\xcd\xd3\xc9\xc9\x07\x42\x45\x2c\x71\x73\xd4\xa7\x5a\xc4\x91\x63\xe1\x4e\xe0\xcc\x24\xef\x70\x35\xb2\x72\xd1\x9a\x7a\xf1\x09\x9b\x33\x3f").unwrap();
+            assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
+            testframework.test_kdf_single_key::<SHAKE256>(&key_material, &[0u8; 0], &expected_key);
 
-        // With additional input
-        let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 8]).unwrap();
-        let expected_key = KeyMaterial256::from_bytes(b"\xfb\x4e\x8b\x67\xbb\xb8\xe1\x16\xa7\x76\x17\x2d\xb6\x64\xc9\xcd\x71\xad\x3b\xc0\xce\x45\xd3\xe8\xd0\x43\x43\x97\x79\xeb\x2d\xd1").unwrap();
-        assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
-        testframework.test_kdf_single_key::<SHAKE128>(&key_material, &[0u8; 8], &expected_key);
+            // With additional input
+            let derived_key = SHAKE128::new().derive_key(&key_material, &[0u8; 8]).unwrap();
+            let expected_key = KeyMaterial256::from_bytes(b"\xfb\x4e\x8b\x67\xbb\xb8\xe1\x16\xa7\x76\x17\x2d\xb6\x64\xc9\xcd\x71\xad\x3b\xc0\xce\x45\xd3\xe8\xd0\x43\x43\x97\x79\xeb\x2d\xd1").unwrap();
+            assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
+            testframework.test_kdf_single_key::<SHAKE128>(&key_material, &[0u8; 8], &expected_key);
 
-        // derive_key_from_multiple
-        let keys = [&key_material, &key_material];
-        let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
-        let mut expected_key = KeyMaterial256::from_bytes(b"\xc2\x44\x60\x7f\x7b\x84\x3a\xe3\xc7\x69\x3d\x0b\x39\x9a\x3d\x50\x2e\x42\x58\x96\x33\xc7\x3a\xc1\x1f\xae\x0a\x04\x7b\x49\x1e\xf4").unwrap();
-        assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
-        testframework.test_kdf_multiple_key::<SHAKE128>(&keys, &[0u8; 0], &mut expected_key);
+            // derive_key_from_multiple
+            let keys = [&key_material, &key_material];
+            let derived_key = SHAKE128::new().derive_key_from_multiple(&keys, &[0u8; 0]).unwrap();
+            let mut expected_key = KeyMaterial256::from_bytes(b"\xc2\x44\x60\x7f\x7b\x84\x3a\xe3\xc7\x69\x3d\x0b\x39\x9a\x3d\x50\x2e\x42\x58\x96\x33\xc7\x3a\xc1\x1f\xae\x0a\x04\x7b\x49\x1e\xf4").unwrap();
+            assert_eq!(derived_key.ref_to_bytes(), expected_key.ref_to_bytes());
+            testframework.test_kdf_multiple_key::<SHAKE128>(&keys, &[0u8; 0], &mut expected_key);
+        }
 
         // success case -- output version
         let mut derived_key = KeyMaterial256::new();
@@ -264,6 +274,8 @@ mod shake_tests {
         assert_ne!(&derived_key.ref_to_bytes()[32..], [0u8; 200 - 32]);
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn kdf_input_entropy() {
         // Exact entropy
@@ -340,6 +352,8 @@ mod shake_tests {
         assert_eq!(XOF::max_security_strength(&SHAKE256::default()), SecurityStrength::_256bit);
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn run_kats() {
         run_test_vectors(read_test_vectors("SHAKETestVectors.txt"));
@@ -352,6 +366,8 @@ mod shake_tests {
         test_framework.test_xof::<SHAKE256>(&DUMMY_SEED[..512], b"\xA1\xD7\x18\x85\xB0\xA8\x41\xF0\x3D\x1D\xC7\xF2\x73\x8A\x15\xCC\x98\x40\x71\xA1\x7F\xFE\xD5\xEC\xAC\xB9\xF5\x87\x20\xA4\x73\xBE\x1F\x2D\x28\xB9\x6D\x54\x3A\x36\x7C\x81\x11\x42\x06\xF5\xAF\x37\x18\xE7\x31\x5B\x57\xF2\x90\xB6\x4D\x8D\x29\xCF\x43\x7E\x40\x4C");
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn suspendable_state() {
         use bouncycastle_core::errors::SuspendableError;
@@ -419,6 +435,8 @@ mod shake_tests {
         }
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     fn run_test_vectors(test_vectors: Vec<TestCase>) {
         for tc in test_vectors {
             //println!("SHA3-{} {}-bits", &tc.algorithm, &tc.bits);
@@ -433,6 +451,8 @@ mod shake_tests {
         }
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     fn run_test_case(tc: TestCase, mut shake: impl XOF) {
         let partial_bits = tc.bits % 8;
         let output: Vec<u8>;
@@ -457,7 +477,7 @@ mod shake_tests {
 /** Constant helpers **/
 
 pub(crate) mod shake_test_helpers {
-    use bouncycastle_hex as hex;
+    use bouncycastle_core_test_framework::no_std_utils as no_std_utils;
     use std::fs;
     use std::path::Path;
     use std::sync::Once;
@@ -554,7 +574,7 @@ pub(crate) mod shake_test_helpers {
                     block.append(&mut Vec::from(line));
                     i += 1;
                 }
-                let output = hex::decode(&*String::from_utf8(block).unwrap()).unwrap();
+                let output = no_std_utils::hex_decode(&*String::from_utf8(block).unwrap()).unwrap();
 
                 let v = TestCase { algorithm, bits, msg, output };
                 test_vectors.push(v);
