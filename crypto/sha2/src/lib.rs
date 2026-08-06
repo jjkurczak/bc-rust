@@ -17,6 +17,7 @@
 //! use bouncycastle_sha2 as sha2;
 //!
 //! let data: &[u8] = b"Hello, world!";
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = sha2::SHA256::new().hash(data);
 //! ```
 //!
@@ -37,6 +38,7 @@
 //!     sha2.do_update(chunk);
 //! }
 //!
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = sha2.do_final();
 //! ```
 //!
@@ -106,6 +108,7 @@
 //! // ... later, possibly on another host: resume from the serialized state.
 //! let mut sha2_resumed = sha2::SHA256::from_suspended(serialized_state).unwrap();
 //! sha2_resumed.do_update(msg_part2);
+//! #[cfg(feature = "alloc")]
 //! let h: Vec<u8> = sha2_resumed.do_final();
 //! ```
 
