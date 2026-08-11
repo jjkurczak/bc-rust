@@ -477,7 +477,7 @@ mod shake_tests {
 /** Constant helpers **/
 
 pub(crate) mod shake_test_helpers {
-    use bouncycastle_core_test_framework::no_std_utils as no_std_utils;
+    use bouncycastle_core_test_framework::no_std_utils;
     use std::fs;
     use std::path::Path;
     use std::sync::Once;
