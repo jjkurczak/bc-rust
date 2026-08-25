@@ -3,16 +3,24 @@ name = "bouncycastle-mlkem"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["bouncycastle-rng"]
+bouncycastle-rng = [
+    "dep:bouncycastle-rng",
+    "bouncycastle-core-test-framework/bouncycastle-rng",
+    "bouncycastle-core/bouncycastle-rng",
+    ]
+
 [dependencies]
-bouncycastle-core.workspace = true
+bouncycastle-core = { workspace = true, default-features = false }
 bouncycastle-sha3.workspace = true
-bouncycastle-rng.workspace = true
+bouncycastle-rng = { workspace = true, optional = true }
 bouncycastle-utils.workspace = true
 
 [dev-dependencies]
-bouncycastle-core-test-framework.workspace = true
+bouncycastle-core-test-framework = { workspace = true, default-features = false }
 bouncycastle-hex.workspace = true
-bouncycastle-rng.workspace = true
+bouncycastle-rng = { workspace = true }
 criterion.workspace = true
 serde_json = "1.0"
 

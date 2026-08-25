@@ -39,6 +39,8 @@ mod mlkem_tests {
     //     MLDSA44::verify(&pk, &message, None, &sig).unwrap();
     // }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn core_framework_tests() {
         use bouncycastle_core_test_framework::kem::TestFrameworkKEM;
@@ -370,6 +372,7 @@ mod mlkem_tests {
     }
 
     /// test the "Decapsulation input checks" in Section 7.3
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn test_decapsulation_input_checks() {
         // 1. (Ciphertext type check) If 𝑐 is not a byte array of length 32(𝑑𝑢𝑘 + 𝑑𝑣) for the values of 𝑑𝑢,
@@ -416,7 +419,64 @@ mod mlkem_tests {
         }
     }
 
+    /// test the "Decapsulation input checks" in Section 7.3
+    #[test]
+    fn test_decapsulation_input_checks_no_rng() {
+        // 1. (Ciphertext type check) If 𝑐 is not a byte array of length 32(𝑑𝑢𝑘 + 𝑑𝑣) for the values of 𝑑𝑢,
+        //  𝑑𝑣, and 𝑘 specified by the relevant parameter set, then input checking has failed.
+        // This is already tested in [test_boundary_conditions]
+
+        // 2. (Decapsulation key type check) If dk is not a byte array of length 768𝑘 + 96 for the value of
+        // 𝑘 specified by the relevant parameter set, then input checking has failed.
+        // This does not need to be tested because of the static-sizing of the dk array.
+
+        // 3. (Hash check) Perform the computation
+        //     test ← H(dk[384𝑘 ∶ 768𝑘 + 32])) (7.2)
+        // If test ≠ dk[768𝑘 + 32 ∶ 768𝑘 + 64], then input checking has failed.
+
+        // Test the procedure with portions of dk corresponding to ek that have been corrupted
+        // This is actually caught on loading the dk, not on decaps, which is better for performance
+        // since you might do many decaps's on one key, and that should be fine for FIPS?
+
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        let (pk1, sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+
+        let mut sk_encoded = sk.encode();
+
+        // just to check our array index math, make sure we know how to extract the public key ek from the sk bytes
+        // and that it loads properly and gives the same key.
+        let pk2_encoded: &[u8] = &sk_encoded[384 * MLKEM512_k..768 * MLKEM512_k + 32];
+        let pk2 = MLKEM512PublicKey::from_bytes(pk2_encoded).unwrap();
+        assert_eq!(pk1, pk2);
+
+        // flip some bits in the range that contains ek, but in a way that still results in a valid public key ek
+        #[allow(non_upper_case_globals)]
+        const MLKEM512_k: usize = 2;
+        sk_encoded[384 * MLKEM512_k + 2] ^= 0x0F;
+
+        // check that this is still a valid public key, but different from pk1
+        let pk3_encoded: &[u8] = &sk_encoded[384 * MLKEM512_k..768 * MLKEM512_k + 32];
+        let pk3 = MLKEM512PublicKey::from_bytes(pk3_encoded).unwrap();
+        assert_ne!(pk1, pk3);
+
+        // Now for the important part: sk will refuse to load with a KEMError::ConsistencyCheckFailed
+        match MLKEM512PrivateKey::from_bytes(&sk_encoded) {
+            Err(KEMError::ConsistencyCheckFailed(_)) => { /* good */ }
+            Err(e) => panic!("expected ConsistencyCheckFailed, got {:?}", e),
+            Ok(_) => panic!("expected ConsistencyCheckFailed, got Ok()"),
+        }
+    }
+
     /// checks that the ss KeyMaterial is set correctly
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn test_ss_keymaterial() {
         // MLKEM512
@@ -438,6 +498,38 @@ mod mlkem_tests {
         assert_eq!(ss.security_strength(), SecurityStrength::_256bit);
     }
 
+    /// checks that the ss KeyMaterial is set correctly
+    #[test]
+    fn test_ss_keymaterial_no_rng() {
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        // MLKEM512
+        let (pk, _sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+        let (ss, _ct) = MLKEM512::encaps_rng(&pk, &mut rng).unwrap();
+        assert_eq!(ss.key_len(), 32);
+        assert_eq!(ss.security_strength(), SecurityStrength::_128bit);
+
+        // MLKEM768
+        let (pk, _sk) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+        let (ss, _ct) = MLKEM768::encaps_rng(&pk, &mut rng).unwrap();
+        assert_eq!(ss.key_len(), 32);
+        assert_eq!(ss.security_strength(), SecurityStrength::_192bit);
+
+        // MLKEM1024
+        let (pk, _sk) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
+        let (ss, _ct) = MLKEM1024::encaps_rng(&pk, &mut rng).unwrap();
+        assert_eq!(ss.key_len(), 32);
+        assert_eq!(ss.security_strength(), SecurityStrength::_256bit);
+    }
+
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     /// cest that a corrupted ct returns the implicit rejection value K_bar = J(z||c)
     fn test_implicit_rejection() {
@@ -482,6 +574,60 @@ mod mlkem_tests {
         }
     }
 
+    #[test]
+    /// cest that a corrupted ct returns the implicit rejection value K_bar = J(z||c)
+    fn test_implicit_rejection_no_rng() {
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        let seed = KeyMaterial512::from_bytes_as_type(
+            &hex::decode(
+                "49AC8B99BB1E6A8EA818261F8BE68BDEAA52897E7EC6C40B530BC760AB77DCE3
+                                99E3246884181F8E1DD44E0C7629093330221FD67D9B7D6E1510B2DBAD8762F7
+                                ",
+            )
+            .unwrap(),
+            KeyType::Seed,
+        )
+        .unwrap();
+
+        let (pk, sk) = MLKEM512::keygen_from_seed(&seed).unwrap();
+
+        // encaps
+        let (_ss, ct) = MLKEM512::encaps_rng(&pk, &mut rng).unwrap();
+
+        // decaps with busted ciphertext
+        let mut busted_ciphertext = ct.clone();
+        busted_ciphertext[17] ^= 0xFF;
+
+        match MLKEM512::decaps(&sk, &busted_ciphertext) {
+            Ok(ss) => {
+                // check that it returned the correct rejection value K_bar = J(z||c)
+                //  z is the second half of the private keyseed.
+                //  c is the ciphertext
+                //  J is SHAKE256(𝑠, 8*32)
+
+                let mut shake = SHAKE256::new();
+                shake
+                    .absorb(&seed.ref_to_bytes()[32..64])
+                    .expect("absorb before squeeze is infallible");
+                shake.absorb(&busted_ciphertext).expect("absorb before squeeze is infallible");
+                let mut buf = [0u8; 32];
+                _ = shake.squeeze_out(&mut buf);
+
+                assert_eq!(ss.ref_to_bytes(), buf);
+            }
+            _ => panic!("This should have succeeded but with the wrong ss."),
+        }
+    }
+
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     /// test various things that are shorter / longer than required
     ///
@@ -550,6 +696,83 @@ mod mlkem_tests {
     }
 
     #[test]
+    /// test various things that are shorter / longer than required
+    ///
+    /// This test satisfies testing condition #1 in the Decapsulation Input checks in FIPS 203 section 7.3
+    fn test_boundary_conditions_no_rng() {
+        // ct too long / too short
+        //
+        // satisfies testing condition #1 in the Decapsulation Input checks in FIPS 203 section 7.3
+        //     /// 3. (Hash check) Perform the computation
+        //     ///     test ← H(dk[384𝑘 ∶ 768𝑘 + 32])) (7.2)
+        //     /// If test ≠ dk[768𝑘 + 32 ∶ 768𝑘 + 64], then input checking has failed.
+
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        // MLKEM512
+        let (pk, sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+        let (_ss, ct) = MLKEM512::encaps_rng(&pk, &mut rng).unwrap();
+
+        // too short
+        match MLKEM512::decaps(&sk, &ct[..MLKEM512_CT_LEN - 1]) {
+            Err(KEMError::LengthError(_)) => { /* good */ }
+            _ => panic!("Expected error for sig too short"),
+        }
+        // too long
+        let mut ct_too_long = [0u8; MLKEM512_CT_LEN + 2];
+        ct_too_long[..MLKEM512_CT_LEN].copy_from_slice(&ct);
+        ct_too_long[MLKEM512_CT_LEN..].copy_from_slice(&[1u8, 0u8]);
+        match MLKEM512::decaps(&sk, &ct_too_long) {
+            Err(KEMError::LengthError(_)) => { /* good */ }
+            _ => panic!("Expected error for sig too short"),
+        }
+
+        // MLKEM768
+        let (pk, sk) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+        let (_ss, ct) = MLKEM768::encaps_rng(&pk, &mut rng).unwrap();
+
+        // too short
+        match MLKEM768::decaps(&sk, &ct[..MLKEM512_CT_LEN - 1]) {
+            Err(KEMError::LengthError(_)) => { /* good */ }
+            _ => panic!("Expected error for sig too short"),
+        }
+        // too long
+        let mut ct_too_long = [0u8; MLKEM768_CT_LEN + 2];
+        ct_too_long[..MLKEM768_CT_LEN].copy_from_slice(&ct);
+        ct_too_long[MLKEM768_CT_LEN..].copy_from_slice(&[1u8, 0u8]);
+        match MLKEM768::decaps(&sk, &ct_too_long) {
+            Err(KEMError::LengthError(_)) => { /* good */ }
+            _ => panic!("Expected error for sig too short"),
+        }
+
+        // MLKEM1024
+        let (pk, sk) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
+        let (_ss, ct) = MLKEM1024::encaps_rng(&pk, &mut rng).unwrap();
+
+        // too short
+        match MLKEM1024::decaps(&sk, &ct[..MLKEM1024_CT_LEN - 1]) {
+            Err(KEMError::LengthError(_)) => { /* good */ }
+            _ => panic!("Expected error for sig too short"),
+        }
+        // too long
+        let mut ct_too_long = [0u8; MLKEM1024_CT_LEN + 2];
+        ct_too_long[..MLKEM1024_CT_LEN].copy_from_slice(&ct);
+        ct_too_long[MLKEM1024_CT_LEN..].copy_from_slice(&[1u8, 0u8]);
+        match MLKEM1024::decaps(&sk, &ct_too_long) {
+            Err(KEMError::LengthError(_)) => { /* good */ }
+            _ => panic!("Expected error for sig too short"),
+        }
+    }
+
+    #[cfg(feature = "bouncycastle-rng")]
+    #[test]
     fn keypair_consistency_check() {
         // this is common to all parameter sets, so I'll just test MLKEM512
         let (pk, sk) = MLKEM512::keygen().unwrap();
@@ -578,6 +801,54 @@ mod mlkem_tests {
         };
     }
 
+    #[test]
+    fn keypair_consistency_check_no_rng() {
+        let seed_bytes_1: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng_1 = FixedSeedRNG::new(seed_bytes_1);
+
+        let seed_bytes_2: [u8; 64] = [
+            0x3f, 0x3e, 0x3d, 0x3c, 0x3b, 0x3a, 0x39, 0x38, 0x37, 0x36, 0x35, 0x34, 0x33, 0x32, 0x31, 0x30,
+            0x2f, 0x2e, 0x2d, 0x2c, 0x2b, 0x2a, 0x29, 0x28, 0x27, 0x26, 0x25, 0x24, 0x23, 0x22, 0x21, 0x20,
+            0x1f, 0x1e, 0x1d, 0x1c, 0x1b, 0x1a, 0x19, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11, 0x10,
+            0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
+        ];
+
+        let mut rng_2 = FixedSeedRNG::new(seed_bytes_2);
+
+        // this is common to all parameter sets, so I'll just test MLKEM512
+        let (pk, sk) = MLKEM512::keygen_from_rng(&mut rng_1).unwrap();
+
+        // success case
+        MLKEM512::keypair_consistency_check(&pk, &sk).unwrap();
+
+        // failure case: different but valid key
+        let (pk2, sk2) = MLKEM512::keygen_from_rng(&mut rng_2).unwrap();
+        match MLKEM512::keypair_consistency_check(&pk, &sk2) {
+            Err(KEMError::ConsistencyCheckFailed(_)) => { /* good */ }
+            _ => panic!("Expected error for different key"),
+        };
+        match MLKEM512::keypair_consistency_check(&pk2, &sk) {
+            Err(KEMError::ConsistencyCheckFailed(_)) => { /* good */ }
+            _ => panic!("Expected error for different key"),
+        };
+
+        // failure case: flip some bits
+        let mut pk_bytes = pk.encode();
+        pk_bytes[17] ^= 0x01;
+        let pk2 = MLKEM512PublicKey::from_bytes(&pk_bytes).unwrap();
+        match MLKEM512::keypair_consistency_check(&pk2, &sk) {
+            Err(KEMError::ConsistencyCheckFailed(_)) => { /* good */ }
+            _ => panic!("Expected error for different key"),
+        };
+    }
+
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn test_expanded_keys() {
         use bouncycastle_mlkem::{MLKEM512, MLKEM512PrivateKeyExpanded, MLKEM512PublicKeyExpanded};
@@ -620,6 +891,66 @@ mod mlkem_tests {
 
         let pk_expanded = MLKEM1024PublicKeyExpanded::from(&pk);
         let (ss, ct) = MLKEM1024::encaps_for_expanded_key(&pk_expanded).unwrap();
+
+        let sk_expanded = MLKEM1024PrivateKeyExpanded::from(&sk);
+        let ss1 = match MLKEM1024::decaps_with_expanded_key(&sk_expanded, &ct) {
+            Err(_) => panic!("Error decapsulating"),
+            Ok(ss) => ss,
+        };
+        assert_eq!(ss, ss1);
+    }
+
+    #[test]
+    fn test_expanded_keys_no_rng() {
+        use bouncycastle_mlkem::{MLKEM512, MLKEM512PrivateKeyExpanded, MLKEM512PublicKeyExpanded};
+        use bouncycastle_mlkem::{MLKEM768, MLKEM768PrivateKeyExpanded, MLKEM768PublicKeyExpanded};
+        use bouncycastle_mlkem::{
+            MLKEM1024, MLKEM1024PrivateKeyExpanded, MLKEM1024PublicKeyExpanded,
+        };
+
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        /*** ML-KEM-512 ***/
+
+        let (pk, sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+
+        let pk_expanded = MLKEM512PublicKeyExpanded::from(&pk);
+        let (ss, ct) = MLKEM512::encaps_for_expanded_key_rng(&pk_expanded, &mut rng).unwrap();
+
+        let sk_expanded = MLKEM512PrivateKeyExpanded::from(&sk);
+        let ss1 = match MLKEM512::decaps_with_expanded_key(&sk_expanded, &ct) {
+            Err(_) => panic!("Error decapsulating"),
+            Ok(ss) => ss,
+        };
+        assert_eq!(ss, ss1);
+
+        /*** ML-KEM-768 ***/
+
+        let (pk, sk) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+
+        let pk_expanded = MLKEM768PublicKeyExpanded::from(&pk);
+        let (ss, ct) = MLKEM768::encaps_for_expanded_key_rng(&pk_expanded, &mut rng).unwrap();
+
+        let sk_expanded = MLKEM768PrivateKeyExpanded::from(&sk);
+        let ss1 = match MLKEM768::decaps_with_expanded_key(&sk_expanded, &ct) {
+            Err(_) => panic!("Error decapsulating"),
+            Ok(ss) => ss,
+        };
+        assert_eq!(ss, ss1);
+
+        /*** ML-KEM-1024 ***/
+
+        let (pk, sk) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
+
+        let pk_expanded = MLKEM1024PublicKeyExpanded::from(&pk);
+        let (ss, ct) = MLKEM1024::encaps_for_expanded_key_rng(&pk_expanded, &mut rng).unwrap();
 
         let sk_expanded = MLKEM1024PrivateKeyExpanded::from(&sk);
         let ss1 = match MLKEM1024::decaps_with_expanded_key(&sk_expanded, &ct) {
@@ -716,6 +1047,7 @@ mod mlkem_tests {
         _ = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
     }
 
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn encaps_rng_tests() {
         use bouncycastle_mlkem::{
@@ -766,6 +1098,113 @@ mod mlkem_tests {
 
         // ML-KEM-1024
         let (pk1024, _sk) = MLKEM1024::keygen().unwrap();
+        let (ss_ref, ct_ref) = MLKEM1024::encaps_internal(&pk1024, None, m);
+        let pk_expanded = MLKEM1024PublicKeyExpanded::from(&pk1024);
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+        let (ss, ct) = MLKEM1024::encaps_for_expanded_key_rng(&pk_expanded, &mut rng).unwrap();
+        assert_eq!(ct, ct_ref, "ML-KEM-1024 ciphertext must match encaps_internal");
+        assert_eq!(
+            ss_ref,
+            ss.ref_to_bytes(),
+            "ML-KEM-1024 shared secret must match encaps_internal"
+        );
+
+        // Ensure that it rejects an RNG at a lower security level
+        let mut fake_rng = FixedSeedRNG::new([0u8; 64]);
+
+        // fails
+        fake_rng.set_security_strength(SecurityStrength::_112bit);
+        match MLKEM512::encaps_rng(&pk512, &mut fake_rng) {
+            Err(KEMError::RNGError(_)) => { /* good */ }
+            _ => panic!("unexpected error"),
+        }
+
+        // succeeds
+        fake_rng.set_security_strength(SecurityStrength::_128bit);
+        _ = MLKEM512::encaps_rng(&pk512, &mut fake_rng).unwrap();
+
+        // fails
+        fake_rng.set_security_strength(SecurityStrength::_128bit);
+        match MLKEM768::encaps_rng(&pk768, &mut fake_rng) {
+            Err(KEMError::RNGError(_)) => { /* good */ }
+            _ => panic!("unexpected error"),
+        }
+
+        // succeeds
+        fake_rng.set_security_strength(SecurityStrength::_192bit);
+        _ = MLKEM768::encaps_rng(&pk768, &mut fake_rng).unwrap();
+
+        // fails
+        fake_rng.set_security_strength(SecurityStrength::_192bit);
+        match MLKEM1024::encaps_rng(&pk1024, &mut fake_rng) {
+            Err(KEMError::RNGError(_)) => { /* good */ }
+            _ => panic!("unexpected error"),
+        }
+
+        // succeeds
+        fake_rng.set_security_strength(SecurityStrength::_256bit);
+        _ = MLKEM1024::encaps_rng(&pk1024, &mut fake_rng).unwrap();
+    }
+
+    #[test]
+    fn encaps_rng_tests_no_rng() {
+        use bouncycastle_mlkem::{
+            // Prove that `encaps_for_expanded_key_rng` is just `encaps_internal` with the message `m`
+            // sourced from the RNG: when the RNG hands back exactly the bytes that `m` would be, the two
+            // must produce the same shared secret and ciphertext.
+            MLKEM512PublicKeyExpanded,
+            MLKEM768PublicKeyExpanded,
+            MLKEM1024PublicKeyExpanded,
+        };
+
+        let seed_bytes_rng: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes_rng);
+
+        // An arbitrary fixed 64-byte seed; FixedSeedRNG::next_bytes_out hands back its leading
+        // 32 bytes as the encapsulation message `m`.
+        let seed_bytes: [u8; 64] = hex::decode(
+            "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\
+             202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        )
+        .unwrap()
+        .try_into()
+        .unwrap();
+        let m: [u8; MLKEM_RND_LEN] = seed_bytes[..MLKEM_RND_LEN].try_into().unwrap();
+
+        // ML-KEM-512
+        let (pk512, _sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+        let (ss_ref, ct_ref) = MLKEM512::encaps_internal(&pk512, None, m);
+        let pk_expanded = MLKEM512PublicKeyExpanded::from(&pk512);
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+        let (ss, ct) = MLKEM512::encaps_for_expanded_key_rng(&pk_expanded, &mut rng).unwrap();
+        assert_eq!(ct, ct_ref, "ML-KEM-512 ciphertext must match encaps_internal");
+        assert_eq!(
+            ss_ref,
+            ss.ref_to_bytes(),
+            "ML-KEM-512 shared secret must match encaps_internal"
+        );
+
+        // ML-KEM-768
+        let (pk768, _sk) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+        let (ss_ref, ct_ref) = MLKEM768::encaps_internal(&pk768, None, m);
+        let pk_expanded = MLKEM768PublicKeyExpanded::from(&pk768);
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+        let (ss, ct) = MLKEM768::encaps_for_expanded_key_rng(&pk_expanded, &mut rng).unwrap();
+        assert_eq!(ct, ct_ref, "ML-KEM-768 ciphertext must match encaps_internal");
+        assert_eq!(
+            ss_ref,
+            ss.ref_to_bytes(),
+            "ML-KEM-768 shared secret must match encaps_internal"
+        );
+
+        // ML-KEM-1024
+        let (pk1024, _sk) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
         let (ss_ref, ct_ref) = MLKEM1024::encaps_internal(&pk1024, None, m);
         let pk_expanded = MLKEM1024PublicKeyExpanded::from(&pk1024);
         let mut rng = FixedSeedRNG::new(seed_bytes);

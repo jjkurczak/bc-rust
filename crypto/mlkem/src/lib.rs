@@ -46,7 +46,7 @@
 //!
 //! ```rust
 //! use bouncycastle_mlkem::{MLKEM768, MLKEMTrait};
-//!
+//! #[cfg(feature = "bouncycastle-rng")]
 //! let (pk, sk) = MLKEM768::keygen().unwrap();
 //! ```
 //! That's it. That will use the library's default OS-backend RNG.
@@ -78,6 +78,8 @@
 //! use bouncycastle_core::traits::{KEMEncapsulator, KEMDecapsulator};
 //! use bouncycastle_core::errors::KEMError;
 //!
+//! #[cfg(feature = "bouncycastle-rng")]
+//! {
 //! let (pk, sk) = MLKEM768::keygen().unwrap();
 //!
 //! // Create the shared secret and ciphertext using the public key
@@ -90,6 +92,7 @@
 //! };
 //!
 //! assert_eq!(ss, ss1);
+//! }
 //! ```
 //! And that's the basic usage!
 //!

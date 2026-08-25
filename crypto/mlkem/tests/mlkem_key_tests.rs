@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod mlkem_key_tests {
+    use bouncycastle_core_test_framework::FixedSeedRNG;
     use bouncycastle_core::errors::KEMError;
     use bouncycastle_core::key_material::{KeyMaterial512, KeyMaterialTrait, KeyType};
     use bouncycastle_core::traits::{KEMPrivateKey, KEMPublicKey, SecurityStrength};
@@ -15,6 +16,8 @@ mod mlkem_key_tests {
         MLKEM1024PrivateKey, MLKEM1024PublicKey,
     };
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn core_framework_tests() {
         use bouncycastle_core_test_framework::kem::TestFrameworkKEMKeys;
@@ -222,6 +225,7 @@ mod mlkem_key_tests {
         };
     }
 
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn test_eq() {
         // MLKEM512
@@ -247,7 +251,6 @@ mod mlkem_key_tests {
         assert_ne!(sk, MLKEM512PrivateKey::from_bytes(&bytes).unwrap());
 
         // MLKEM768
-
         let (pk, sk) = MLKEM768::keygen().unwrap();
 
         // basic equality checks
@@ -291,7 +294,6 @@ mod mlkem_key_tests {
         assert_ne!(sk, MLKEM1024PrivateKey::from_bytes(&bytes).unwrap());
 
         /* Expanded keys */
-
         let (pk, sk) = MLKEM512::keygen().unwrap();
         let pk_expanded = MLKEM512PublicKeyExpanded::from_bytes(&pk.encode()).unwrap();
         let sk_expanded = MLKEM512PrivateKeyExpanded::from_bytes(&sk.encode()).unwrap();
@@ -317,7 +319,112 @@ mod mlkem_key_tests {
         assert_ne!(sk_expanded, MLKEM512PrivateKeyExpanded::from_bytes(&bytes).unwrap());
     }
 
+    #[test]
+    fn test_eq_no_rng() {
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        // MLKEM512
+
+        let (pk, sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+
+        // basic equality checks
+        assert_eq!(pk, pk);
+        assert_eq!(pk, pk.clone());
+        assert_eq!(pk, MLKEM512PublicKey::from_bytes(&pk.encode()).unwrap());
+
+        assert_eq!(sk, sk);
+        assert_eq!(sk, sk.clone());
+        assert_eq!(sk, MLKEM512PrivateKey::from_bytes(&sk.encode()).unwrap());
+
+        // inequality checks
+        let mut bytes = pk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(pk, MLKEM512PublicKey::from_bytes(&bytes).unwrap());
+
+        let mut bytes = sk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(sk, MLKEM512PrivateKey::from_bytes(&bytes).unwrap());
+
+        // MLKEM768
+
+        let (pk, sk) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+
+        // basic equality checks
+        assert_eq!(pk, pk);
+        assert_eq!(pk, pk.clone());
+        assert_eq!(pk, MLKEM768PublicKey::from_bytes(&pk.encode()).unwrap());
+
+        assert_eq!(sk, sk);
+        assert_eq!(sk, sk.clone());
+        assert_eq!(sk, MLKEM768PrivateKey::from_bytes(&sk.encode()).unwrap());
+
+        // inequality checks
+        let mut bytes = pk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(pk, MLKEM768PublicKey::from_bytes(&bytes).unwrap());
+
+        let mut bytes = sk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(sk, MLKEM768PrivateKey::from_bytes(&bytes).unwrap());
+
+        // MLKEM1024
+
+        let (pk, sk) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
+
+        // basic equality checks
+        assert_eq!(pk, pk);
+        assert_eq!(pk, pk.clone());
+        assert_eq!(pk, MLKEM1024PublicKey::from_bytes(&pk.encode()).unwrap());
+
+        assert_eq!(sk, sk);
+        assert_eq!(sk, sk.clone());
+        assert_eq!(sk, MLKEM1024PrivateKey::from_bytes(&sk.encode()).unwrap());
+
+        // inequality checks
+        let mut bytes = pk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(pk, MLKEM1024PublicKey::from_bytes(&bytes).unwrap());
+
+        let mut bytes = sk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(sk, MLKEM1024PrivateKey::from_bytes(&bytes).unwrap());
+
+        /* Expanded keys */
+        
+        let (pk, sk) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+        let pk_expanded = MLKEM512PublicKeyExpanded::from_bytes(&pk.encode()).unwrap();
+        let sk_expanded = MLKEM512PrivateKeyExpanded::from_bytes(&sk.encode()).unwrap();
+
+        // basic equality checks
+        assert_eq!(pk_expanded, pk_expanded);
+        assert_eq!(pk_expanded, pk_expanded.clone());
+        assert_eq!(pk_expanded, MLKEM512PublicKeyExpanded::from_bytes(&pk.encode()).unwrap());
+        assert_eq!(pk_expanded.encode(), pk.encode());
+
+        assert_eq!(sk_expanded, sk_expanded);
+        assert_eq!(sk_expanded, sk_expanded.clone());
+        assert_eq!(sk_expanded, MLKEM512PrivateKeyExpanded::from_bytes(&sk.encode()).unwrap());
+        assert_eq!(sk_expanded.encode(), sk.encode());
+
+        // inequality checks
+        let mut bytes = pk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(pk_expanded, MLKEM512PublicKeyExpanded::from_bytes(&bytes).unwrap());
+
+        let mut bytes = sk.encode();
+        bytes[17] ^= 0x01;
+        assert_ne!(sk_expanded, MLKEM512PrivateKeyExpanded::from_bytes(&bytes).unwrap());
+    }
+
     /// Tests that no private data is displayed
+    #[cfg(feature = "bouncycastle-rng")]
     #[test]
     fn test_display() {
         let (pk512, sk512) = MLKEM512::keygen().unwrap();
@@ -370,6 +477,67 @@ mod mlkem_key_tests {
 
     /// Tests that no private data is displayed
     #[test]
+    fn test_display_no_rng() {
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        let (pk512, sk512) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+        let (pk768, sk768) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+        let (pk1024, sk1024) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
+
+        /*** MLDSAPublicKey ***/
+        // fmt
+
+        let pk_str = format!("{}", pk512);
+        assert!(pk_str.contains("MLKEMPublicKey { alg: ML-KEM-512, pub_key_hash:"));
+
+        let pk_str = format!("{}", pk768);
+        assert!(pk_str.contains("MLKEMPublicKey { alg: ML-KEM-768, pub_key_hash:"));
+
+        let pk_str = format!("{}", pk1024);
+        assert!(pk_str.contains("MLKEMPublicKey { alg: ML-KEM-1024, pub_key_hash:"));
+
+        // debug
+        let pk_str = format!("{:?}", pk512);
+        assert!(pk_str.contains("MLKEMPublicKey { alg: ML-KEM-512, pub_key_hash:"));
+
+        let pk_str = format!("{:?}", pk768);
+        assert!(pk_str.contains("MLKEMPublicKey { alg: ML-KEM-768, pub_key_hash:"));
+
+        let pk_str = format!("{:?}", pk1024);
+        assert!(pk_str.contains("MLKEMPublicKey { alg: ML-KEM-1024, pub_key_hash:"));
+
+        /*** MLDSAPrivateKey ***/
+        // fmt
+        let sk_str = format!("{}", sk512);
+        assert!(sk_str.contains("MLKEMPrivateKey { alg: ML-KEM-512, pub_key_hash:"));
+
+        let sk_str = format!("{}", sk768);
+        assert!(sk_str.contains("MLKEMPrivateKey { alg: ML-KEM-768, pub_key_hash:"));
+
+        let sk_str = format!("{}", sk1024);
+        assert!(sk_str.contains("MLKEMPrivateKey { alg: ML-KEM-1024, pub_key_hash:"));
+
+        // debug
+        let sk_str = format!("{:?}", sk512);
+        assert!(sk_str.contains("MLKEMPrivateKey { alg: ML-KEM-512, pub_key_hash:"));
+
+        let sk_str = format!("{:?}", sk768);
+        assert!(sk_str.contains("MLKEMPrivateKey { alg: ML-KEM-768, pub_key_hash:"));
+
+        let sk_str = format!("{:?}", sk1024);
+        assert!(sk_str.contains("MLKEMPrivateKey { alg: ML-KEM-1024, pub_key_hash:"));
+    }
+
+    /// Tests that no private data is displayed
+    #[cfg(feature = "bouncycastle-rng")]
+    #[test]
     fn test_display_expanded_key() {
         use bouncycastle_mlkem::{MLKEM512PrivateKeyExpanded, MLKEM512PublicKeyExpanded};
         use bouncycastle_mlkem::{MLKEM768PrivateKeyExpanded, MLKEM768PublicKeyExpanded};
@@ -384,6 +552,78 @@ mod mlkem_key_tests {
         let sk768 = MLKEM768PrivateKeyExpanded::from(&sk768);
 
         let (pk1024, sk1024) = MLKEM1024::keygen().unwrap();
+        let pk1024 = MLKEM1024PublicKeyExpanded::from(&pk1024);
+        let sk1024 = MLKEM1024PrivateKeyExpanded::from(&sk1024);
+
+        /*** MLDSAPublicKey ***/
+        // fmt
+
+        let pk_str = format!("{}", pk512);
+        assert!(pk_str.contains("MLKEMPublicKeyExpanded { alg: ML-KEM-512, pub_key_hash:"));
+
+        let pk_str = format!("{}", pk768);
+        assert!(pk_str.contains("MLKEMPublicKeyExpanded { alg: ML-KEM-768, pub_key_hash:"));
+
+        let pk_str = format!("{}", pk1024);
+        assert!(pk_str.contains("MLKEMPublicKeyExpanded { alg: ML-KEM-1024, pub_key_hash:"));
+
+        // debug
+        let pk_str = format!("{:?}", pk512);
+        assert!(pk_str.contains("MLKEMPublicKeyExpanded { alg: ML-KEM-512, pub_key_hash:"));
+
+        let pk_str = format!("{:?}", pk768);
+        assert!(pk_str.contains("MLKEMPublicKeyExpanded { alg: ML-KEM-768, pub_key_hash:"));
+
+        let pk_str = format!("{:?}", pk1024);
+        assert!(pk_str.contains("MLKEMPublicKeyExpanded { alg: ML-KEM-1024, pub_key_hash:"));
+
+        /*** MLDSAPrivateKey ***/
+        // fmt
+        let sk_str = format!("{}", sk512);
+        assert!(sk_str.contains("MLKEMPrivateKeyExpanded { alg: ML-KEM-512, pub_key_hash:"));
+
+        let sk_str = format!("{}", sk768);
+        assert!(sk_str.contains("MLKEMPrivateKeyExpanded { alg: ML-KEM-768, pub_key_hash:"));
+
+        let sk_str = format!("{}", sk1024);
+        assert!(sk_str.contains("MLKEMPrivateKeyExpanded { alg: ML-KEM-1024, pub_key_hash:"));
+
+        // debug
+        let sk_str = format!("{:?}", sk512);
+        assert!(sk_str.contains("MLKEMPrivateKeyExpanded { alg: ML-KEM-512, pub_key_hash:"));
+
+        let sk_str = format!("{:?}", sk768);
+        assert!(sk_str.contains("MLKEMPrivateKeyExpanded { alg: ML-KEM-768, pub_key_hash:"));
+
+        let sk_str = format!("{:?}", sk1024);
+        assert!(sk_str.contains("MLKEMPrivateKeyExpanded { alg: ML-KEM-1024, pub_key_hash:"));
+    }
+
+    /// Tests that no private data is displayed
+    #[test]
+    fn test_display_expanded_key_no_rng() {
+        let seed_bytes: [u8; 64] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+        ];
+
+        let mut rng = FixedSeedRNG::new(seed_bytes);
+
+        use bouncycastle_mlkem::{MLKEM512PrivateKeyExpanded, MLKEM512PublicKeyExpanded};
+        use bouncycastle_mlkem::{MLKEM768PrivateKeyExpanded, MLKEM768PublicKeyExpanded};
+        use bouncycastle_mlkem::{MLKEM1024PrivateKeyExpanded, MLKEM1024PublicKeyExpanded};
+
+        let (pk512, sk512) = MLKEM512::keygen_from_rng(&mut rng).unwrap();
+        let pk512 = MLKEM512PublicKeyExpanded::from(&pk512);
+        let sk512 = MLKEM512PrivateKeyExpanded::from(&sk512);
+
+        let (pk768, sk768) = MLKEM768::keygen_from_rng(&mut rng).unwrap();
+        let pk768 = MLKEM768PublicKeyExpanded::from(&pk768);
+        let sk768 = MLKEM768PrivateKeyExpanded::from(&sk768);
+
+        let (pk1024, sk1024) = MLKEM1024::keygen_from_rng(&mut rng).unwrap();
         let pk1024 = MLKEM1024PublicKeyExpanded::from(&pk1024);
         let sk1024 = MLKEM1024PrivateKeyExpanded::from(&sk1024);
 

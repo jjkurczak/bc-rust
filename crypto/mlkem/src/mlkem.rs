@@ -32,6 +32,8 @@
 //! use bouncycastle_mlkem::{MLKEM768PublicKeyExpanded, MLKEM768PrivateKeyExpanded};
 //! use bouncycastle_core::errors::KEMError;
 //!
+//! #[cfg(feature = "bouncycastle-rng")]
+//! {
 //! let (pk, sk) = MLKEM768::keygen().unwrap();
 //!
 //! // Pre-expand the public key uses more memory, but has performance
@@ -48,6 +50,7 @@
 //! };
 //!
 //! assert_eq!(ss, ss1);
+//! }
 //! ```
 //!
 //! # decaps_from_seed
@@ -74,6 +77,8 @@
 //! let (pk, _sk) = MLKEM768::keygen_from_seed(&seed).unwrap();
 //!
 //! // Create the shared secret and ciphertext using the public key
+//! #[cfg(feature = "bouncycastle-rng")]
+//! {
 //! let (ss, ct) = MLKEM768::encaps(&pk).unwrap();
 //!
 //! // Recover the shared secret using the private key seed
@@ -83,6 +88,7 @@
 //! };
 //!
 //! assert_eq!(ss, ss1);
+//! }
 //! ```
 //!
 //! While this is currently only supported when operating from a seed-based private key, something analogous
@@ -110,6 +116,8 @@
 //! use bouncycastle_core::errors::KEMError;
 //! use bouncycastle_core::key_material::KeyMaterialTrait;
 //!
+//! #[cfg(feature = "bouncycastle-rng")]
+//! {
 //! let (pk, sk) = MLKEM768::keygen().unwrap();
 //! // note: totally insecure and for demonstration purposes only.
 //! //       The message `m` needs to be sourced from a cryptographically-secure RNG.
@@ -125,6 +133,7 @@
 //! };
 //!
 //! assert_eq!(ss, ss1.ref_to_bytes());
+//! }
 //! ```
 
 use crate::MLKEMPublicKeyExpanded;
@@ -150,7 +159,9 @@ use bouncycastle_core::key_material::{
 use bouncycastle_core::traits::{
     Algorithm, AlgorithmOID, Hash, KEMDecapsulator, KEMEncapsulator, RNG, SecurityStrength, XOF,
 };
+#[cfg(feature = "bouncycastle-rng")]
 use bouncycastle_rng::HashDRBG_SHA512;
+
 use bouncycastle_sha3::{SHA3_256, SHA3_512, SHAKE256};
 use bouncycastle_utils::ct::{conditional_copy_bytes, ct_eq_bytes};
 use bouncycastle_utils::secret::Secret;
@@ -777,6 +788,7 @@ impl<
         }
     }
 
+    #[cfg(feature = "bouncycastle-rng")]
     fn encaps_for_expanded_key(
         pk: &MLKEMPublicKeyExpanded<k, PK, PK_LEN>,
     ) -> Result<(KeyMaterial<SS_LEN>, [u8; CT_LEN]), KEMError> {
@@ -854,6 +866,7 @@ pub trait MLKEMTrait<
 >: Sized
 {
     /// Generates a fresh key pair.
+    #[cfg(feature = "bouncycastle-rng")]
     fn keygen() -> Result<(PK, SK), KEMError> {
         let mut os_rng = HashDRBG_SHA512::new_from_os();
         Self::keygen_from_rng(&mut os_rng)
@@ -891,7 +904,8 @@ pub trait MLKEMTrait<
     /// Returns either `()` or [`KEMError::ConsistencyCheckFailed`].
     fn keypair_consistency_check(pk: &PK, sk: &SK) -> Result<(), KEMError>;
 
-    /// Same as [`KEMEncapsulator::encaps`], but acts on an [`MLKEMPublicKeyExpanded`].
+    /// Same as [`KEMEncapsulator::encaps`], but acts on an [`MLKEMPublicKeyExpanded`].\
+    #[cfg(feature = "bouncycastle-rng")]
     fn encaps_for_expanded_key(
         pk: &MLKEMPublicKeyExpanded<k, PK, PK_LEN>,
     ) -> Result<(KeyMaterial<SS_LEN>, [u8; CT_LEN]), KEMError>;
@@ -935,6 +949,7 @@ impl<
     /// Checked input: encapsulation key ek ∈ 𝔹384𝑘+32 .
     /// Output: shared secret key 𝐾 ∈ 𝔹32 .
     /// Output: ciphertext 𝑐 ∈ 𝔹32(𝑑𝑢𝑘+𝑑𝑣).
+    #[cfg(feature = "bouncycastle-rng")]
     fn encaps(pk: &PK) -> Result<(KeyMaterial<SS_LEN>, [u8; CT_LEN]), KEMError> {
         let mut os_rng = HashDRBG_SHA512::new_from_os();
         Self::encaps_rng(pk, &mut os_rng)
