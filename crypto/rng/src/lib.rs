@@ -27,8 +27,15 @@
 //! since misuse of [`Sp80090ADrbg::instantiate`] can completely undermine the security of your entire
 //! cryptographic application.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
 
 use crate::hash_drbg80090a::{
     HashDRBG80090A, HashDRBG80090AParams_SHA256, HashDRBG80090AParams_SHA512,

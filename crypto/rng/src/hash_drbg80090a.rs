@@ -13,7 +13,17 @@ use bouncycastle_core::traits::{Hash, HashAlgParams, RNG, SecurityStrength};
 use bouncycastle_sha2::{SHA256, SHA512};
 use bouncycastle_utils::{min, secret::Secret};
 
-use std::fmt::{Display, Formatter};
+use core::fmt::{Display, Formatter};
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+#[cfg(all(not(feature = "std"), test))]
+use alloc::format;
 
 enum SupportedHash {
     SHA256,
@@ -90,7 +100,7 @@ struct AdministrativeInfo {
 
 /// Explicit implementation of Display that prevents auto-generated ones from accidentally leaking secrets.
 impl<const SEED_LEN: usize> Display for WorkingState<SEED_LEN> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "HashDRBG80090A::WorkingState::<{}>", SEED_LEN)
     }
 }
@@ -615,12 +625,15 @@ fn test_hash_df() {
     hash_df::<SHA256>(&[0x01], &[0x02], &[0x03], &[0x04], &mut out_max_sha256);
     assert_ne!(out_max_sha256, vec![0u8; 255 * 32]);
 
-    // Test panic with out.len() exceeding the maximum for SHA256
-    let mut out_too_large_sha256 = vec![0u8; 255 * 32 + 1];
-    let result_sha256 = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        hash_df::<SHA256>(&[0x01], &[0x02], &[0x03], &[0x04], &mut out_too_large_sha256);
-    }));
-    assert!(result_sha256.is_err());
+    #[cfg(feature = "std")]
+    {
+        // Test panic with out.len() exceeding the maximum for SHA256
+        let mut out_too_large_sha256 = vec![0u8; 255 * 32 + 1];
+        let result_sha256 = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            hash_df::<SHA256>(&[0x01], &[0x02], &[0x03], &[0x04], &mut out_too_large_sha256);
+        }));
+        assert!(result_sha256.is_err());
+    }
 
     // Test success with out.len() at the maximum allowed for SHA512 (255 * 64 = 16320)
     let mut out_max_sha512 = vec![0u8; 255 * 64];
@@ -629,12 +642,15 @@ fn test_hash_df() {
     // make sure the last block got written to
     assert_ne!(out_max_sha512[254 * 64..], [0u8; 64]);
 
-    // Test panic with out.len() exceeding the maximum for SHA512
-    let mut out_too_large_sha512 = vec![0u8; 255 * 64 + 1];
-    let result_sha512 = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        hash_df::<SHA512>(&[0x01], &[0x02], &[0x03], &[0x04], &mut out_too_large_sha512);
-    }));
-    assert!(result_sha512.is_err());
+    #[cfg(feature = "std")]
+    {
+        // Test panic with out.len() exceeding the maximum for SHA512
+        let mut out_too_large_sha512 = vec![0u8; 255 * 64 + 1];
+        let result_sha512 = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            hash_df::<SHA512>(&[0x01], &[0x02], &[0x03], &[0x04], &mut out_too_large_sha512);
+        }));
+        assert!(result_sha512.is_err());
+    }
 }
 
 fn hashgen<H: Hash + HashAlgParams + Default>(v: &[u8], out: &mut [u8]) {
