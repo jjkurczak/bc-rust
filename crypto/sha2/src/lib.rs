@@ -65,6 +65,8 @@
 //! let h: Vec<u8> = sha2_resumed.do_final();
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
 #![allow(private_bounds)]

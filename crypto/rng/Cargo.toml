@@ -7,12 +7,13 @@ edition.workspace = true
 default = ["std"]
 std = [
     "bouncycastle-core/std",
-    "bouncycastle-core-test-framework/std"
+    "bouncycastle-core-test-framework/std",
+    "bouncycastle-sha2/std",
 ]
 
 [dependencies]
 bouncycastle-core = { workspace = true, default-features = false }
-bouncycastle-sha2.workspace = true
+bouncycastle-sha2 = { workspace = true, default-features = false }
 bouncycastle-utils.workspace = true
 
 # external
