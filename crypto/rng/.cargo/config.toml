@@ -1,0 +1,14 @@
+[alias]
+# this causes this crate to be built without std
+test_no_std = 'test --no-default-features -v -v'
+
+# this configures the getrandom crate to compile using the x86_64 rdrand instruction as the randomness source backend.
+test_no_std_x86 = ['test_no_std',
+'--config',
+'build.rustflags=["--cfg","getrandom_backend=\"rdrand\""]']
+
+# this configures the getrandom crate to compile using the AArch64 RNDR register as the randomness source backend.
+# RNDR (FEAT_RNG) optionally available starting at Armv8.5-A
+test_no_std_arm64 = ['test_no_std',
+'--config',
+'build.rustflags=["--cfg","getrandom_backend=\"rndr\""]']
