@@ -1,7 +1,6 @@
 //! This crate defines the core traits and types used by the rest of the bc-rust.test library.
 
-// todo -- this is the goal, but first need to remove all the Vec in favour of compile-time array sizing.
-// #![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]

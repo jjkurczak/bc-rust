@@ -5,6 +5,13 @@ use crate::key_material::KeyMaterialTrait;
 use core::fmt::{Debug, Display};
 use core::marker::Sized;
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+#[cfg(not(feature = "std"))]
+use alloc::boxed::Box;
+
 // Imports needed for docs
 #[allow(unused_imports)]
 use crate::key_material::KeyMaterial;
