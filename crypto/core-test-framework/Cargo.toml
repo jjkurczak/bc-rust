@@ -3,7 +3,11 @@ name = "bouncycastle-core-test-framework"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["std"]
+std = ["bouncycastle-core/std"]
+
 [dependencies]
-bouncycastle-core.workspace = true
+bouncycastle-core = { workspace = true, default-features = false }
 
 [dev-dependencies]

@@ -8,6 +8,11 @@ use bouncycastle_core::key_material::{
 use bouncycastle_core::traits::MAC;
 use bouncycastle_core::traits::SecurityStrength;
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+
 /// Instance of the test framework.
 pub struct TestFrameworkMAC {
     // Put any config options here

@@ -5,6 +5,13 @@ use bouncycastle_core::key_material;
 use bouncycastle_core::key_material::{KeyMaterialTrait, KeyType};
 use bouncycastle_core::traits::{RNG, SecurityStrength};
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 /// A test-only fake [`RNG`] that produces a fixed, fully deterministic byte stream.
 ///
 /// The stream is the `SEED_LEN`-byte seed repeated indefinitely. A single internal counter is

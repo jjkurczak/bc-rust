@@ -7,6 +7,13 @@ use bouncycastle_core::traits::{
     SignatureVerifier, Signer,
 };
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 /// Instance of the test framework.
 pub struct TestFrameworkSignature {
     // Put any config options here

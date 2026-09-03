@@ -6,6 +6,13 @@ use bouncycastle_core::traits::{
     KEMDecapsulator, KEMEncapsulator, KEMPrivateKey, KEMPublicKey, RNG, SecurityStrength,
 };
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 /// Instance of the test framework.
 pub struct TestFrameworkKEM {
     // Put any config options here

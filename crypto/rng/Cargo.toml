@@ -5,7 +5,10 @@ edition.workspace = true
 
 [features]
 default = ["std"]
-std = ["bouncycastle-core/std"]
+std = [
+    "bouncycastle-core/std",
+    "bouncycastle-core-test-framework/std"
+]
 
 [dependencies]
 bouncycastle-core = { workspace = true, default-features = false }
@@ -16,7 +19,7 @@ bouncycastle-utils.workspace = true
 getrandom = "0.4.0-rc.1"
 
 [dev-dependencies]
-bouncycastle-core-test-framework.workspace = true
+bouncycastle-core-test-framework = { workspace = true, default-features = false }
 criterion.workspace = true
 
 [[bench]]

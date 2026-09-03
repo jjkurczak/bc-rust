@@ -2,6 +2,11 @@
 
 use bouncycastle_core::traits::{Hash, HashAlgParams};
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+
 /// Instance of the test framework.
 pub struct TestFrameworkHash {
     // Put any config options here
