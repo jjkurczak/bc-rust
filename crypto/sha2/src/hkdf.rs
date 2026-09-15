@@ -40,6 +40,7 @@
 //!             KeyType::Seed).unwrap();
 //!
 //! let hkdf = HKDF_SHA256::new();
+//! #[cfg(feature = "alloc")]
 //! let key = hkdf.derive_key(&key, b"extra input").unwrap();
 //! ```
 //!

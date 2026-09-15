@@ -23,6 +23,8 @@ impl TestFrameworkXOF {
     /// absorb leaves the object usable for further squeezing.
     /// `expected_output` is the result of squeezing `expected_output.len()` bytes after absorbing
     /// `input`.
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     pub fn test_xof<X: XOF + Default>(&self, input: &[u8], expected_output: &[u8]) {
         /*** fn absorb(&mut self, data: &[u8]) -> Result<(), HashError> ***/
         // Absorbing is fine, repeatedly, right up until the first squeeze.

@@ -1,5 +1,6 @@
 //! Generic behaviour tests for anything that implements [`Hash`].
 
+#[cfg(feature = "alloc")]
 use bouncycastle_core::errors::HashError;
 use bouncycastle_core::traits::{Hash, HashAlgParams};
 
@@ -121,6 +122,8 @@ impl TestFrameworkHash {
             );
         }
 
+        // todo: may require no_std equivalent
+        #[cfg(feature = "alloc")]
         if self.enable_partial_byte_tests {
             /*** Testing: ***/
             /*** fn do_final_partial_bits(self, partial_byte: u8, num_bits: usize)-> Result<Vec<u8>, HashError>; ***/

@@ -86,6 +86,7 @@
 //!
 //! let data: &[u8] = b"Hello, world!";
 //! let hmac = HMAC_SHA256::new(&key).expect("Should succeed because key is long enough and tagged KeyType::MACKey");
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = hmac.mac(data);
 //! ```
 //!
@@ -105,6 +106,7 @@
 //! let mut hmac = HMAC_SHA256::new(&key).expect("Should succeed because key is long enough and tagged KeyType::MACKey");
 //! hmac.do_update(b"Hello,");
 //! hmac.do_update(b" world!");
+//! #[cfg(feature = "alloc")]
 //! let output: Vec<u8> = hmac.do_final();
 //! ```
 //!
@@ -206,6 +208,7 @@
 //! // the same key (make sure you store it securely!).
 //! let mut hmac_resumed = HMAC_SHA256::from_suspended(serialized_state, &key).unwrap();
 //! hmac_resumed.do_update(msg_part2);
+//! #[cfg(feature = "alloc")]
 //! let h: Vec<u8> = hmac_resumed.do_final();
 //! ```
 //!
