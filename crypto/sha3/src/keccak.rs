@@ -499,6 +499,8 @@ pub(crate) fn deserialize_sha3_family_state(
     Ok((keccak, kdf_key_type, kdf_security_strength, kdf_entropy))
 }
 
+// todo: may require no_std equivalent
+#[cfg(feature = "alloc")]
 #[cfg(test)]
 mod keccak_tests {
     use super::*;

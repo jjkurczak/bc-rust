@@ -20,6 +20,7 @@ mod shake_tests {
     use bouncycastle_sha3::{SHAKE128, SHAKE256};
     #[cfg(feature = "alloc")]
     use bouncycastle_sha3::SHA3_256;
+    use bouncycastle_core_test_framework::no_std_utils;
 
     // todo: may require no_std equivalent
     #[cfg(feature = "alloc")]
@@ -75,6 +76,8 @@ mod shake_tests {
     /// Regression: squeeze_partial_byte_final() as the *first* squeeze must apply the SHAKE "1111"
     /// domain suffix (previously it bypassed it and returned raw Keccak output), and must return the
     /// low `num_bits` bits of the next output byte (FIPS 202 B.1 bit ordering), zero-extended.
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn partial_bit_output_as_first_squeeze_matches_full_output() {
         let msg = b"abc";
@@ -104,19 +107,23 @@ mod shake_tests {
     /// Regression: when the 4 trailing message bits plus the SHAKE "1111" suffix exactly fill a byte,
     /// the sponge must still switch to squeezing, otherwise the first squeeze appended a second suffix.
     /// Vector: NIST CAVP SHA3VS SHAKE128ShortMsg (bit-oriented), Len = 4, Msg = 08.
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn absorb_last_partial_byte_four_bits() {
         let mut shake = SHAKE128::new();
         shake.absorb_last_partial_byte(0x08, 4).unwrap();
         assert_eq!(
             shake.squeeze(16),
-            bouncycastle_hex::decode("d40238024b040a954d9c2c89daf480e5").unwrap(),
+            no_std_utils::hex_decode("d40238024b040a954d9c2c89daf480e5").unwrap(),
             "SHAKE128 of the 4-bit message 0001"
         );
     }
 
     /// absorb_last_partial_byte() must validate num_partial_bits before shifting: 0 is allowed
     /// (finalize with no partial byte), 8+ is rejected with InvalidLength rather than panicking.
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn absorb_last_partial_byte_validates_range() {
         for bad in [8usize, 9, 15, 16, 64, usize::MAX] {
@@ -367,6 +374,8 @@ mod shake_tests {
         run_test_vectors(read_test_vectors("SHAKETestVectors.txt"));
     }
 
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_framework_xof() {
         let test_framework = TestFrameworkXOF::new();

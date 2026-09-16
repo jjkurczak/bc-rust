@@ -163,6 +163,8 @@ mod sha3_tests {
 
     /// do_final_partial_bits() must validate num_partial_bits before shifting: 0 is equivalent to
     /// do_final(), 8+ is rejected with InvalidLength rather than panicking (16+ used to overflow a shift).
+    // todo: may require no_std equivalent
+    #[cfg(feature = "alloc")]
     #[test]
     fn partial_bits_range_is_validated() {
         for bad in [8usize, 9, 15, 16, 64, usize::MAX] {
