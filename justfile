@@ -31,10 +31,13 @@ all-crates := [
   "bouncycastle-sha3",
   "bouncycastle-utils",
   "cli",
+  "bouncycastle",
 ]
 
-# only crates supporting a no_std build go here
-# these should include an "alloc" feature that can be disabled with --no-default-features
+# crates that should be able to build with --no-default-features (to disable "alloc" feature) go here
+# this is to catch regressions in known-working crates, and quickly test other crates as they are worked on
+# for now, this list should be added to incrementally as crates and their dependencies
+# are updated to build with --no-default-features
 no-std-crates := [
   "bouncycastle-core",
   "bouncycastle-core-test-framework",
